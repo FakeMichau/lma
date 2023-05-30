@@ -35,7 +35,7 @@ impl AnimeList {
     }
     pub fn add_show(&self, sync_service_id: i64, episode_count: i64, progress: i64) -> Result<(), String> {
         self.db_connection.execute(
-            "INSERT INTO Shows (sync_service_id, episode_count, progress) VALUES (?1, ?2, ?3)", 
+            "REPLACE INTO Shows (sync_service_id, episode_count, progress) VALUES (?1, ?2, ?3)", 
             params![
                 sync_service_id,
                 episode_count,
@@ -45,7 +45,7 @@ impl AnimeList {
     }
     pub fn add_episode(&self, show_id: i64, episode_number: i64, path: &str) -> Result<(), String> {
         self.db_connection.execute(
-            "INSERT INTO Episodes (show_id, episode_number, path) VALUES (?1, ?2, ?3)", 
+            "REPLACE INTO Episodes (show_id, episode_number, path) VALUES (?1, ?2, ?3)", 
             params![
                 show_id,
                 episode_number,
