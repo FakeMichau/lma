@@ -9,9 +9,9 @@ impl AnimeList {
     pub fn get_list(&self) -> Result<HashMap<i64, Show>> {
         let mut stmt = self.db_connection.prepare("
             SELECT Shows.id, Shows.sync_service_id, Shows.episode_count, Shows.progress,
-            Episodes.episode_number, Episodes.path
+            COALESCE(Episodes.episode_number, -1) AS episode_number, COALESCE(Episodes.path, '') AS path
             FROM Shows
-            JOIN Episodes ON Shows.id = Episodes.show_id;
+            LEFT JOIN Episodes ON Shows.id = Episodes.show_id;
         ")?;
         let mut shows: HashMap<i64, Show> = HashMap::new();
         let mut rows = stmt.query([])?;
@@ -29,7 +29,9 @@ impl AnimeList {
                 episodes: HashMap::new(),
                 sync_service_id,
             });
-            show.episodes.insert(episode_number, path);
+            if episode_number != -1 {
+                show.episodes.insert(episode_number, path);
+            }
         }
         Ok(shows)
     }
@@ -63,10 +65,10 @@ impl AnimeList {
 
 #[derive(Debug)]
 pub struct Show {
-    sync_service_id: i64,
-    episode_count: i64,
-    episodes: HashMap<i64, String>,
-    progress: i64,
+    pub sync_service_id: i64,
+    pub episode_count: i64,
+    pub episodes: HashMap<i64, String>,
+    pub progress: i64,
 }
 
 pub fn create() -> AnimeList {
@@ -80,7 +82,7 @@ pub fn create() -> AnimeList {
     }
     match db_connection.execute_batch(
         "
-        CREATE TABLE Shows (id INTEGER PRIMARY KEY AUTOINCREMENT, sync_service_id INTEGER, episode_count INTEGER, progress INTEGER);
+        CREATE TABLE Shows (id INTEGER PRIMARY KEY AUTOINCREMENT, sync_service_id INTEGER UNIQUE, episode_count INTEGER, progress INTEGER);
         CREATE TABLE Episodes (show_id INTEGER, episode_number INTEGER, path TEXT, PRIMARY KEY (show_id, episode_number), FOREIGN KEY (show_id) REFERENCES Shows(id));
         "
     ) {
