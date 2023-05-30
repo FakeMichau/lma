@@ -6,21 +6,21 @@ pub struct AnimeList {
 }
 
 impl AnimeList {
-    pub fn get_list(&self) -> Result<HashMap<u64, Show>> {
+    pub fn get_list(&self) -> Result<HashMap<i64, Show>> {
         let mut stmt = self.db_connection.prepare("
             SELECT Shows.id, Shows.progress, Shows.episode_count, Shows.sync_service_id,
             Episodes.episode_number, Episodes.path
             FROM Shows
             JOIN Episodes ON Shows.id = Episodes.show_id;
         ")?;
-        let mut shows: HashMap<u64, Show> = HashMap::new();
+        let mut shows: HashMap<i64, Show> = HashMap::new();
         let mut rows = stmt.query([])?;
         while let Some(row) = rows.next()? {
-            let show_id: u64 = row.get(0)?;
-            let progress: u64 = row.get(1)?;
-            let episode_count: u64 = row.get(2)?;
-            let sync_service_id: u64 = row.get(3)?;
-            let episode_number: u64 = row.get(4)?;
+            let show_id: i64 = row.get(0)?;
+            let progress: i64 = row.get(1)?;
+            let episode_count: i64 = row.get(2)?;
+            let sync_service_id: i64 = row.get(3)?;
+            let episode_number: i64 = row.get(4)?;
             let path: String = row.get(5)?;
 
             let show = shows.entry(show_id).or_insert_with(|| Show {
@@ -46,10 +46,10 @@ impl AnimeList {
 
 #[derive(Debug)]
 pub struct Show {
-    progress: u64,
-    episode_count: u64,
-    episodes: HashMap<u64, String>,
-    sync_service_id: u64
+    progress: i64,
+    episode_count: i64,
+    episodes: HashMap<i64, String>,
+    sync_service_id: i64
 }
 
 pub fn create() -> AnimeList {
