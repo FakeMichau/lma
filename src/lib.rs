@@ -78,40 +78,16 @@ pub fn create() -> AnimeList {
     if db_connection.is_readonly(rusqlite::DatabaseName::Main).expect("shouldn't realistically return an error") {
         panic!("Database is read-only");
     }
-    match db_connection.execute(
+    match db_connection.execute_batch(
         "
-        CREATE TABLE Shows (
-            id INTEGER PRIMARY KEY AUTOINCREMENT,
-            sync_service_id INTEGER,
-            episode_count INTEGER,
-            progress INTEGER,
-        );
-        ", ()
+        CREATE TABLE Shows (id INTEGER PRIMARY KEY AUTOINCREMENT, sync_service_id INTEGER, episode_count INTEGER, progress INTEGER);
+        CREATE TABLE Episodes (show_id INTEGER, episode_number INTEGER, path TEXT, PRIMARY KEY (show_id, episode_number), FOREIGN KEY (show_id) REFERENCES Shows(id));
+        "
     ) {
-            Ok(_) => println!("Table Shows created"),
+            Ok(_) => println!("Tables created"),
             Err(why) => {
                 if why.to_string().contains("already exists") {
-                    println!("Table creation failed: table Shows already exists");
-                } else {
-                    eprintln!("Table creation failed: {}", why.to_string());
-                }
-            }
-    };    
-    match db_connection.execute(
-        "
-        CREATE TABLE Episodes (
-            show_id INTEGER,
-            episode_number INTEGER,
-            path TEXT,
-            PRIMARY KEY (show_id, episode_number),
-            FOREIGN KEY (show_id) REFERENCES Shows(id)
-        );
-        ", ()
-    ) {
-            Ok(_) => println!("Table Episodes created"),
-            Err(why) => {
-                if why.to_string().contains("already exists") {
-                    println!("Table creation failed: table Episodes already exists");
+                    println!("Table creation failed: tables already exist");
                 } else {
                     eprintln!("Table creation failed: {}", why.to_string());
                 }
