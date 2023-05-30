@@ -1,5 +1,5 @@
 use std::collections::HashMap;
-use rusqlite::{Connection, Result};
+use rusqlite::{Connection, Result, params};
 
 pub struct AnimeList {
     db_connection: Connection
@@ -8,7 +8,7 @@ pub struct AnimeList {
 impl AnimeList {
     pub fn get_list(&self) -> Result<HashMap<i64, Show>> {
         let mut stmt = self.db_connection.prepare("
-            SELECT Shows.id, Shows.progress, Shows.episode_count, Shows.sync_service_id,
+            SELECT Shows.id, Shows.sync_service_id, Shows.episode_count, Shows.progress,
             Episodes.episode_number, Episodes.path
             FROM Shows
             JOIN Episodes ON Shows.id = Episodes.show_id;
@@ -17,9 +17,9 @@ impl AnimeList {
         let mut rows = stmt.query([])?;
         while let Some(row) = rows.next()? {
             let show_id: i64 = row.get(0)?;
-            let progress: i64 = row.get(1)?;
+            let sync_service_id: i64 = row.get(1)?;
             let episode_count: i64 = row.get(2)?;
-            let sync_service_id: i64 = row.get(3)?;
+            let progress: i64 = row.get(3)?;
             let episode_number: i64 = row.get(4)?;
             let path: String = row.get(5)?;
 
@@ -33,8 +33,25 @@ impl AnimeList {
         }
         Ok(shows)
     }
-    fn add_entry() {
-
+    pub fn add_show(&self, sync_service_id: i64, episode_count: i64, progress: i64) -> Result<(), String> {
+        self.db_connection.execute(
+            "INSERT INTO Shows (sync_service_id, episode_count, progress) VALUES (?1, ?2, ?3)", 
+            params![
+                sync_service_id,
+                episode_count,
+                progress,
+            ]
+        ).map(|_| ()).map_err(|e| e.to_string())
+    }
+    pub fn add_episode(&self, show_id: i64, episode_number: i64, path: &str) -> Result<(), String> {
+        self.db_connection.execute(
+            "INSERT INTO Episodes (show_id, episode_number, path) VALUES (?1, ?2, ?3)", 
+            params![
+                show_id,
+                episode_number,
+                path,
+            ]
+        ).map(|_| ()).map_err(|e| e.to_string())
     }
     fn remove_entry() {
         
@@ -46,10 +63,10 @@ impl AnimeList {
 
 #[derive(Debug)]
 pub struct Show {
-    progress: i64,
+    sync_service_id: i64,
     episode_count: i64,
     episodes: HashMap<i64, String>,
-    sync_service_id: i64
+    progress: i64,
 }
 
 pub fn create() -> AnimeList {
@@ -65,9 +82,9 @@ pub fn create() -> AnimeList {
         "
         CREATE TABLE Shows (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
-            progress INTEGER,
             sync_service_id INTEGER,
-            episode_count INTEGER
+            episode_count INTEGER,
+            progress INTEGER,
         );
         ", ()
     ) {
