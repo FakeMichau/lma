@@ -1,5 +1,5 @@
 use crossterm::{
-    event::{self, DisableMouseCapture, EnableMouseCapture, Event, KeyCode},
+    event::{self, Event, KeyCode},
     execute,
     terminal::{disable_raw_mode, enable_raw_mode, EnterAlternateScreen, LeaveAlternateScreen},
 };
@@ -20,7 +20,7 @@ use tui::{
 struct StatefulList {
     state: ListState,
     episodes_state: EpisodesState,
-    items: Vec<(i64, Show)>,
+    shows: Vec<(i64, Show)>,
 }
 
 struct EpisodesState {
@@ -38,7 +38,7 @@ impl StatefulList {
                 list_state: ListState::default(), 
                 selection_enabled: false
             },
-            items,
+            shows: items,
         }
     }
 
@@ -48,7 +48,7 @@ impl StatefulList {
         }
         let i = match self.state.selected() {
             Some(i) => {
-                if i >= self.items.len().checked_sub(1).unwrap_or_default() {
+                if i >= self.shows.len().checked_sub(1).unwrap_or_default() {
                     0
                 } else {
                     i + 1
@@ -57,7 +57,7 @@ impl StatefulList {
             None => 0,
         };
         self.state.select(Some(i));
-        let selected_id = self.items.get(i).unwrap().0;
+        let selected_id = self.shows.get(i).unwrap().0;
         self.episodes_state.selected_id = selected_id;
     }
 
@@ -68,7 +68,7 @@ impl StatefulList {
         let i = match self.state.selected() {
             Some(i) => {
                 if i == 0 {
-                    self.items.len().checked_sub(1).unwrap_or_default()
+                    self.shows.len().checked_sub(1).unwrap_or_default()
                 } else {
                     i - 1
                 }
@@ -76,14 +76,14 @@ impl StatefulList {
             None => 0,
         };
         self.state.select(Some(i));
-        let selected_id = self.items.get(i).unwrap().0;
+        let selected_id = self.shows.get(i).unwrap().0;
         self.episodes_state.selected_id = selected_id;
     }
 
     fn next_episode(&mut self) {
         let i = match self.episodes_state.list_state.selected() {
             Some(i) => {
-                if i >= self.items
+                if i >= self.shows
                     .get(self.state.selected().unwrap())
                     .unwrap()
                     .1
@@ -106,7 +106,7 @@ impl StatefulList {
         let i = match self.episodes_state.list_state.selected() {
             Some(i) => {
                 if i == 0 {
-                    self.items
+                    self.shows
                         .get(self.state.selected().unwrap())
                         .unwrap()
                         .1
@@ -124,7 +124,7 @@ impl StatefulList {
     }
 
     fn select(&mut self) {
-        match self.items.get(self.state.selected().unwrap_or_default()) {
+        match self.shows.get(self.state.selected().unwrap_or_default()) {
             Some(show) => {
                 if show.1.episodes.len() > 0 {
                     self.episodes_state.list_state.select(Some(0));
@@ -144,7 +144,7 @@ struct App {
     items: StatefulList,
 }
 
-impl<'a> App {
+impl App {
     fn new() -> App {
         let anime_list = lma::create();
         let data = anime_list.get_list();
@@ -162,7 +162,7 @@ fn main() -> Result<(), Box<dyn Error>> {
     // setup terminal
     enable_raw_mode()?;
     let mut stdout = io::stdout();
-    execute!(stdout, EnterAlternateScreen, EnableMouseCapture)?;
+    execute!(stdout, EnterAlternateScreen)?;
     let backend = CrosstermBackend::new(stdout);
     let mut terminal = Terminal::new(backend)?;
 
@@ -176,7 +176,6 @@ fn main() -> Result<(), Box<dyn Error>> {
     execute!(
         terminal.backend_mut(),
         LeaveAlternateScreen,
-        DisableMouseCapture
     )?;
     terminal.show_cursor()?;
 
@@ -218,15 +217,19 @@ fn run_app<B: Backend>(
 }
 
 fn ui<B: Backend>(f: &mut Frame<B>, app: &mut App) {
-    // Create two chunks with equal horizontal screen space
     let chunks = Layout::default()
+        .direction(Direction::Vertical)
+        .constraints([Constraint::Percentage(90), Constraint::Percentage(10)].as_ref())
+        .split(f.size());
+    // Split the bigger chunk into halves
+    let main_chunks = Layout::default()
         .direction(Direction::Horizontal)
         .constraints([Constraint::Percentage(50), Constraint::Percentage(50)].as_ref())
-        .split(f.size());
+        .split(chunks[0]);
 
     let items: Vec<_> = app
         .items
-        .items
+        .shows
         .iter()
         .map(|(_, show)| ListItem::new(format!("{}", show.title)).style(Style::default()))
         .collect();
@@ -241,10 +244,10 @@ fn ui<B: Backend>(f: &mut Frame<B>, app: &mut App) {
         )
         .highlight_symbol(">> ");
 
-    // Iterate through all elements in the `items` app and append some debug text to it.
+    // Iterate through all elements in the `items` app
     let episodes: Vec<ListItem> = app
         .items
-        .items
+        .shows
         .iter()
         .filter(|(id, _)| *id == app.items.episodes_state.selected_id)
         .flat_map(|(_, show)| {
@@ -268,7 +271,11 @@ fn ui<B: Backend>(f: &mut Frame<B>, app: &mut App) {
         )
         .highlight_symbol(">> ");
 
+    // Create help text at the bottom
+    let help = Block::default().title("Help").borders(Borders::ALL);
+
     // We can now render the item list
-    f.render_stateful_widget(items, chunks[0], &mut app.items.state);
-    f.render_stateful_widget(episodes, chunks[1], &mut app.items.episodes_state.list_state);
+    f.render_stateful_widget(items, main_chunks[0], &mut app.items.state);
+    f.render_stateful_widget(episodes, main_chunks[1], &mut app.items.episodes_state.list_state);
+    f.render_widget(help, chunks[1]);
 }
