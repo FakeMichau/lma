@@ -3,11 +3,11 @@ use crossterm::{
     execute,
     terminal::{disable_raw_mode, enable_raw_mode, EnterAlternateScreen, LeaveAlternateScreen},
 };
-use lma;
+use lma::{self, Show};
 use std::{
     error::Error,
     io,
-    time::{Duration, Instant}, collections::HashMap,
+    time::{Duration, Instant},
 };
 use tui::{
     backend::{Backend, CrosstermBackend},
@@ -20,12 +20,11 @@ use tui::{
 struct StatefulList {
     state: ListState,
     episodes_state: (i64, ListState, bool),
-    items: HashMap<i64, lma::Show>,
+    items: Vec<(i64, Show)>,
 }
 
-impl StatefulList
-{
-    fn with_items(items: HashMap<i64, lma::Show>) -> StatefulList {
+impl StatefulList {
+    fn with_items(items: Vec<(i64, Show)>) -> StatefulList {
         StatefulList {
             state: ListState::default(),
             episodes_state: (0, ListState::default(), false),
@@ -35,7 +34,7 @@ impl StatefulList
 
     fn next(&mut self) {
         if self.episodes_state.2 {
-            return self.next_episode()
+            return self.next_episode();
         }
         let i = match self.state.selected() {
             Some(i) => {
@@ -48,12 +47,13 @@ impl StatefulList
             None => 0,
         };
         self.state.select(Some(i));
-        self.episodes_state.0 = i as i64;
+        let selected_id = self.items.get(i).unwrap().0;
+        self.episodes_state.0 = selected_id;
     }
 
     fn previous(&mut self) {
         if self.episodes_state.2 {
-            return self.previous_episode()
+            return self.previous_episode();
         }
         let i = match self.state.selected() {
             Some(i) => {
@@ -66,13 +66,22 @@ impl StatefulList
             None => 0,
         };
         self.state.select(Some(i));
-        self.episodes_state.0 = i as i64;
+        let selected_id = self.items.get(i).unwrap().0;
+        self.episodes_state.0 = selected_id;
     }
 
     fn next_episode(&mut self) {
         let i = match self.episodes_state.1.selected() {
             Some(i) => {
-                if i >= self.items.get(&(self.state.selected().unwrap() as i64)).unwrap().episodes.len().checked_sub(1).unwrap_or_default() {
+                if i >= self.items
+                    .get(self.state.selected().unwrap())
+                    .unwrap()
+                    .1
+                    .episodes
+                    .len()
+                    .checked_sub(1)
+                    .unwrap_or_default()
+                {
                     0
                 } else {
                     i + 1
@@ -87,7 +96,14 @@ impl StatefulList
         let i = match self.episodes_state.1.selected() {
             Some(i) => {
                 if i == 0 {
-                    self.items.get(&(self.state.selected().unwrap() as i64)).unwrap().episodes.len().checked_sub(1).unwrap_or_default()
+                    self.items
+                        .get(self.state.selected().unwrap())
+                        .unwrap()
+                        .1
+                        .episodes
+                        .len()
+                        .checked_sub(1)
+                        .unwrap_or_default()
                 } else {
                     i - 1
                 }
@@ -98,14 +114,14 @@ impl StatefulList
     }
 
     fn select(&mut self) {
-        match self.items.get(&(self.state.selected().unwrap() as i64)) {
+        match self.items.get(self.state.selected().unwrap_or_default()) {
             Some(show) => {
-                if show.episodes.len() > 0 {
+                if show.1.episodes.len() > 0 {
                     self.episodes_state.1.select(Some(0));
                     self.episodes_state.2 = true;
                 }
-            },
-            None => {},
+            }
+            None => {}
         }
     }
     fn unselect(&mut self) {
@@ -167,7 +183,6 @@ fn run_app<B: Backend>(
     tick_rate: Duration,
 ) -> io::Result<()> {
     let mut last_tick = Instant::now();
-    app.items.state.select(Some(0));
     loop {
         terminal.draw(|f| ui(f, &mut app))?;
 
@@ -199,14 +214,11 @@ fn ui<B: Backend>(f: &mut Frame<B>, app: &mut App) {
         .constraints([Constraint::Percentage(50), Constraint::Percentage(50)].as_ref())
         .split(f.size());
 
-    // Iterate through all elements in the `items` app and append some debug text to it.
-    let items: Vec<ListItem> = app
+    let items: Vec<_> = app
         .items
         .items
         .iter()
-        .map(|(id, _)| {
-            ListItem::new(format!("{}", id)).style(Style::default())
-        })
+        .map(|(_, show)| ListItem::new(format!("{}", show.title)).style(Style::default()))
         .collect();
 
     // Create a List from all list items and highlight the currently selected one
@@ -219,16 +231,18 @@ fn ui<B: Backend>(f: &mut Frame<B>, app: &mut App) {
         )
         .highlight_symbol(">> ");
 
-        // Iterate through all elements in the `items` app and append some debug text to it.
+    // Iterate through all elements in the `items` app and append some debug text to it.
     let episodes: Vec<ListItem> = app
         .items
         .items
         .iter()
-        .filter(|(id, _)| **id == app.items.episodes_state.0)
+        .filter(|(id, _)| *id == app.items.episodes_state.0)
         .flat_map(|(_, show)| {
             let mut temp: Vec<ListItem> = Vec::new();
             for (episode_number, path) in &show.episodes {
-                temp.push(ListItem::new(format!("{} {}", episode_number, path)).style(Style::default()));
+                temp.push(
+                    ListItem::new(format!("{} {}", episode_number, path)).style(Style::default()),
+                );
             }
             temp
         })
@@ -243,7 +257,6 @@ fn ui<B: Backend>(f: &mut Frame<B>, app: &mut App) {
                 .add_modifier(Modifier::BOLD),
         )
         .highlight_symbol(">> ");
-
 
     // We can now render the item list
     f.render_stateful_widget(items, chunks[0], &mut app.items.state);
