@@ -19,21 +19,31 @@ use tui::{
 
 struct StatefulList {
     state: ListState,
-    episodes_state: (i64, ListState, bool),
+    episodes_state: EpisodesState,
     items: Vec<(i64, Show)>,
+}
+
+struct EpisodesState {
+    selected_id: i64,
+    list_state: ListState,
+    selection_enabled: bool,
 }
 
 impl StatefulList {
     fn with_items(items: Vec<(i64, Show)>) -> StatefulList {
         StatefulList {
             state: ListState::default(),
-            episodes_state: (0, ListState::default(), false),
+            episodes_state: EpisodesState {
+                selected_id: 0, 
+                list_state: ListState::default(), 
+                selection_enabled: false
+            },
             items,
         }
     }
 
     fn next(&mut self) {
-        if self.episodes_state.2 {
+        if self.episodes_state.selection_enabled {
             return self.next_episode();
         }
         let i = match self.state.selected() {
@@ -48,11 +58,11 @@ impl StatefulList {
         };
         self.state.select(Some(i));
         let selected_id = self.items.get(i).unwrap().0;
-        self.episodes_state.0 = selected_id;
+        self.episodes_state.selected_id = selected_id;
     }
 
     fn previous(&mut self) {
-        if self.episodes_state.2 {
+        if self.episodes_state.selection_enabled {
             return self.previous_episode();
         }
         let i = match self.state.selected() {
@@ -67,11 +77,11 @@ impl StatefulList {
         };
         self.state.select(Some(i));
         let selected_id = self.items.get(i).unwrap().0;
-        self.episodes_state.0 = selected_id;
+        self.episodes_state.selected_id = selected_id;
     }
 
     fn next_episode(&mut self) {
-        let i = match self.episodes_state.1.selected() {
+        let i = match self.episodes_state.list_state.selected() {
             Some(i) => {
                 if i >= self.items
                     .get(self.state.selected().unwrap())
@@ -89,11 +99,11 @@ impl StatefulList {
             }
             None => 0,
         };
-        self.episodes_state.1.select(Some(i));
+        self.episodes_state.list_state.select(Some(i));
     }
 
     fn previous_episode(&mut self) {
-        let i = match self.episodes_state.1.selected() {
+        let i = match self.episodes_state.list_state.selected() {
             Some(i) => {
                 if i == 0 {
                     self.items
@@ -110,23 +120,23 @@ impl StatefulList {
             }
             None => 0,
         };
-        self.episodes_state.1.select(Some(i));
+        self.episodes_state.list_state.select(Some(i));
     }
 
     fn select(&mut self) {
         match self.items.get(self.state.selected().unwrap_or_default()) {
             Some(show) => {
                 if show.1.episodes.len() > 0 {
-                    self.episodes_state.1.select(Some(0));
-                    self.episodes_state.2 = true;
+                    self.episodes_state.list_state.select(Some(0));
+                    self.episodes_state.selection_enabled = true;
                 }
             }
             None => {}
         }
     }
     fn unselect(&mut self) {
-        self.episodes_state.1.select(None);
-        self.episodes_state.2 = false;
+        self.episodes_state.list_state.select(None);
+        self.episodes_state.selection_enabled = false;
     }
 }
 
@@ -236,7 +246,7 @@ fn ui<B: Backend>(f: &mut Frame<B>, app: &mut App) {
         .items
         .items
         .iter()
-        .filter(|(id, _)| *id == app.items.episodes_state.0)
+        .filter(|(id, _)| *id == app.items.episodes_state.selected_id)
         .flat_map(|(_, show)| {
             let mut temp: Vec<ListItem> = Vec::new();
             for (episode_number, path) in &show.episodes {
@@ -260,5 +270,5 @@ fn ui<B: Backend>(f: &mut Frame<B>, app: &mut App) {
 
     // We can now render the item list
     f.render_stateful_widget(items, chunks[0], &mut app.items.state);
-    f.render_stateful_widget(episodes, chunks[1], &mut app.items.episodes_state.1);
+    f.render_stateful_widget(episodes, chunks[1], &mut app.items.episodes_state.list_state);
 }
