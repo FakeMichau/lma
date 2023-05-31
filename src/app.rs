@@ -4,6 +4,7 @@ use crate::ui::{
     interactions::{Direction, StatefulList},
 };
 use crossterm::event::{self, Event, KeyCode};
+use lma::AnimeList;
 use std::{
     io,
     time::{Duration, Instant},
@@ -12,6 +13,7 @@ use tui::{backend::Backend, Terminal};
 
 pub(crate) struct App {
     pub(crate) items: StatefulList,
+    anime_list: AnimeList
 }
 
 impl App {
@@ -24,7 +26,18 @@ impl App {
         };
         App {
             items: StatefulList::with_items(list),
+            anime_list
         }
+    }
+
+    fn generate_test_data(&self) -> bool {
+        for i in 1..6 {
+            self.anime_list.add_show(format!("Show {}", i).as_str(), 1000 + i, 12*(i%3)+1, 5*(i%3)+1);
+            for e in 1..i+2 {
+                self.anime_list.add_episode(i, e, format!("/path/to/episode{}.mp4", e).as_str());
+            }
+        }
+        true
     }
 }
 
@@ -48,6 +61,7 @@ pub(crate) fn run_app<B: Backend>(
                     KeyCode::Up => app.items.move_selection(Direction::Previous),
                     KeyCode::Right => app.items.select(),
                     KeyCode::Left => app.items.unselect(),
+                    KeyCode::Char('p') => debug_assert!(app.generate_test_data()),
                     _ => {}
                 }
             }
