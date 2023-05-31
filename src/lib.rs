@@ -28,15 +28,18 @@ impl AnimeList {
                 title,
                 progress,
                 episode_count,
-                episodes: HashMap::new(),
+                episodes: Vec::new(),
                 sync_service_id,
             });
             if episode_number != -1 {
-                show.episodes.insert(episode_number, path);
+                show.episodes.push((episode_number, path));
             }
         }
         let mut shows: Vec<(i64, Show)> = shows.into_iter().collect();
         shows.sort_by_key(|(k, _)| *k);
+        shows.iter_mut().for_each(|(_, show)| {
+            show.episodes.sort_by_key(|(k, _)| *k);
+        });
         Ok(shows)
     }
     pub fn add_show(&self, title: &str, sync_service_id: i64, episode_count: i64, progress: i64) -> Result<(), String> {
@@ -72,7 +75,7 @@ pub struct Show {
     pub title: String,
     pub sync_service_id: i64,
     pub episode_count: i64,
-    pub episodes: HashMap<i64, String>,
+    pub episodes: Vec<(i64, String)>,
     pub progress: i64,
 }
 
