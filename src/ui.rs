@@ -45,9 +45,9 @@ pub(crate) fn ui<B: Backend>(f: &mut Frame<B>, app: &mut app::App) {
         .filter(|(id, _)| *id == app.items.episodes_state.selected_id)
         .flat_map(|(_, show)| {
             let mut temp: Vec<ListItem> = Vec::new();
-            for (episode_number, path) in &show.episodes {
+            for episode in &show.episodes {
                 temp.push(
-                    ListItem::new(format!("{} {}", episode_number, path)).style(Style::default()),
+                    ListItem::new(format!("{} {}", episode.number, episode.path)).style(Style::default()),
                 );
             }
             temp

@@ -32,13 +32,16 @@ impl AnimeList {
                 sync_service_id,
             });
             if episode_number != -1 {
-                show.episodes.push((episode_number, path));
+                show.episodes.push(Episode {
+                    number: episode_number, 
+                    path,
+                });
             }
         }
         let mut shows: Vec<(i64, Show)> = shows.into_iter().collect();
         shows.sort_by_key(|(k, _)| *k);
         shows.iter_mut().for_each(|(_, show)| {
-            show.episodes.sort_by_key(|(k, _)| *k);
+            show.episodes.sort_by_key(|episode| episode.number);
         });
         Ok(shows)
     }
@@ -75,8 +78,13 @@ pub struct Show {
     pub title: String,
     pub sync_service_id: i64,
     pub episode_count: i64,
-    pub episodes: Vec<(i64, String)>,
+    pub episodes: Vec<Episode>,
     pub progress: i64,
+}
+
+pub struct Episode {
+    pub number: i64,
+    pub path: String,
 }
 
 pub fn create() -> AnimeList {
