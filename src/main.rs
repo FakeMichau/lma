@@ -29,97 +29,48 @@ struct EpisodesState {
     selection_enabled: bool,
 }
 
+#[derive(PartialEq)]
+enum DirectionSelection {
+    Next,
+    Previous,
+}
+
 impl StatefulList {
     fn with_items(items: Vec<(i64, Show)>) -> StatefulList {
         StatefulList {
             state: ListState::default(),
             episodes_state: EpisodesState {
-                selected_id: 0, 
-                list_state: ListState::default(), 
-                selection_enabled: false
+                selected_id: 0,
+                list_state: ListState::default(),
+                selection_enabled: false,
             },
             shows: items,
         }
     }
 
-    fn next(&mut self) {
+    fn move_selection(&mut self, direction: DirectionSelection) {
         if self.episodes_state.selection_enabled {
-            return self.next_episode();
+            self.move_episode_selection(direction);
+        } else {
+            let i = self.select_element(
+                self.shows.len(), 
+                self.state.selected(), 
+                direction
+            );
+            self.state.select(Some(i));
+            let selected_id = self.shows.get(i).unwrap().0;
+            self.episodes_state.selected_id = selected_id;
         }
-        let i = match self.state.selected() {
-            Some(i) => {
-                if i >= self.shows.len().checked_sub(1).unwrap_or_default() {
-                    0
-                } else {
-                    i + 1
-                }
-            }
-            None => 0,
-        };
-        self.state.select(Some(i));
-        let selected_id = self.shows.get(i).unwrap().0;
-        self.episodes_state.selected_id = selected_id;
     }
 
-    fn previous(&mut self) {
-        if self.episodes_state.selection_enabled {
-            return self.previous_episode();
-        }
-        let i = match self.state.selected() {
-            Some(i) => {
-                if i == 0 {
-                    self.shows.len().checked_sub(1).unwrap_or_default()
-                } else {
-                    i - 1
-                }
-            }
-            None => 0,
-        };
-        self.state.select(Some(i));
-        let selected_id = self.shows.get(i).unwrap().0;
-        self.episodes_state.selected_id = selected_id;
-    }
-
-    fn next_episode(&mut self) {
-        let i = match self.episodes_state.list_state.selected() {
-            Some(i) => {
-                if i >= self.shows
-                    .get(self.state.selected().unwrap())
-                    .unwrap()
-                    .1
-                    .episodes
-                    .len()
-                    .checked_sub(1)
-                    .unwrap_or_default()
-                {
-                    0
-                } else {
-                    i + 1
-                }
-            }
-            None => 0,
-        };
-        self.episodes_state.list_state.select(Some(i));
-    }
-
-    fn previous_episode(&mut self) {
-        let i = match self.episodes_state.list_state.selected() {
-            Some(i) => {
-                if i == 0 {
-                    self.shows
-                        .get(self.state.selected().unwrap())
-                        .unwrap()
-                        .1
-                        .episodes
-                        .len()
-                        .checked_sub(1)
-                        .unwrap_or_default()
-                } else {
-                    i - 1
-                }
-            }
-            None => 0,
-        };
+    fn move_episode_selection(&mut self, direction: DirectionSelection) {
+        let selected_show = self.shows.get(self.state.selected().unwrap()).unwrap();
+        let episodes_len = selected_show.1.episodes.len();
+        let i = self.select_element(
+            episodes_len,
+            self.episodes_state.list_state.selected(),
+            direction,
+        );
         self.episodes_state.list_state.select(Some(i));
     }
 
@@ -137,6 +88,36 @@ impl StatefulList {
     fn unselect(&mut self) {
         self.episodes_state.list_state.select(None);
         self.episodes_state.selection_enabled = false;
+    }
+
+    fn select_element(
+        &mut self,
+        list_length: usize,
+        selected_element: Option<usize>,
+        direction: DirectionSelection,
+    ) -> usize {
+        match direction {
+            DirectionSelection::Next => match selected_element {
+                Some(i) => {
+                    if i >= list_length.checked_sub(1).unwrap_or_default() {
+                        0
+                    } else {
+                        i + 1
+                    }
+                }
+                None => 0,
+            },
+            DirectionSelection::Previous => match selected_element {
+                Some(i) => {
+                    if i == 0 {
+                        list_length.checked_sub(1).unwrap_or_default()
+                    } else {
+                        i - 1
+                    }
+                }
+                None => 0,
+            },
+        }
     }
 }
 
@@ -173,10 +154,7 @@ fn main() -> Result<(), Box<dyn Error>> {
 
     // restore terminal
     disable_raw_mode()?;
-    execute!(
-        terminal.backend_mut(),
-        LeaveAlternateScreen,
-    )?;
+    execute!(terminal.backend_mut(), LeaveAlternateScreen)?;
     terminal.show_cursor()?;
 
     if let Err(err) = res {
@@ -202,8 +180,8 @@ fn run_app<B: Backend>(
             if let Event::Key(key) = event::read()? {
                 match key.code {
                     KeyCode::Char('q') => return Ok(()),
-                    KeyCode::Down => app.items.next(),
-                    KeyCode::Up => app.items.previous(),
+                    KeyCode::Down => app.items.move_selection(DirectionSelection::Next),
+                    KeyCode::Up => app.items.move_selection(DirectionSelection::Previous),
                     KeyCode::Right => app.items.select(),
                     KeyCode::Left => app.items.unselect(),
                     _ => {}
