@@ -13,7 +13,7 @@ pub(crate) fn ui<B: Backend>(f: &mut Frame<B>, app: &mut app::App) {
         .direction(Direction::Vertical)
         .constraints([Constraint::Percentage(90), Constraint::Percentage(10)].as_ref())
         .split(f.size());
-    
+
     // Split the bigger chunk into halves
     let main_chunks = Layout::default()
         .direction(Direction::Horizontal)
@@ -24,7 +24,7 @@ pub(crate) fn ui<B: Backend>(f: &mut Frame<B>, app: &mut app::App) {
         .items
         .shows
         .iter()
-        .map(|(_, show)| ListItem::new(format!("{}", show.title)).style(Style::default()))
+        .map(|show| ListItem::new(format!("{}", show.title)).style(Style::default()))
         .collect();
 
     // Create a List from all list items and highlight the currently selected one
@@ -42,8 +42,8 @@ pub(crate) fn ui<B: Backend>(f: &mut Frame<B>, app: &mut app::App) {
         .items
         .shows
         .iter()
-        .filter(|(id, _)| *id == app.items.episodes_state.selected_id)
-        .flat_map(|(_, show)| {
+        .filter(|show| show.id == app.items.episodes_state.selected_id)
+        .flat_map(|show| {
             let mut temp: Vec<ListItem> = Vec::new();
             for episode in &show.episodes {
                 temp.push(

@@ -6,7 +6,7 @@ pub struct AnimeList {
 }
 
 impl AnimeList {
-    pub fn get_list(&self) -> Result<Vec<(i64, Show)>> {
+    pub fn get_list(&self) -> Result<Vec<Show>> {
         let mut stmt = self.db_connection.prepare("
             SELECT Shows.id, Shows.title, Shows.sync_service_id, Shows.episode_count, Shows.progress,
             COALESCE(Episodes.episode_number, -1) AS episode_number, COALESCE(Episodes.path, '') AS path
@@ -24,7 +24,9 @@ impl AnimeList {
             let episode_number: i64 = row.get(5)?;
             let path: String = row.get(6)?;
 
+            // I'm using a hashmap just for this step, find a way to avoid it?
             let show = shows.entry(show_id).or_insert_with(|| Show {
+                id: show_id,
                 title,
                 progress,
                 episode_count,
@@ -38,9 +40,12 @@ impl AnimeList {
                 });
             }
         }
-        let mut shows: Vec<(i64, Show)> = shows.into_iter().collect();
-        shows.sort_by_key(|(k, _)| *k);
-        shows.iter_mut().for_each(|(_, show)| {
+        let mut shows: Vec<Show> = shows
+            .into_iter()
+            .map(|(_, show)| show)
+            .collect();
+        shows.sort_by_key(|show| show.id);
+        shows.iter_mut().for_each(|show| {
             show.episodes.sort_by_key(|episode| episode.number);
         });
         Ok(shows)
@@ -75,6 +80,7 @@ impl AnimeList {
 }
 
 pub struct Show {
+    pub id: i64,
     pub title: String,
     pub sync_service_id: i64,
     pub episode_count: i64,
