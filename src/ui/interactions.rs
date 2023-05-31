@@ -42,7 +42,11 @@ impl StatefulList {
                 direction
             );
             self.state.select(Some(i));
-            let selected_id = self.shows.get(i).unwrap().0;
+            let selected_id = if let Some(show) = self.shows.get(i) {
+                show.0
+            } else {
+                0
+            };
             self.episodes_state.selected_id = selected_id;
         }
     }
