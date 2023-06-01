@@ -5,8 +5,15 @@ use tui::{
     widgets::{Block, Borders, List, ListItem},
     Frame,
 };
-pub(crate) mod interactions;
+pub(crate) mod main_menu;
+pub(crate) mod popup;
 use crate::app;
+
+#[derive(PartialEq)]
+pub(crate) enum FocusedWindow {
+    MainMenu,
+    InsertPopup,
+}
 
 pub(crate) fn ui<B: Backend>(frame: &mut Frame<B>, app: &mut app::App) {
     let chunks = Layout::default()
@@ -73,4 +80,8 @@ pub(crate) fn ui<B: Backend>(frame: &mut Frame<B>, app: &mut app::App) {
     frame.render_stateful_widget(items, main_chunks[0], &mut app.items.state);
     frame.render_stateful_widget(episodes, main_chunks[1], &mut app.items.episodes_state.list_state);
     frame.render_widget(help, chunks[1]);
+
+    if app.focused_window == FocusedWindow::InsertPopup {
+        popup::insert_show::build_creation_popup(frame, &app.input.data);
+    }
 }

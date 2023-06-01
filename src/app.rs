@@ -1,7 +1,8 @@
 use crate::app;
 use crate::ui::{
     self,
-    interactions::{Direction, StatefulList},
+    FocusedWindow,
+    main_menu::{Direction, StatefulList},
 };
 use crossterm::event::{self, Event, KeyCode};
 use std::error::Error;
@@ -13,13 +14,25 @@ use tui::{backend::Backend, Terminal};
 
 pub(crate) struct App {
     pub(crate) items: StatefulList,
+    pub(crate) focused_window: FocusedWindow,
+    pub(crate) input: InputState,
 }
+
+#[derive(Default)]
+pub(crate) struct InputState {
+    pub(crate) inputting: bool,
+    pub(crate) data: String,
+    pub(crate) confirmation: bool,
+}
+
 
 impl App {
     pub(crate) fn build() -> Result<App, Box<dyn Error>> {
         let anime_list = lma::create();
         Ok(App {
             items: StatefulList::with_items(anime_list),
+            focused_window: FocusedWindow::MainMenu,
+            input: InputState::default(),
         })
     }
 
@@ -48,15 +61,41 @@ pub(crate) fn run<B: Backend>(
             .unwrap_or_else(|| Duration::from_secs(0));
         if crossterm::event::poll(timeout)? {
             if let Event::Key(key) = event::read()? {
-                match key.code {
-                    KeyCode::Char('q') => return Ok(()),
-                    KeyCode::Down => app.items.move_selection(Direction::Next),
-                    KeyCode::Up => app.items.move_selection(Direction::Previous),
-                    KeyCode::Right => app.items.select(),
-                    KeyCode::Left => app.items.unselect(),
-                    KeyCode::Char('p') => debug_assert!(app.generate_test_data()),
-                    _ => {}
+                match app.focused_window {
+                    FocusedWindow::MainMenu => match key.code {
+                        KeyCode::Char('q') => return Ok(()),
+                        KeyCode::Down => app.items.move_selection(Direction::Next),
+                        KeyCode::Up => app.items.move_selection(Direction::Previous),
+                        KeyCode::Right => app.items.select(),
+                        KeyCode::Left => app.items.unselect(),
+                        KeyCode::Char('n') => app.focused_window = FocusedWindow::InsertPopup,
+                        KeyCode::Char('p') => debug_assert!(app.generate_test_data()),
+                        _ => {}
+                    },
+                    FocusedWindow::InsertPopup => match app.input.inputting {
+                        true => match key.code {
+                            KeyCode::Enter => {
+                                app.input.confirmation = true;
+                            }
+                            KeyCode::Char(c) => {
+                                app.input.data.push(c);
+                            }
+                            KeyCode::Backspace => {
+                                app.input.data.pop();
+                            }
+                            KeyCode::Esc => {
+                                app.input.inputting = false;
+                            }
+                            _ => {}
+                        },
+                        false => match key.code {
+                            KeyCode::Char('n') => app.focused_window = FocusedWindow::MainMenu,
+                            KeyCode::Char('e') => app.input.inputting = true,
+                            _ => {}
+                        },
+                    }
                 }
+                
             }
         }
         if last_tick.elapsed() >= tick_rate {
