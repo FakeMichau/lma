@@ -32,9 +32,9 @@ impl App {
 
     fn generate_test_data(&self) -> bool {
         for i in 1..6 {
-            self.anime_list.add_show(format!("Show {}", i).as_str(), 1000 + i, 12*(i%3)+1, 5*(i%3)+1);
+            _=self.anime_list.add_show(format!("Show {}", i).as_str(), 1000 + i, 12*(i%3)+1, 5*(i%3)+1);
             for e in 1..i+2 {
-                self.anime_list.add_episode(i, e, format!("/path/to/episode{}.mp4", e).as_str());
+                _=self.anime_list.add_episode(i, e, format!("/path/to/episode{}.mp4", e).as_str());
             }
         }
         true

@@ -71,9 +71,11 @@ impl AnimeList {
             ]
         ).map(|_| ()).map_err(|e| e.to_string())
     }
+    #[allow(dead_code)]
     fn remove_entry() {
         
     }
+    #[allow(dead_code)]
     fn refresh_filesystem() {
         
     }
