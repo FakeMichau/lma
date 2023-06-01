@@ -4,7 +4,6 @@ use crate::ui::{
     interactions::{Direction, StatefulList},
 };
 use crossterm::event::{self, Event, KeyCode};
-use lma::AnimeList;
 use std::error::Error;
 use std::{
     io,
@@ -14,24 +13,21 @@ use tui::{backend::Backend, Terminal};
 
 pub(crate) struct App {
     pub(crate) items: StatefulList,
-    anime_list: AnimeList
 }
 
 impl App {
     pub(crate) fn build() -> Result<App, Box<dyn Error>> {
         let anime_list = lma::create();
-        let list = anime_list.get_list()?;
         Ok(App {
-            items: StatefulList::with_items(list),
-            anime_list
+            items: StatefulList::with_items(anime_list),
         })
     }
 
     fn generate_test_data(&self) -> bool {
         for i in 1..6 {
-            _=self.anime_list.add_show(format!("Show {}", i).as_str(), 1000 + i, 12*(i%3)+1, 5*(i%3)+1);
+            _=self.items.shows.add_show(format!("Show {}", i).as_str(), 1000 + i, 12*(i%3)+1, 5*(i%3)+1);
             for e in 1..i+2 {
-                _=self.anime_list.add_episode(i, e, format!("/path/to/episode{}.mp4", e).as_str());
+                _=self.items.shows.add_episode(i, e, format!("/path/to/episode{}.mp4", e).as_str());
             }
         }
         true

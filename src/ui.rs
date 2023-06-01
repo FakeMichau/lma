@@ -23,6 +23,7 @@ pub(crate) fn ui<B: Backend>(frame: &mut Frame<B>, app: &mut app::App) {
     let items: Vec<_> = app
         .items
         .shows
+        .get_list().unwrap()
         .iter()
         .map(|show| ListItem::new(format!("{}", show.title)).style(Style::default()))
         .collect();
@@ -41,6 +42,7 @@ pub(crate) fn ui<B: Backend>(frame: &mut Frame<B>, app: &mut app::App) {
     let episodes: Vec<ListItem> = app
         .items
         .shows
+        .get_list().unwrap()
         .iter()
         .filter(|show| show.id == app.items.episodes_state.selected_id)
         .flat_map(|show| {

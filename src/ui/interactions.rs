@@ -1,10 +1,11 @@
-use lma::Show;
+use lma::{AnimeList, Show};
 use tui::widgets::ListState;
 
 pub(crate) struct StatefulList {
     pub(crate) state: ListState,
     pub(crate) episodes_state: EpisodesState,
-    pub(crate) shows: Vec<Show>,
+    pub(crate) shows: AnimeList,
+    list_cache: Vec<Show>
 }
 
 pub(crate) struct EpisodesState {
@@ -20,7 +21,8 @@ pub(crate) enum Direction {
 }
 
 impl StatefulList {
-    pub(crate) fn with_items(items: Vec<Show>) -> StatefulList {
+    pub(crate) fn with_items(shows: AnimeList) -> StatefulList {
+        let list_cache = shows.get_list().unwrap();
         StatefulList {
             state: ListState::default(),
             episodes_state: EpisodesState {
@@ -28,7 +30,8 @@ impl StatefulList {
                 list_state: ListState::default(),
                 selection_enabled: false,
             },
-            shows: items,
+            shows,
+            list_cache,
         }
     }
 
@@ -37,12 +40,12 @@ impl StatefulList {
             self.move_episode_selection(direction);
         } else {
             let i = self.select_element(
-                self.shows.len(), 
+                self.list_cache.len(), 
                 self.state.selected(), 
                 direction
             );
             self.state.select(Some(i));
-            let selected_id = if let Some(show) = self.shows.get(i) {
+            let selected_id = if let Some(show) = self.list_cache.get(i) {
                 show.id
             } else {
                 0
@@ -52,7 +55,7 @@ impl StatefulList {
     }
 
     fn move_episode_selection(&mut self, direction: Direction) {
-        let selected_show = self.shows.get(self.state.selected().unwrap()).unwrap();
+        let selected_show = self.list_cache.get(self.state.selected().unwrap()).unwrap();
         let episodes_len = selected_show.episodes.len();
         let i = self.select_element(
             episodes_len,
@@ -63,7 +66,7 @@ impl StatefulList {
     }
 
     pub(crate) fn select(&mut self) {
-        match self.shows.get(self.state.selected().unwrap_or_default()) {
+        match self.list_cache.get(self.state.selected().unwrap_or_default()) {
             Some(show) => {
                 if show.episodes.len() > 0 {
                     self.episodes_state.list_state.select(Some(0));
@@ -72,6 +75,7 @@ impl StatefulList {
             }
             None => {}
         }
+        self.update_cache();
     }
     pub(crate) fn unselect(&mut self) {
         self.episodes_state.list_state.select(None);
@@ -106,5 +110,9 @@ impl StatefulList {
                 None => 0,
             },
         }
+    }
+
+    fn update_cache(&mut self) {
+        self.list_cache = self.shows.get_list().unwrap();
     }
 }
