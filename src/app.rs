@@ -5,6 +5,7 @@ use crate::ui::{
 };
 use crossterm::event::{self, Event, KeyCode};
 use lma::AnimeList;
+use std::error::Error;
 use std::{
     io,
     time::{Duration, Instant},
@@ -17,17 +18,13 @@ pub(crate) struct App {
 }
 
 impl App {
-    pub(crate) fn new() -> App {
+    pub(crate) fn build() -> Result<App, Box<dyn Error>> {
         let anime_list = lma::create();
-        let data = anime_list.get_list();
-        let list = match data {
-            Ok(result) => result,
-            Err(why) => panic!("{}", why),
-        };
-        App {
+        let list = anime_list.get_list()?;
+        Ok(App {
             items: StatefulList::with_items(list),
             anime_list
-        }
+        })
     }
 
     fn generate_test_data(&self) -> bool {
@@ -41,7 +38,7 @@ impl App {
     }
 }
 
-pub(crate) fn run_app<B: Backend>(
+pub(crate) fn run<B: Backend>(
     terminal: &mut Terminal<B>,
     mut app: app::App,
     tick_rate: Duration,

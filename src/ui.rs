@@ -8,11 +8,11 @@ use tui::{
 pub(crate) mod interactions;
 use crate::app;
 
-pub(crate) fn ui<B: Backend>(f: &mut Frame<B>, app: &mut app::App) {
+pub(crate) fn ui<B: Backend>(frame: &mut Frame<B>, app: &mut app::App) {
     let chunks = Layout::default()
         .direction(Direction::Vertical)
         .constraints([Constraint::Percentage(90), Constraint::Percentage(10)].as_ref())
-        .split(f.size());
+        .split(frame.size());
 
     // Split the bigger chunk into halves
     let main_chunks = Layout::default()
@@ -68,7 +68,7 @@ pub(crate) fn ui<B: Backend>(f: &mut Frame<B>, app: &mut app::App) {
     let help = Block::default().title("Help").borders(Borders::ALL);
 
     // We can now render the item list
-    f.render_stateful_widget(items, main_chunks[0], &mut app.items.state);
-    f.render_stateful_widget(episodes, main_chunks[1], &mut app.items.episodes_state.list_state);
-    f.render_widget(help, chunks[1]);
+    frame.render_stateful_widget(items, main_chunks[0], &mut app.items.state);
+    frame.render_stateful_widget(episodes, main_chunks[1], &mut app.items.episodes_state.list_state);
+    frame.render_widget(help, chunks[1]);
 }
