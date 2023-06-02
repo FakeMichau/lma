@@ -15,19 +15,6 @@ pub(crate) fn build_creation_popup<B: Backend>(frame: &mut Frame<B>, app: &mut A
         vertical: 1,
         horizontal: 1,
     });
-    // if input.inputting {
-    //     if input.confirmation {
-    //         input.buffer.insert(input.current_line(), input.data.clone());
-    //         input.confirmation = false;
-    //         input.data = String::new();
-    //         input.next_line(3);
-    //     }
-    //     if input.buffer.get(input.current_line()).is_some() {
-    //         input.data = input.buffer.get(input.current_line()).unwrap_or(&String::new()).clone();
-    //         input.buffer.remove(input.current_line());
-    //     };
-    //     let input_span = Span::raw(input.data.clone());
-    // }
 
     fn parse_number(str: &mut String) -> i64 {
         if let Ok(number) = str.trim().parse() {
