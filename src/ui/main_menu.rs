@@ -39,6 +39,7 @@ impl StatefulList {
         if self.episodes_state.selection_enabled {
             self.move_episode_selection(direction);
         } else {
+            self.update_cache();
             let i = self.select_element(
                 self.list_cache.len(), 
                 self.state.selected(), 
@@ -75,7 +76,6 @@ impl StatefulList {
             }
             None => {}
         }
-        self.update_cache();
     }
     pub(crate) fn unselect(&mut self) {
         self.episodes_state.list_state.select(None);

@@ -15,7 +15,6 @@ use tui::{backend::Backend, Terminal};
 pub(crate) struct App {
     pub(crate) items: StatefulList,
     pub(crate) focused_window: FocusedWindow,
-    pub(crate) input: InputState,
     pub(crate) insert_popup: InsertPopup,
 }
 
@@ -25,23 +24,32 @@ pub(crate) struct InsertPopup {
     pub(crate) title: String,
     pub(crate) sync_service_id: i64,
     pub(crate) episode_count: i64,
+    pub(crate) state: InsertState,
+    pub(crate) data: String,
+    selected_line: usize,
     //pub(crate) episodes: Vec<Episode>,
 }
 
-#[derive(Default)]
-pub(crate) struct InputState {
-    pub(crate) inputting: bool,
-    pub(crate) data: String,
-    pub(crate) confirmation: bool,
-    selected_line: usize,
+#[derive(PartialEq)]
+pub(crate) enum InsertState {
+    None,
+    Inputting,
+    Confirmation,
+    Save
 }
 
-impl InputState {
+impl Default for InsertState {
+    fn default() -> Self {
+        InsertState::None
+    }
+}
+
+impl InsertPopup {
     pub(crate) fn current_line(&self) -> usize {
         self.selected_line
     }
     pub(crate) fn next_line(&mut self, max_index: usize) {
-        if !self.inputting { return }
+        if self.state != InsertState::Inputting { return }
         if self.selected_line + 1 > max_index {
             self.selected_line = 0;
         } else {
@@ -49,7 +57,7 @@ impl InputState {
         }
     }
     pub(crate) fn previous_line(&mut self, max_index: usize) {
-        if !self.inputting { return }
+        if self.state != InsertState::Inputting { return }
         if self.selected_line.checked_sub(1).is_none() {
             self.selected_line = max_index
         } else {
@@ -64,7 +72,6 @@ impl App {
         Ok(App {
             items: StatefulList::with_items(anime_list),
             focused_window: FocusedWindow::MainMenu,
-            input: InputState::default(),
             insert_popup: InsertPopup::default(),
         })
     }
@@ -105,29 +112,30 @@ pub(crate) fn run<B: Backend>(
                         KeyCode::Char('p') => debug_assert!(app.generate_test_data()),
                         _ => {}
                     },
-                    FocusedWindow::InsertPopup => match app.input.inputting {
-                        true => match key.code {
-                            KeyCode::Char(c) => app.input.data.push(c),
-                            KeyCode::Backspace => _=app.input.data.pop(),
-                            KeyCode::Esc => app.input.inputting = false,
+                    FocusedWindow::InsertPopup => match app.insert_popup.state {
+                        InsertState::Inputting => match key.code {
+                            KeyCode::Char(c) => app.insert_popup.data.push(c),
+                            KeyCode::Backspace => _=app.insert_popup.data.pop(),
+                            KeyCode::Esc => app.insert_popup.state = InsertState::None,
                             KeyCode::Down | KeyCode::Enter => {
-                                app.input.confirmation = true;
-                                app.input.next_line(3)
+                                app.insert_popup.next_line(3);
+                                app.insert_popup.state = InsertState::Confirmation;
                             },
                             KeyCode::Up => {
-                                app.input.confirmation = true;
-                                app.input.previous_line(3)
+                                app.insert_popup.previous_line(3);
+                                app.insert_popup.state = InsertState::Confirmation;
                             },
                             _ => {}
                         },
-                        false => match key.code {
+                        _ => match key.code {
                             KeyCode::Esc => {
                                 app.focused_window = FocusedWindow::MainMenu;
                                 app.insert_popup = InsertPopup::default()
                             },
-                            KeyCode::Char('e') => app.input.inputting = true,
-                            KeyCode::Down => app.input.next_line(3),
-                            KeyCode::Up => app.input.previous_line(3),
+                            KeyCode::Char('e') => app.insert_popup.state = InsertState::Inputting,
+                            KeyCode::Char('i') => app.insert_popup.state = InsertState::Save,
+                            KeyCode::Down => app.insert_popup.next_line(3),
+                            KeyCode::Up => app.insert_popup.previous_line(3),
                             _ => {}
                         },
                     }

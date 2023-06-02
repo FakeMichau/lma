@@ -1,4 +1,4 @@
-use crate::app::App;
+use crate::{app::{App, InsertState}, ui::FocusedWindow};
 use tui::{
     backend::Backend,
     layout::Margin,
@@ -25,29 +25,46 @@ pub(crate) fn build_creation_popup<B: Backend>(frame: &mut Frame<B>, app: &mut A
         }
     }
 
-    if app.input.inputting {
-        if app.input.confirmation {
-            app.input.data = if app.input.current_line() == 0 && !app.insert_popup.path.is_empty() {
+    match app.insert_popup.state {
+        InsertState::Inputting => {
+            match app.insert_popup.current_line() {
+                0 => app.insert_popup.path = app.insert_popup.data.clone(),
+                1 => app.insert_popup.title = app.insert_popup.data.clone(),
+                2 => app.insert_popup.sync_service_id = parse_number(&mut app.insert_popup.data),
+                3 => app.insert_popup.episode_count = parse_number(&mut app.insert_popup.data),
+                _ => {}
+            }
+        },
+        InsertState::Confirmation => {
+            app.insert_popup.data = if app.insert_popup.current_line() == 0 && !app.insert_popup.path.is_empty() {
                 app.insert_popup.path.clone()
-            } else if app.input.current_line() == 1 && !app.insert_popup.title.is_empty() {
+            } else if app.insert_popup.current_line() == 1 && !app.insert_popup.title.is_empty() {
                 app.insert_popup.title.clone()
-            } else if app.input.current_line() == 2 && !app.insert_popup.sync_service_id != 0 {
+            } else if app.insert_popup.current_line() == 2 && !app.insert_popup.sync_service_id != 0 {
                 app.insert_popup.sync_service_id.to_string()
-            } else if app.input.current_line() == 3 && !app.insert_popup.episode_count != 0 {
+            } else if app.insert_popup.current_line() == 3 && !app.insert_popup.episode_count != 0 {
                 app.insert_popup.episode_count.to_string()
             } else {
                 String::new()
             };
-            app.input.confirmation = false;
-        }
-        match app.input.current_line() {
-            0 => app.insert_popup.path = app.input.data.clone(),
-            1 => app.insert_popup.title = app.input.data.clone(),
-            2 => app.insert_popup.sync_service_id = parse_number(&mut app.input.data),
-            3 => app.insert_popup.episode_count = parse_number(&mut app.input.data),
-            _ => {}
-        }
+            app.insert_popup.state = InsertState::Inputting;
+        },
+        InsertState::Save => {
+            // temporarily as data retrieval from MAL isn't yet implemented
+            // TODO: Don't allow for empty titles etc.
+            if let Err(why) = app.items.shows.add_show(
+                &app.insert_popup.title,
+                app.insert_popup.sync_service_id,
+                app.insert_popup.episode_count,
+                0
+            ) {
+                eprintln!("{}", why);
+            }
+            app.focused_window = FocusedWindow::MainMenu; // close the popup
+        },
+        _ => {}
     }
+
     let input_form = vec![
         Spans::from(vec![
             Span::raw("Path to the folder: "),
@@ -66,10 +83,10 @@ pub(crate) fn build_creation_popup<B: Backend>(frame: &mut Frame<B>, app: &mut A
             Span::raw(app.insert_popup.episode_count.to_string()),
         ]),
     ];
-    if app.input.inputting {
+    if app.insert_popup.state == InsertState::Inputting {
         frame.set_cursor(
-            text_area.x + input_form.get(app.input.current_line()).unwrap().width() as u16,
-            text_area.y + app.input.current_line() as u16,
+            text_area.x + input_form.get(app.insert_popup.current_line()).unwrap().width() as u16,
+            text_area.y + app.insert_popup.current_line() as u16,
         );
     }
 
