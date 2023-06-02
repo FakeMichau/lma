@@ -15,7 +15,7 @@ pub(crate) enum FocusedWindow {
     InsertPopup,
 }
 
-pub(crate) fn ui<B: Backend>(frame: &mut Frame<B>, app: &mut app::App) {
+pub(crate) fn ui<B: Backend>(frame: &mut Frame<B>, mut app: &mut app::App) {
     let chunks = Layout::default()
         .direction(Direction::Vertical)
         .constraints([Constraint::Percentage(90), Constraint::Percentage(10)].as_ref())
@@ -82,6 +82,6 @@ pub(crate) fn ui<B: Backend>(frame: &mut Frame<B>, app: &mut app::App) {
     frame.render_widget(help, chunks[1]);
 
     if app.focused_window == FocusedWindow::InsertPopup {
-        popup::insert_show::build_creation_popup(frame, &app.input.data);
+        popup::insert_show::build_creation_popup(frame, &mut app);
     }
 }

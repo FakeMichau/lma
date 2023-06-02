@@ -55,7 +55,7 @@ impl StatefulList {
     }
 
     fn move_episode_selection(&mut self, direction: Direction) {
-        let selected_show = self.list_cache.get(self.state.selected().unwrap()).unwrap();
+        let selected_show = self.list_cache.get(self.state.selected().unwrap_or_default()).unwrap();
         let episodes_len = selected_show.episodes.len();
         let i = self.select_element(
             episodes_len,
