@@ -36,16 +36,12 @@ pub(crate) fn build_creation_popup<B: Backend>(frame: &mut Frame<B>, app: &mut A
             }
         },
         InsertState::Confirmation => {
-            app.insert_popup.data = if app.insert_popup.current_line() == 0 && !app.insert_popup.path.is_empty() {
-                app.insert_popup.path.clone()
-            } else if app.insert_popup.current_line() == 1 && !app.insert_popup.title.is_empty() {
-                app.insert_popup.title.clone()
-            } else if app.insert_popup.current_line() == 2 && !app.insert_popup.sync_service_id != 0 {
-                app.insert_popup.sync_service_id.to_string()
-            } else if app.insert_popup.current_line() == 3 && !app.insert_popup.episode_count != 0 {
-                app.insert_popup.episode_count.to_string()
-            } else {
-                String::new()
+            app.insert_popup.data = match app.insert_popup.current_line() {
+                0 if !app.insert_popup.path.is_empty() => app.insert_popup.path.clone(),
+                1 if !app.insert_popup.title.is_empty() => app.insert_popup.title.clone(),
+                2 if !app.insert_popup.sync_service_id != 0 => app.insert_popup.sync_service_id.to_string(),
+                3 if !app.insert_popup.episode_count != 0=> app.insert_popup.episode_count.to_string(),
+                _ => String::new(),
             };
             app.insert_popup.state = InsertState::Inputting;
         },
