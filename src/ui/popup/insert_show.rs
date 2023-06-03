@@ -1,8 +1,8 @@
 use crate::{app::{App, InsertState}, ui::FocusedWindow};
-use tui::{
+use ratatui::{
     backend::Backend,
     layout::Margin,
-    text::{Span, Spans},
+    text::{Span, Line},
     widgets::{Block, Borders, Clear, Paragraph},
     Frame,
 };
@@ -36,6 +36,16 @@ pub(crate) fn build_creation_popup<B: Backend>(frame: &mut Frame<B>, app: &mut A
             }
         },
         InsertState::Confirmation => {
+            match app.insert_popup.current_line() {
+                1 if !app.insert_popup.path.is_empty() => {
+                    // sanitize user input
+                    app.insert_popup.title = app.shows.items.guess_shows_title(&app.insert_popup.path).unwrap_or_default();
+                    // after going from first to second line
+                },
+                2 if !app.insert_popup.title.is_empty() => {},
+                3 if !app.insert_popup.sync_service_id != 0 => {},
+                _ => {}
+            };
             app.insert_popup.data = match app.insert_popup.current_line() {
                 0 if !app.insert_popup.path.is_empty() => app.insert_popup.path.clone(),
                 1 if !app.insert_popup.title.is_empty() => app.insert_popup.title.clone(),
@@ -48,7 +58,7 @@ pub(crate) fn build_creation_popup<B: Backend>(frame: &mut Frame<B>, app: &mut A
         InsertState::Save => {
             // temporarily as data retrieval from MAL isn't yet implemented
             // TODO: Don't allow for empty titles etc.
-            if let Err(why) = app.items.shows.add_show(
+            if let Err(why) = app.shows.items.add_show(
                 &app.insert_popup.title,
                 app.insert_popup.sync_service_id,
                 app.insert_popup.episode_count,
@@ -62,19 +72,19 @@ pub(crate) fn build_creation_popup<B: Backend>(frame: &mut Frame<B>, app: &mut A
     }
 
     let input_form = vec![
-        Spans::from(vec![
+        Line::from(vec![
             Span::raw("Path to the folder: "),
             Span::raw(app.insert_popup.path.clone()),
         ]),
-        Spans::from(vec![
+        Line::from(vec![
             Span::raw("Show's title: "),
             Span::raw(app.insert_popup.title.clone()),
         ]),
-        Spans::from(vec![
+        Line::from(vec![
             Span::raw("Sync service ID: "),
             Span::raw(app.insert_popup.sync_service_id.to_string()),
         ]),
-        Spans::from(vec![
+        Line::from(vec![
             Span::raw("Number of episodes: "),
             Span::raw(app.insert_popup.episode_count.to_string()),
         ]),

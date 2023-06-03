@@ -10,10 +10,10 @@ use std::{
     io,
     time::{Duration, Instant},
 };
-use tui::{backend::Backend, Terminal};
+use ratatui::{backend::Backend, Terminal};
 
 pub(crate) struct App {
-    pub(crate) items: StatefulList,
+    pub(crate) shows: StatefulList,
     pub(crate) focused_window: FocusedWindow,
     pub(crate) insert_popup: InsertPopup,
 }
@@ -68,9 +68,10 @@ impl InsertPopup {
 
 impl App {
     pub(crate) fn build() -> Result<App, Box<dyn Error>> {
-        let anime_list = lma::create();
+        let service = lma::MAL::new(&"");
+        let anime_list = lma::create(service);
         Ok(App {
-            items: StatefulList::with_items(anime_list),
+            shows: StatefulList::with_items(anime_list),
             focused_window: FocusedWindow::MainMenu,
             insert_popup: InsertPopup::default(),
         })
@@ -78,9 +79,9 @@ impl App {
 
     fn generate_test_data(&self) -> bool {
         for i in 1..6 {
-            _=self.items.shows.add_show(format!("Show {}", i).as_str(), 1000 + i, 12*(i%3)+1, 5*(i%3)+1);
+            _=self.shows.items.add_show(format!("Show {}", i).as_str(), 1000 + i, 12*(i%3)+1, 5*(i%3)+1);
             for e in 1..i+2 {
-                _=self.items.shows.add_episode(i, e, format!("/path/to/episode{}.mp4", e).as_str());
+                _=self.shows.items.add_episode(i, e, format!("/path/to/episode{}.mp4", e).as_str());
             }
         }
         true
@@ -104,10 +105,10 @@ pub(crate) fn run<B: Backend>(
                 match app.focused_window {
                     FocusedWindow::MainMenu => match key.code {
                         KeyCode::Esc => return Ok(()),
-                        KeyCode::Down => app.items.move_selection(Direction::Next),
-                        KeyCode::Up => app.items.move_selection(Direction::Previous),
-                        KeyCode::Right => app.items.select(),
-                        KeyCode::Left => app.items.unselect(),
+                        KeyCode::Down => app.shows.move_selection(Direction::Next),
+                        KeyCode::Up => app.shows.move_selection(Direction::Previous),
+                        KeyCode::Right => app.shows.select(),
+                        KeyCode::Left => app.shows.unselect(),
                         KeyCode::Char('n') => app.focused_window = FocusedWindow::InsertPopup,
                         KeyCode::Char('p') => debug_assert!(app.generate_test_data()),
                         _ => {}

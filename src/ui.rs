@@ -1,4 +1,4 @@
-use tui::{
+use ratatui::{
     backend::Backend,
     layout::{Constraint, Direction, Layout},
     style::{Color, Modifier, Style},
@@ -28,8 +28,8 @@ pub(crate) fn ui<B: Backend>(frame: &mut Frame<B>, mut app: &mut app::App) {
         .split(chunks[0]);
 
     let items: Vec<_> = app
-        .items
         .shows
+        .items
         .get_list().unwrap()
         .iter()
         .map(|show| ListItem::new(format!("{}", show.title)).style(Style::default()))
@@ -47,11 +47,11 @@ pub(crate) fn ui<B: Backend>(frame: &mut Frame<B>, mut app: &mut app::App) {
 
     // Iterate through all elements in the `items` app
     let episodes: Vec<ListItem> = app
-        .items
         .shows
+        .items
         .get_list().unwrap()
         .iter()
-        .filter(|show| show.id == app.items.episodes_state.selected_id)
+        .filter(|show| show.id == app.shows.episodes_state.selected_id)
         .flat_map(|show| {
             let mut temp: Vec<ListItem> = Vec::new();
             for episode in &show.episodes {
@@ -77,8 +77,8 @@ pub(crate) fn ui<B: Backend>(frame: &mut Frame<B>, mut app: &mut app::App) {
     let help = Block::default().title("Help").borders(Borders::ALL);
 
     // We can now render the item list
-    frame.render_stateful_widget(items, main_chunks[0], &mut app.items.state);
-    frame.render_stateful_widget(episodes, main_chunks[1], &mut app.items.episodes_state.list_state);
+    frame.render_stateful_widget(items, main_chunks[0], &mut app.shows.state);
+    frame.render_stateful_widget(episodes, main_chunks[1], &mut app.shows.episodes_state.list_state);
     frame.render_widget(help, chunks[1]);
 
     if app.focused_window == FocusedWindow::InsertPopup {

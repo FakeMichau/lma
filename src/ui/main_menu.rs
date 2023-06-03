@@ -1,10 +1,10 @@
 use lma::{AnimeList, Show};
-use tui::widgets::ListState;
+use ratatui::widgets::ListState;
 
 pub(crate) struct StatefulList {
     pub(crate) state: ListState,
     pub(crate) episodes_state: EpisodesState,
-    pub(crate) shows: AnimeList,
+    pub(crate) items: AnimeList,
     list_cache: Vec<Show>
 }
 
@@ -30,7 +30,7 @@ impl StatefulList {
                 list_state: ListState::default(),
                 selection_enabled: false,
             },
-            shows,
+            items: shows,
             list_cache,
         }
     }
@@ -113,6 +113,6 @@ impl StatefulList {
     }
 
     fn update_cache(&mut self) {
-        self.list_cache = self.shows.get_list().unwrap();
+        self.list_cache = self.items.get_list().unwrap();
     }
 }
