@@ -84,19 +84,26 @@ impl AnimeList {
             .map_err(|e| e.to_string())
     }
 
-    fn get_files(&self, path: &str) -> Result<Vec<String>, std::io::Error> {
+    fn get_video_file_titles(&self, path: &str) -> Result<Vec<String>, std::io::Error> {
         let read_dir = fs::read_dir(path)?;
         let mut files = read_dir
             .into_iter()
             .filter(|r| r.is_ok())
             .map(|r| r.unwrap().path())
-            .filter(|r| r.is_file())
+            .filter(|r| {
+                r.is_file() && 
+                ["webm", "mkv", "vob", "ogg", "gif", "avi", "mov", "wmv", "mp4", "m4v", "3gp"]
+                    .into_iter()
+                    .any(|ext| {
+                        r.extension()
+                            .unwrap_or_default()
+                            .to_string_lossy()
+                            .contains(ext)
+                    })
+            })
             .map(|dir| {
                 let filename = dir.file_stem().unwrap_or_default();
-                AnimeList::extract_title(filename)
-                    .unwrap_or(filename.to_string_lossy().to_string())
-                    .trim()
-                    .to_string()
+                AnimeList::cleanup_title(filename)
             })
             .collect::<Vec<_>>();
         files.sort();
@@ -105,23 +112,34 @@ impl AnimeList {
 
     pub fn guess_shows_title(&self, path: &str) -> Result<String, std::io::Error> {
         Ok(AnimeList::remove_after_last_dash(
-            self.get_files(path)?.first().unwrap_or(&"".to_string()),
+            self.get_video_file_titles(path)?
+                .first()
+                .unwrap_or(&"".to_string()),
         ))
     }
 
-    fn extract_title(input: &OsStr) -> Option<String> {
-        let input_str = input.to_string_lossy();
-        let start_index = input_str.find(']').map(|i| i + 2);
-        let end_index = input_str
-            .rfind(" [")
-            .or_else(|| input_str.rfind(']'))
-            .unwrap_or(input_str.len());
+    pub fn count_video_files(&self, path: &str) -> Result<usize, std::io::Error> {
+        Ok(self.get_video_file_titles(path)?.len())
+    }
 
-        if let (Some(start), end) = (start_index, end_index) {
-            Some(input_str[start..end].to_string())
-        } else {
-            None
+    fn cleanup_title(input: &OsStr) -> String {
+        let input = input.to_string_lossy();
+        let mut result = String::new();
+        let mut depth_square = 0;
+        let mut depth_paren = 0;
+
+        for ch in input.chars() {
+            match ch {
+                '[' => depth_square += 1,
+                ']' => depth_square -= 1,
+                '(' => depth_paren += 1,
+                ')' => depth_paren -= 1,
+                _ if depth_square == 0 && depth_paren == 0 => result.push(ch),
+                _ => (),
+            }
         }
+
+        result.trim().to_string()
     }
 
     fn remove_after_last_dash(input: &str) -> String {

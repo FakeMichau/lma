@@ -37,13 +37,19 @@ pub(crate) fn build_creation_popup<B: Backend>(frame: &mut Frame<B>, app: &mut A
         },
         InsertState::Confirmation => {
             match app.insert_popup.current_line() {
+                // after going to the next line, when data in the previous one is present
                 1 if !app.insert_popup.path.is_empty() => {
                     // sanitize user input
                     app.insert_popup.title = app.shows.items.guess_shows_title(&app.insert_popup.path).unwrap_or_default();
-                    // after going from first to second line
                 },
-                2 if !app.insert_popup.title.is_empty() => {},
-                3 if !app.insert_popup.sync_service_id != 0 => {},
+                2 if !app.insert_popup.title.is_empty() => {
+                    // create a popup to select the exact show from a sync service
+                },
+                3 if !app.insert_popup.sync_service_id != 0 && !app.insert_popup.path.is_empty() => {
+                    let video_files_count = app.shows.items.count_video_files(&app.insert_popup.path).unwrap_or_default();
+                    app.insert_popup.episode_count = video_files_count.try_into().unwrap_or_default() // temporarily 
+                    // compare number of video files with the retrieved number of episodes
+                },
                 _ => {}
             };
             app.insert_popup.data = match app.insert_popup.current_line() {
