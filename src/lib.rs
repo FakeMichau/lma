@@ -150,7 +150,7 @@ impl AnimeList {
         input.to_string()
     }
 
-    pub fn list_titles(&self, potential_title: &str) -> Vec<String> {
+    pub fn list_titles(&mut self, potential_title: &str) -> Vec<String> {
         self.service.get_title_list(potential_title)
     }
 
