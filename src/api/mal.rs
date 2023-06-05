@@ -1,123 +1,64 @@
+use std::path::PathBuf;
+
+use lib_mal::{ClientBuilder, MALClient};
+
 use super::Details;
-use serde::{Serialize, Deserialize};
-use std::time::{self, Duration, Instant};
-use std::thread;
 
 pub struct MAL {
-    token: String,
-    requests: Vec<Request>,
-}
-
-struct Request {
-    timestamp: Instant,
+    client: MALClient,
+    challenge: String, 
+    state: String,
 }
 
 impl MAL {
-    pub fn new(token: &str) -> Self {
-        Self { 
-            token: "".to_owned(),
-            requests: Vec::new(),
+    pub async fn new() -> Self {
+        let token = "8f7bd7e31dcf4f931949fc0b418c76d8".to_string();
+        let client = ClientBuilder::new()
+            .secret(token)
+            .caching(true)
+            .cache_dir(Some(PathBuf::new()))
+            .build_with_refresh()
+            .await
+            .unwrap();
+
+        Self {
+            client,
+            challenge: String::new(),
+            state: String::new(),
         }
     }
-    pub fn set_token(&mut self, token: &str) {
-        self.token = token.to_owned();
-    }
-    fn time_to_next_request(&self) -> Duration {
-        const PER_SEC: usize = 3;
-        const PER_MINUTE: usize = 60;
-        let now = Instant::now();
-        let in_the_last_second = self
-            .requests
-            .iter()
-            .filter(|request| {
-               request.timestamp.duration_since(now).as_millis() < 1000
-            })
-            .count();
-        let oldest_violation_second = if in_the_last_second >= PER_SEC {
-            Some(self.requests.get(self.requests.len() - PER_SEC + 1).expect("Limit shouldn't be set at 1").timestamp)
-        } else {
-            None
-        };
 
-        let in_the_last_minute = self
-            .requests
-            .iter()
-            .filter(|timestamp| {
-                timestamp.timestamp.duration_since(now).as_secs() < 60
-            })
-            .count();
-        let oldest_violation_minute = if in_the_last_minute >= PER_MINUTE {
-            Some(self.requests.get(self.requests.len() - PER_MINUTE + 1).expect("Limit shouldn't be set at 1").timestamp)
-        } else {
-            None
-        };
-
-        if let Some(timestamp) = oldest_violation_second {
-            timestamp.duration_since(now)
-        } else if let Some(timestamp) = oldest_violation_minute {
-            timestamp.duration_since(now)
-        } else {
-            time::Duration::from_millis(0)
+    pub async fn auth(&mut self) -> Option<String> {
+        if self.client.need_auth {
+            let url;
+            (url, self.challenge, self.state) = self.client.get_auth_parts();
+            return Some(url);
         }
+        None
     }
-    fn wait_for_next_request(&mut self) {
-        thread::sleep(self.time_to_next_request());
-        self.requests.push(Request{ timestamp: Instant::now()})
+
+    pub async fn login(&mut self) {
+        let redirect_uri = "localhost:2525";
+        self.client
+            .auth(&redirect_uri, &self.challenge, &self.state)
+            .await
+            .expect("Unable to log in");
+    }
+
+    pub async fn test(&self) {
+        let anime = self.client.get_anime_details(80, None).await.unwrap();
+        println!(
+            "{}: started airing on {}, ended on {}, ranked #{}",
+            anime.show.title,
+            anime.start_date.unwrap(),
+            anime.end_date.unwrap(),
+            anime.rank.unwrap()
+        );
     }
 }
 
 impl Details for MAL {
     fn get_title_list(&mut self, potential_title: &str) -> Vec<String> {
-        self.wait_for_next_request();
-        let mal_entires = search_anime(potential_title);
-        let res = mal_entires
-            .iter()
-            .map(|entry| {
-                entry.title.clone().unwrap_or_else(|| {
-                    entry.title_japanese.clone().unwrap_or_else(|| {
-                        entry.title_english.clone().unwrap_or_default()
-                    })
-                })
-            })
-            .collect();
-        res
+        Vec::new()
     }
-}
-
-// slow down the requests
-fn search_anime(name: &str) -> Vec<MALEntry> {
-    let url = format!("https://api.jikan.moe/v4/anime?q={}&limit=10", name);
-    let api_result = reqwest::blocking::get(url);
-    match api_result {
-        Ok(api_response) => {
-            match api_response.status() {
-                reqwest::StatusCode::OK => {
-                    api_response.json::<List>().expect("Issue parsing json").data
-                },
-                _ => {
-                    print!("Non-OK response from the server: {:?}", api_response);
-                    Vec::new()
-                },
-            }
-        },
-        Err(why) => {
-            print!("Error getting a response: {}", why);
-            Vec::new()
-        },
-    }
-}
-
-#[derive(Serialize, Deserialize, Debug)]
-struct List {
-    data: Vec<MALEntry>
-}
-
-#[derive(Serialize, Deserialize, Debug)]
-struct MALEntry {
-    #[serde(rename = "mal_id")]
-    id: u32,
-    title: Option<String>,
-    title_english: Option<String>,
-    title_japanese: Option<String>,
-    episodes: Option<u64>,
 }

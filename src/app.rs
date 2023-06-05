@@ -67,8 +67,8 @@ impl InsertPopup {
 }
 
 impl App {
-    pub(crate) fn build() -> Result<App, Box<dyn Error>> {
-        let service = lma::MAL::new(&"");
+    pub(crate) async fn build() -> Result<App, Box<dyn Error>> {
+        let service = lma::MAL::new().await;
         let anime_list = lma::create(service);
         Ok(App {
             shows: StatefulList::with_items(anime_list),
@@ -88,7 +88,7 @@ impl App {
     }
 }
 
-pub(crate) fn run<B: Backend>(
+pub(crate) async fn run<B: Backend>(
     terminal: &mut Terminal<B>,
     mut app: app::App,
     tick_rate: Duration,

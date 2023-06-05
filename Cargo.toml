@@ -9,5 +9,6 @@ edition = "2021"
 rusqlite = { version = "0.29.0", features = ["bundled"] }
 ratatui = { version = "0.21.0", features = ["all-widgets"] }
 crossterm = "0.26"
-reqwest = { version = "0.11", features = ["blocking", "json"] }
-serde = { version = "1.0", features = ["derive"] }
+reqwest = "0.11"
+tokio = { version = "1.28.2", features = ["full"] }
+lib-mal = { git = "https://github.com/FakeMichau/lib-mal.git" }
