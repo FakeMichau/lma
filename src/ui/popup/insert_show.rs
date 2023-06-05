@@ -16,14 +16,14 @@ pub(crate) fn build_creation_popup<B: Backend>(frame: &mut Frame<B>, app: &mut A
         horizontal: 1,
     });
 
-    fn parse_number(str: &mut String) -> i64 {
+    let parse_number = |str: &mut String| -> i64 {
         if let Ok(number) = str.trim().parse() {
             number
         } else {
             *str = String::new();
             0
         }
-    }
+    };
 
     match app.insert_popup.state {
         InsertState::Inputting => {
