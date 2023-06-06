@@ -1,4 +1,4 @@
-use crate::{app::{App, InsertState}, ui::FocusedWindow};
+use crate::{app::App, ui::FocusedWindow};
 use ratatui::{
     backend::Backend,
     layout::Margin,
@@ -7,9 +7,57 @@ use ratatui::{
     Frame,
 };
 
+#[derive(Default)]
+pub(crate) struct InsertPopup {
+    pub(crate) path: String,
+    pub(crate) title: String,
+    pub(crate) sync_service_id: i64,
+    pub(crate) episode_count: i64,
+    pub(crate) state: InsertState,
+    pub(crate) data: String,
+    selected_line: usize,
+    //pub(crate) episodes: Vec<Episode>,
+}
+
+#[derive(PartialEq)]
+pub(crate) enum InsertState {
+    None,
+    Inputting,
+    Confirmation,
+    Save
+}
+
+impl Default for InsertState {
+    fn default() -> Self {
+        InsertState::None
+    }
+}
+
+impl InsertPopup {
+    pub(crate) fn current_line(&self) -> usize {
+        self.selected_line
+    }
+    pub(crate) fn next_line(&mut self, max_index: usize) {
+        if self.state != InsertState::Inputting { return }
+        if self.selected_line + 1 > max_index {
+            self.selected_line = 0;
+        } else {
+            self.selected_line += 1
+        }
+    }
+    pub(crate) fn previous_line(&mut self, max_index: usize) {
+        if self.state != InsertState::Inputting { return }
+        if self.selected_line.checked_sub(1).is_none() {
+            self.selected_line = max_index
+        } else {
+            self.selected_line -= 1
+        }
+    }
+}
+
 use super::centered_rect;
 
-pub(crate) fn build_creation_popup<B: Backend>(frame: &mut Frame<B>, app: &mut App) {
+pub(crate) fn build<B: Backend>(frame: &mut Frame<B>, app: &mut App) {
     let area = centered_rect(70, 70, frame.size());
     let text_area = area.inner(&Margin {
         vertical: 1,
@@ -103,6 +151,7 @@ pub(crate) fn build_creation_popup<B: Backend>(frame: &mut Frame<B>, app: &mut A
     }
 
     let block = Block::default().title("Insert show").borders(Borders::ALL);
+    // .wrap(Wrap { trim: true }); messes up the cursor position
     let form = Paragraph::new(input_form);
     frame.render_widget(Clear, area);
     frame.render_widget(block, area);

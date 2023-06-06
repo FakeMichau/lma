@@ -7,7 +7,7 @@ use std::collections::HashMap;
 
 pub struct AnimeList {
     db_connection: Connection,
-    service: MAL,
+    pub service: MAL,
 }
 
 impl AnimeList {
@@ -151,7 +151,7 @@ impl AnimeList {
     }
 
     pub fn list_titles(&mut self, potential_title: &str) -> Vec<String> {
-        self.service.get_title_list(potential_title)
+        self.service.search_title(potential_title)
     }
 
     #[allow(dead_code)]

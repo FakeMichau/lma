@@ -1,8 +1,9 @@
 use crate::app;
 use crate::ui::{
     self,
-    FocusedWindow,
-    main_menu::{Direction, StatefulList},
+    FocusedWindow, SelectionDirection,
+    main_menu::StatefulList,
+    popup::insert_show::{InsertPopup, InsertState}
 };
 use crossterm::event::{self, Event, KeyCode};
 use std::error::Error;
@@ -16,54 +17,6 @@ pub(crate) struct App {
     pub(crate) shows: StatefulList,
     pub(crate) focused_window: FocusedWindow,
     pub(crate) insert_popup: InsertPopup,
-}
-
-#[derive(Default)]
-pub(crate) struct InsertPopup {
-    pub(crate) path: String,
-    pub(crate) title: String,
-    pub(crate) sync_service_id: i64,
-    pub(crate) episode_count: i64,
-    pub(crate) state: InsertState,
-    pub(crate) data: String,
-    selected_line: usize,
-    //pub(crate) episodes: Vec<Episode>,
-}
-
-#[derive(PartialEq)]
-pub(crate) enum InsertState {
-    None,
-    Inputting,
-    Confirmation,
-    Save
-}
-
-impl Default for InsertState {
-    fn default() -> Self {
-        InsertState::None
-    }
-}
-
-impl InsertPopup {
-    pub(crate) fn current_line(&self) -> usize {
-        self.selected_line
-    }
-    pub(crate) fn next_line(&mut self, max_index: usize) {
-        if self.state != InsertState::Inputting { return }
-        if self.selected_line + 1 > max_index {
-            self.selected_line = 0;
-        } else {
-            self.selected_line += 1
-        }
-    }
-    pub(crate) fn previous_line(&mut self, max_index: usize) {
-        if self.state != InsertState::Inputting { return }
-        if self.selected_line.checked_sub(1).is_none() {
-            self.selected_line = max_index
-        } else {
-            self.selected_line -= 1
-        }
-    }
 }
 
 impl App {
@@ -105,11 +58,22 @@ pub(crate) async fn run<B: Backend>(
                 match app.focused_window {
                     FocusedWindow::MainMenu => match key.code {
                         KeyCode::Esc => return Ok(()),
-                        KeyCode::Down => app.shows.move_selection(Direction::Next),
-                        KeyCode::Up => app.shows.move_selection(Direction::Previous),
+                        KeyCode::Down => app.shows.move_selection(SelectionDirection::Next),
+                        KeyCode::Up => app.shows.move_selection(SelectionDirection::Previous),
                         KeyCode::Right => app.shows.select(),
                         KeyCode::Left => app.shows.unselect(),
                         KeyCode::Char('n') => app.focused_window = FocusedWindow::InsertPopup,
+                        KeyCode::Char('l') => {
+                            app.shows.items.service.auth().await;
+                            app.focused_window = FocusedWindow::Login;
+                            terminal.draw(|f| ui::ui(f, &mut app))?;
+                            if app.shows.items.service.get_url().is_some() {
+                                app.shows.items.service.login().await; // freezes the app as it waits
+                                app.focused_window = FocusedWindow::MainMenu;
+                                terminal.draw(|f| ui::ui(f, &mut app))?;
+                                app.focused_window = FocusedWindow::Login;
+                            }
+                        },
                         KeyCode::Char('p') => debug_assert!(app.generate_test_data()),
                         _ => {}
                     },
@@ -139,7 +103,15 @@ pub(crate) async fn run<B: Backend>(
                             KeyCode::Up => app.insert_popup.previous_line(3),
                             _ => {}
                         },
-                    }
+                    },
+                    FocusedWindow::Login => match key.code {
+                        KeyCode::Esc => app.focused_window = FocusedWindow::MainMenu,
+                        _ => {}
+                    },
+                    FocusedWindow::TitleSelection => match key.code {
+                        KeyCode::Esc => app.focused_window = FocusedWindow::InsertPopup,
+                        _ => {}
+                    },
                 }
                 
             }

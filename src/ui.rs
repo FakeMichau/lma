@@ -1,10 +1,4 @@
-use ratatui::{
-    backend::Backend,
-    layout::{Constraint, Direction, Layout},
-    style::{Color, Modifier, Style},
-    widgets::{Block, Borders, List, ListItem},
-    Frame,
-};
+use ratatui::{backend::Backend, Frame};
 pub(crate) mod main_menu;
 pub(crate) mod popup;
 use crate::app;
@@ -13,75 +7,23 @@ use crate::app;
 pub(crate) enum FocusedWindow {
     MainMenu,
     InsertPopup,
+    Login,
+    TitleSelection,
+}
+
+#[derive(PartialEq)]
+pub(crate) enum SelectionDirection {
+    Next,
+    Previous,
 }
 
 pub(crate) fn ui<B: Backend>(frame: &mut Frame<B>, mut app: &mut app::App) {
-    let chunks = Layout::default()
-        .direction(Direction::Vertical)
-        .constraints([Constraint::Percentage(90), Constraint::Percentage(10)].as_ref())
-        .split(frame.size());
+    main_menu::build(frame, &mut app);
 
-    // Split the bigger chunk into halves
-    let main_chunks = Layout::default()
-        .direction(Direction::Horizontal)
-        .constraints([Constraint::Percentage(50), Constraint::Percentage(50)].as_ref())
-        .split(chunks[0]);
-
-    let items: Vec<_> = app
-        .shows
-        .items
-        .get_list().unwrap()
-        .iter()
-        .map(|show| ListItem::new(format!("{}", show.title)).style(Style::default()))
-        .collect();
-
-    // Create a List from all list items and highlight the currently selected one
-    let items = List::new(items)
-        .block(Block::default().borders(Borders::ALL).title("List"))
-        .highlight_style(
-            Style::default()
-                .bg(Color::LightGreen)
-                .add_modifier(Modifier::BOLD),
-        )
-        .highlight_symbol(">> ");
-
-    // Iterate through all elements in the `items` app
-    let episodes: Vec<ListItem> = app
-        .shows
-        .items
-        .get_list().unwrap()
-        .iter()
-        .filter(|show| show.id == app.shows.episodes_state.selected_id)
-        .flat_map(|show| {
-            let mut temp: Vec<ListItem> = Vec::new();
-            for episode in &show.episodes {
-                temp.push(
-                    ListItem::new(format!("{} {}", episode.number, episode.path)).style(Style::default()),
-                );
-            }
-            temp
-        })
-        .collect();
-
-    // Create a List from all list items and highlight the currently selected one
-    let episodes = List::new(episodes)
-        .block(Block::default().borders(Borders::ALL).title("Episodes"))
-        .highlight_style(
-            Style::default()
-                .bg(Color::LightGreen)
-                .add_modifier(Modifier::BOLD),
-        )
-        .highlight_symbol(">> ");
-
-    // Create help text at the bottom
-    let help = Block::default().title("Help").borders(Borders::ALL);
-
-    // We can now render the item list
-    frame.render_stateful_widget(items, main_chunks[0], &mut app.shows.state);
-    frame.render_stateful_widget(episodes, main_chunks[1], &mut app.shows.episodes_state.list_state);
-    frame.render_widget(help, chunks[1]);
-
-    if app.focused_window == FocusedWindow::InsertPopup {
-        popup::insert_show::build_creation_popup(frame, &mut app);
+    match app.focused_window {
+        FocusedWindow::InsertPopup => popup::insert_show::build(frame, &mut app),
+        FocusedWindow::Login => popup::login::build(frame, &mut app),
+        FocusedWindow::TitleSelection => popup::title_selection::build(frame, &mut app),
+        _ => {}
     }
 }

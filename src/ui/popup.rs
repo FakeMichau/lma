@@ -1,4 +1,6 @@
 pub(crate) mod insert_show;
+pub(crate) mod login;
+pub(crate) mod title_selection;
 use ratatui::layout::{Constraint, Direction, Layout, Rect};
 
 fn centered_rect(percent_x: u16, percent_y: u16, r: Rect) -> Rect {

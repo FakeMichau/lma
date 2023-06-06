@@ -8,6 +8,7 @@ pub struct MAL {
     client: MALClient,
     challenge: String, 
     state: String,
+    url: Option<String>,
 }
 
 impl MAL {
@@ -25,16 +26,22 @@ impl MAL {
             client,
             challenge: String::new(),
             state: String::new(),
+            url: Some(String::new()),
         }
     }
 
-    pub async fn auth(&mut self) -> Option<String> {
-        if self.client.need_auth {
+    pub async fn auth(&mut self) {
+        self.url = if self.client.need_auth {
             let url;
             (url, self.challenge, self.state) = self.client.get_auth_parts();
-            return Some(url);
+            Some(url)
+        } else {
+            None
         }
-        None
+    }
+
+    pub fn get_url(&self) -> &Option<String> {
+        &self.url
     }
 
     pub async fn login(&mut self) {
@@ -43,6 +50,8 @@ impl MAL {
             .auth(&redirect_uri, &self.challenge, &self.state)
             .await
             .expect("Unable to log in");
+        self.client.need_auth = false;  // should be in the library
+        self.url = None;
     }
 
     pub async fn test(&self) {
@@ -58,7 +67,7 @@ impl MAL {
 }
 
 impl Details for MAL {
-    fn get_title_list(&mut self, potential_title: &str) -> Vec<String> {
+    fn search_title(&mut self, potential_title: &str) -> Vec<String> {
         Vec::new()
     }
 }
