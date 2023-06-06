@@ -18,7 +18,7 @@ pub(crate) enum SelectionDirection {
     Previous,
 }
 
-pub(crate) fn ui<B: Backend>(frame: &mut Frame<'_, B>, mut app: &mut app::App, rt: &Runtime) {
+pub(crate) fn ui<B: Backend>(frame: &mut Frame<B>, mut app: &mut app::App, rt: &Runtime) {
     main_menu::build(frame, &mut app);
 
     match app.focused_window {

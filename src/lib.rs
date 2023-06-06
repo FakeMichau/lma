@@ -4,6 +4,7 @@ use rusqlite::{params, Connection, Result};
 use std::ffi::OsStr;
 use std::fs;
 use std::collections::HashMap;
+use std::path::PathBuf;
 
 pub struct AnimeList {
     db_connection: Connection,
@@ -84,7 +85,21 @@ impl AnimeList {
             .map_err(|e| e.to_string())
     }
 
-    fn get_video_file_titles(&self, path: &str) -> Result<Vec<String>, std::io::Error> {
+    pub fn add_episode_service_id(&self, sync_service_id: i64, episode_number: i64, path: &str) -> Result<(), String> {
+        self.db_connection
+            .execute(
+                "INSERT INTO Episodes (show_id, episode_number, path)
+                SELECT id, ?2, ?3
+                FROM Shows
+                WHERE sync_service_id = ?1;
+                ",
+                params![sync_service_id, episode_number, path,],
+            )
+            .map(|_| ())
+            .map_err(|e| e.to_string())
+    }
+
+    pub fn get_video_file_paths(&self, path: &str) -> Result<Vec<PathBuf>, std::io::Error> {
         let read_dir = fs::read_dir(path)?;
         let mut files = read_dir
             .into_iter()
@@ -101,12 +116,20 @@ impl AnimeList {
                             .contains(ext)
                     })
             })
+            .map(|path| path)
+            .collect::<Vec<_>>();
+        files.sort();
+        Ok(files)
+    }
+
+
+    pub fn get_video_file_titles(&self, path: &str) -> Result<Vec<String>, std::io::Error> {
+        let files = self.get_video_file_paths(path).unwrap().iter()
             .map(|dir| {
                 let filename = dir.file_stem().unwrap_or_default();
                 AnimeList::cleanup_title(filename)
             })
             .collect::<Vec<_>>();
-        files.sort();
         Ok(files)
     }
 

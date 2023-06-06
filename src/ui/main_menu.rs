@@ -1,3 +1,5 @@
+use std::process::{Command, Stdio};
+
 use lma::{AnimeList, Show};
 use ratatui::{
     backend::Backend,
@@ -18,7 +20,7 @@ pub(crate) struct StatefulList {
 }
 
 pub(crate) struct EpisodesState {
-    pub(crate) selected_id: i64,
+    pub(crate) selected_show_id: i64,
     pub(crate) list_state: ListState,
     pub(crate) selection_enabled: bool,
 }
@@ -29,7 +31,7 @@ impl StatefulList {
         StatefulList {
             state: ListState::default(),
             episodes_state: EpisodesState {
-                selected_id: 0,
+                selected_show_id: 0,
                 list_state: ListState::default(),
                 selection_enabled: false,
             },
@@ -50,7 +52,7 @@ impl StatefulList {
             } else {
                 0
             };
-            self.episodes_state.selected_id = selected_id;
+            self.episodes_state.selected_show_id = selected_id;
         }
     }
 
@@ -69,17 +71,43 @@ impl StatefulList {
     }
 
     pub(crate) fn select(&mut self) {
-        match self
-            .list_cache
-            .get(self.state.selected().unwrap_or_default())
-        {
-            Some(show) => {
-                if show.episodes.len() > 0 {
-                    self.episodes_state.list_state.select(Some(0));
-                    self.episodes_state.selection_enabled = true;
-                }
+        if self.episodes_state.selection_enabled {
+            // navigating inside the episodes tab
+            let selected_episode = self
+                .episodes_state
+                .list_state
+                .selected()
+                .unwrap_or_default();
+
+            // SANITIZE USER INPUT
+            let path = &self
+                .list_cache
+                .get(self.episodes_state.selected_show_id as usize - 1)
+                .unwrap()
+                .episodes
+                .get(selected_episode)
+                .unwrap()
+                .path;
+            if cfg!(target_os = "linux") {
+                _ = Command::new("xdg-open")
+                    .arg(path)
+                    .stderr(Stdio::null())
+                    .stdout(Stdio::null())
+                    .spawn();
             }
-            None => {}
+        } else {
+            match self
+                .list_cache
+                .get(self.state.selected().unwrap_or_default())
+            {
+                Some(show) => {
+                    if show.episodes.len() > 0 {
+                        self.episodes_state.list_state.select(Some(0));
+                        self.episodes_state.selection_enabled = true;
+                    }
+                }
+                None => {}
+            }
         }
     }
     pub(crate) fn unselect(&mut self) {
@@ -145,7 +173,7 @@ pub(crate) fn build<B: Backend>(frame: &mut Frame<'_, B>, app: &mut App) {
         .get_list()
         .unwrap()
         .iter()
-        .filter(|show| show.id == app.shows.episodes_state.selected_id)
+        .filter(|show| show.id == app.shows.episodes_state.selected_show_id)
         .flat_map(|show| {
             let mut temp: Vec<ListItem> = Vec::new();
             for episode in &show.episodes {
