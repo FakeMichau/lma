@@ -31,8 +31,8 @@ impl TitlesPopup {
         self.state.select(Some(i))
     }
 
-    pub(crate) fn select(&self) {
-
+    pub(crate) fn selected_id(&self) -> u32 {
+        self.service_titles.get(self.state.selected().unwrap_or_default()).unwrap().id
     }
 
     fn select_element(

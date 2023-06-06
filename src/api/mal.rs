@@ -1,6 +1,6 @@
 use std::path::PathBuf;
 
-use lib_mal::{ClientBuilder, MALClient};
+use lib_mal::{ClientBuilder, MALClient, prelude::fields::AnimeFields};
 
 use crate::ServiceTitle;
 
@@ -63,6 +63,14 @@ impl MAL {
             anime.end_date.unwrap(),
             anime.rank.unwrap()
         );
+    }
+
+    pub async fn get_episode_count(&mut self, id: u32,) -> Option<u32> {
+        self.client
+            .get_anime_details(id, AnimeFields::NumEpisodes)
+            .await
+            .expect("Anime episode count") // likely will fail
+            .num_episodes
     }
 
     pub async fn search_title(&mut self, potential_title: &str) -> Vec<ServiceTitle> {

@@ -154,6 +154,10 @@ impl AnimeList {
         self.service.search_title(potential_title).await
     }
 
+    pub async fn get_episode_count(&mut self, id: u32) -> Option<u32> {
+        self.service.get_episode_count(id).await
+    }
+
     #[allow(dead_code)]
     fn remove_entry() {}
     #[allow(dead_code)]

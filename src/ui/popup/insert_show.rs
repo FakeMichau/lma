@@ -87,22 +87,33 @@ pub(crate) fn build<B: Backend>(frame: &mut Frame<B>, app: &mut App, rt: &Runtim
         InsertState::Confirmation => {
             match app.insert_popup.current_line() {
                 // after going to the next line, when data in the previous one is present
-                1 if !app.insert_popup.path.is_empty() => {
+                1 if !app.insert_popup.path.is_empty() && app.insert_popup.title.is_empty() => {
                     // sanitize user input
                     app.insert_popup.title = app.shows.items.guess_shows_title(&app.insert_popup.path).unwrap_or_default();
                 },
-                2 if !app.insert_popup.title.is_empty() => {
+                2 if !app.insert_popup.title.is_empty() && app.insert_popup.sync_service_id == 0 => {
+                    // create a popup to select the exact show from a sync service
                     let items: Vec<_> = rt.block_on(async {
                         app.shows.items.list_titles(&app.insert_popup.title).await
                     });
                     app.titles_popup = TitlesPopup::with_items(items);
                     app.focused_window = FocusedWindow::TitleSelection
-                    // create a popup to select the exact show from a sync service
                 },
-                3 if !app.insert_popup.sync_service_id != 0 && !app.insert_popup.path.is_empty() => {
+                3 if app.insert_popup.sync_service_id != 0 && app.insert_popup.episode_count == 0 && !app.insert_popup.path.is_empty() => {
+                    let episode_count = rt.block_on(async {
+                        app.shows.items.get_episode_count(app.insert_popup.sync_service_id as u32).await
+                    });
                     let video_files_count = app.shows.items.count_video_files(&app.insert_popup.path).unwrap_or_default();
-                    app.insert_popup.episode_count = video_files_count.try_into().unwrap_or_default() // temporarily 
+                    
                     // compare number of video files with the retrieved number of episodes
+                    app.insert_popup.episode_count = episode_count.map_or(0, |count| {
+                        if count == video_files_count as u32 {
+                            count.into()
+                        } else {
+                            0
+                            // not all episodes are present?
+                        }
+                    });
                 },
                 _ => {}
             };

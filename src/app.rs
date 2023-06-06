@@ -116,6 +116,13 @@ pub(crate) fn run<B: Backend>(
                         _ => {}
                     },
                     FocusedWindow::TitleSelection => match key.code {
+                        KeyCode::Down => app.titles_popup.move_selection(SelectionDirection::Next),
+                        KeyCode::Up => app.titles_popup.move_selection(SelectionDirection::Previous),
+                        KeyCode::Enter => {
+                            app.insert_popup.sync_service_id = app.titles_popup.selected_id() as i64;
+                            app.insert_popup.state = InsertState::Confirmation;
+                            app.focused_window = FocusedWindow::InsertPopup
+                        },
                         KeyCode::Esc => app.focused_window = FocusedWindow::InsertPopup,
                         _ => {}
                     },
