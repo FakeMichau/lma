@@ -2,11 +2,11 @@ use std::path::PathBuf;
 
 use lib_mal::{ClientBuilder, MALClient};
 
-use super::Details;
+use crate::ServiceTitle;
 
 pub struct MAL {
     client: MALClient,
-    challenge: String, 
+    challenge: String,
     state: String,
     url: Option<String>,
 }
@@ -50,7 +50,7 @@ impl MAL {
             .auth(&redirect_uri, &self.challenge, &self.state)
             .await
             .expect("Unable to log in");
-        self.client.need_auth = false;  // should be in the library
+        self.client.need_auth = false; // should be in the library
         self.url = None;
     }
 
@@ -64,10 +64,19 @@ impl MAL {
             anime.rank.unwrap()
         );
     }
-}
 
-impl Details for MAL {
-    fn search_title(&mut self, potential_title: &str) -> Vec<String> {
-        Vec::new()
+    pub async fn search_title(&mut self, potential_title: &str) -> Vec<ServiceTitle> {
+        // what does it do when it returns 0 results?
+        self
+            .client
+            .get_anime_list(potential_title, 20)
+            .await
+            .expect("MAL search result")
+            .data
+            .iter()
+            .map(|entry| {
+                ServiceTitle{ id: entry.node.id, title: entry.node.title.to_string() }
+            })
+            .collect()
     }
 }

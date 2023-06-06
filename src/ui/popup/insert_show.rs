@@ -6,6 +6,7 @@ use ratatui::{
     widgets::{Block, Borders, Clear, Paragraph},
     Frame,
 };
+use tokio::runtime::Runtime;
 
 #[derive(Default)]
 pub(crate) struct InsertPopup {
@@ -55,9 +56,9 @@ impl InsertPopup {
     }
 }
 
-use super::centered_rect;
+use super::{centered_rect, title_selection::TitlesPopup};
 
-pub(crate) fn build<B: Backend>(frame: &mut Frame<B>, app: &mut App) {
+pub(crate) fn build<B: Backend>(frame: &mut Frame<B>, app: &mut App, rt: &Runtime) {
     let area = centered_rect(70, 70, frame.size());
     let text_area = area.inner(&Margin {
         vertical: 1,
@@ -91,6 +92,11 @@ pub(crate) fn build<B: Backend>(frame: &mut Frame<B>, app: &mut App) {
                     app.insert_popup.title = app.shows.items.guess_shows_title(&app.insert_popup.path).unwrap_or_default();
                 },
                 2 if !app.insert_popup.title.is_empty() => {
+                    let items: Vec<_> = rt.block_on(async {
+                        app.shows.items.list_titles(&app.insert_popup.title).await
+                    });
+                    app.titles_popup = TitlesPopup::with_items(items);
+                    app.focused_window = FocusedWindow::TitleSelection
                     // create a popup to select the exact show from a sync service
                 },
                 3 if !app.insert_popup.sync_service_id != 0 && !app.insert_popup.path.is_empty() => {

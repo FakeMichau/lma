@@ -1,7 +1,13 @@
 mod mal;
 pub use mal::*;
+
+pub struct ServiceTitle {
+    pub id: u32,
+    pub title: String,
+}
+
 pub trait Details {
-    fn search_title(&mut self, potential_title: &str) -> Vec<String>;
+    
 }
 pub trait Synchronization {
 

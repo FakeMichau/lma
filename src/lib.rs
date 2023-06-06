@@ -150,8 +150,8 @@ impl AnimeList {
         input.to_string()
     }
 
-    pub fn list_titles(&mut self, potential_title: &str) -> Vec<String> {
-        self.service.search_title(potential_title)
+    pub async fn list_titles(&mut self, potential_title: &str) -> Vec<ServiceTitle> {
+        self.service.search_title(potential_title).await
     }
 
     #[allow(dead_code)]

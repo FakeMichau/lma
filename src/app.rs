@@ -1,4 +1,5 @@
 use crate::app;
+use crate::ui::popup::title_selection::TitlesPopup;
 use crate::ui::{
     self,
     FocusedWindow, SelectionDirection,
@@ -6,6 +7,7 @@ use crate::ui::{
     popup::insert_show::{InsertPopup, InsertState}
 };
 use crossterm::event::{self, Event, KeyCode};
+use tokio::runtime::Runtime;
 use std::error::Error;
 use std::{
     io,
@@ -17,16 +19,18 @@ pub(crate) struct App {
     pub(crate) shows: StatefulList,
     pub(crate) focused_window: FocusedWindow,
     pub(crate) insert_popup: InsertPopup,
+    pub(crate) titles_popup: TitlesPopup,
 }
 
 impl App {
-    pub(crate) async fn build() -> Result<App, Box<dyn Error>> {
-        let service = lma::MAL::new().await;
+    pub(crate) fn build(rt: &Runtime) -> Result<App, Box<dyn Error>> {
+        let service = rt.block_on(async {lma::MAL::new().await});
         let anime_list = lma::create(service);
         Ok(App {
             shows: StatefulList::with_items(anime_list),
             focused_window: FocusedWindow::MainMenu,
             insert_popup: InsertPopup::default(),
+            titles_popup: TitlesPopup::default(),
         })
     }
 
@@ -41,14 +45,15 @@ impl App {
     }
 }
 
-pub(crate) async fn run<B: Backend>(
+pub(crate) fn run<B: Backend>(
     terminal: &mut Terminal<B>,
     mut app: app::App,
     tick_rate: Duration,
+    rt: Runtime
 ) -> io::Result<()> {
     let mut last_tick = Instant::now();
     loop {
-        terminal.draw(|f| ui::ui(f, &mut app))?;
+        terminal.draw(|f| ui::ui(f, &mut app, &rt))?;
 
         let timeout = tick_rate
             .checked_sub(last_tick.elapsed())
@@ -64,15 +69,17 @@ pub(crate) async fn run<B: Backend>(
                         KeyCode::Left => app.shows.unselect(),
                         KeyCode::Char('n') => app.focused_window = FocusedWindow::InsertPopup,
                         KeyCode::Char('l') => {
-                            app.shows.items.service.auth().await;
-                            app.focused_window = FocusedWindow::Login;
-                            terminal.draw(|f| ui::ui(f, &mut app))?;
-                            if app.shows.items.service.get_url().is_some() {
-                                app.shows.items.service.login().await; // freezes the app as it waits
-                                app.focused_window = FocusedWindow::MainMenu;
-                                terminal.draw(|f| ui::ui(f, &mut app))?;
+                            rt.block_on(async {
+                                app.shows.items.service.auth().await;
                                 app.focused_window = FocusedWindow::Login;
-                            }
+                                terminal.draw(|f| ui::ui(f, &mut app, &rt)).unwrap();
+                                if app.shows.items.service.get_url().is_some() {
+                                    app.shows.items.service.login().await; // freezes the app as it waits
+                                    app.focused_window = FocusedWindow::MainMenu;
+                                    terminal.draw(|f| ui::ui(f, &mut app, &rt)).unwrap();
+                                    app.focused_window = FocusedWindow::Login;
+                                }
+                            });
                         },
                         KeyCode::Char('p') => debug_assert!(app.generate_test_data()),
                         _ => {}

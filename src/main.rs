@@ -14,16 +14,20 @@ use std::{
 
 use tokio;
 
-#[tokio::main]
-async fn main() -> Result<(), Box<dyn Error>> {
+fn main() -> Result<(), Box<dyn Error>> {
     let mut terminal = setup_terminal()?;
 
     let tick_rate = Duration::from_millis(250);
-    let app = app::App::build().await.unwrap_or_else(|why| {
+    let rt = tokio::runtime::Builder::new_multi_thread()
+        .enable_all()
+        .build()
+        .unwrap();
+    
+    let app = app::App::build(&rt).unwrap_or_else(|why| {
         eprintln!("App couldn't be build: {why}");
         process::exit(1)
     });
-    let run_result = app::run(&mut terminal, app, tick_rate).await;
+    let run_result = app::run(&mut terminal, app, tick_rate, rt);
 
     restore_terminal(&mut terminal)?;
 
