@@ -62,7 +62,7 @@ pub(crate) fn run<B: Backend>(
             if let Event::Key(key) = event::read()? {
                 match app.focused_window {
                     FocusedWindow::MainMenu => match key.code {
-                        KeyCode::Esc => return Ok(()),
+                        KeyCode::Char('q') => return Ok(()),
                         KeyCode::Down => app.shows.move_selection(SelectionDirection::Next),
                         KeyCode::Up => app.shows.move_selection(SelectionDirection::Previous),
                         KeyCode::Right => app.shows.select(),

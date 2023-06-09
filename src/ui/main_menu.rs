@@ -5,8 +5,8 @@ use ratatui::{
     backend::Backend,
     layout::{Constraint, Direction, Layout},
     style::{Color, Modifier, Style},
-    widgets::{Block, Borders, List, ListItem, ListState},
-    Frame,
+    widgets::{Block, Borders, List, ListItem, ListState, Paragraph},
+    Frame, text::{Span, Line},
 };
 
 use super::SelectionDirection;
@@ -138,7 +138,7 @@ impl StatefulList {
 pub(crate) fn build<B: Backend>(frame: &mut Frame<'_, B>, app: &mut App) {
     let chunks = Layout::default()
         .direction(Direction::Vertical)
-        .constraints([Constraint::Percentage(90), Constraint::Percentage(10)].as_ref())
+        .constraints([Constraint::Min(1), Constraint::Max(1)].as_ref())
         .split(frame.size());
 
     // Split the bigger chunk into halves
@@ -197,7 +197,26 @@ pub(crate) fn build<B: Backend>(frame: &mut Frame<'_, B>, app: &mut App) {
         .highlight_symbol(">> ");
 
     // Create help text at the bottom
-    let help = Block::default().title("Help").borders(Borders::ALL);
+    let hint_text_style = Style::default().bg(Color::Rgb(0, 50, 0));
+    let hint_key_style = hint_text_style.add_modifier(Modifier::BOLD);
+    
+    let information = Line::from(vec![
+        Span::styled("Navigation ", hint_text_style),
+        Span::styled("[ARROWS]", hint_key_style),
+        Span::raw(" "),
+        Span::styled("Insert new show ", hint_text_style),
+        Span::styled("[N]", hint_key_style),
+        Span::raw(" "),
+        Span::styled("Login to MAL ", hint_text_style),
+        Span::styled("[L]", hint_key_style),
+        Span::raw(" "),
+        Span::styled("Close a window ", hint_text_style),
+        Span::styled("[ESC]", hint_key_style),
+        Span::raw(" "),
+        Span::styled("Quit ", hint_text_style),
+        Span::styled("[Q]", hint_key_style),
+    ]);
+    let help = Paragraph::new(information);
 
     // We can now render the item list
     frame.render_stateful_widget(items, main_chunks[0], &mut app.shows.state);
