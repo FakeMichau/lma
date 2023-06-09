@@ -155,18 +155,18 @@ fn handle_insert_popup_key(app: &mut App, key: event::KeyEvent) {
             KeyCode::Backspace => _ = app.insert_popup.data.pop(),
             KeyCode::Esc => app.insert_popup.state = InsertState::None,
             KeyCode::Enter => {
-                app.insert_popup.state = if app.insert_popup.next_line() {
+                app.insert_popup.state = if app.insert_popup.move_line_selection(SelectionDirection::Next) {
                     InsertState::Save
                 } else {
                     InsertState::Next
                 };
             }
             KeyCode::Down => {
-                app.insert_popup.next_line();
+                app.insert_popup.move_line_selection(SelectionDirection::Next);
                 app.insert_popup.state = InsertState::Next;
             }
             KeyCode::Up => {
-                app.insert_popup.previous_line();
+                app.insert_popup.move_line_selection(SelectionDirection::Previous);
                 app.insert_popup.state = InsertState::Next;
             }
             _ => {}
@@ -178,8 +178,8 @@ fn handle_insert_popup_key(app: &mut App, key: event::KeyEvent) {
             }
             KeyCode::Char('e') => app.insert_popup.state = InsertState::Inputting,
             KeyCode::Char('i') => app.insert_popup.state = InsertState::Save,
-            KeyCode::Down => _ = app.insert_popup.next_line(),
-            KeyCode::Up => app.insert_popup.previous_line(),
+            KeyCode::Down => _=app.insert_popup.move_line_selection(SelectionDirection::Next),
+            KeyCode::Up => _=app.insert_popup.move_line_selection(SelectionDirection::Previous),
             _ => {}
         },
     }

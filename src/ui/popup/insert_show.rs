@@ -1,4 +1,7 @@
-use crate::{app::App, ui::FocusedWindow};
+use crate::{
+    app::App,
+    ui::{FocusedWindow, SelectionDirection},
+};
 use lma::Episode;
 use ratatui::{
     backend::Backend,
@@ -35,33 +38,25 @@ impl Default for InsertState {
     }
 }
 
-const MAX_INDEX: usize = 3;
+const ENTRY_COUNT: usize = 4;
 impl InsertPopup {
     pub(crate) fn current_line(&self) -> usize {
         self.selected_line
     }
     // return true on return to the beginning
-    pub(crate) fn next_line(&mut self) -> bool {
+    pub(crate) fn move_line_selection(&mut self, direction: SelectionDirection) -> bool {
         if self.state != InsertState::Inputting {
-            return false
+            return false;
         }
-        if self.selected_line + 1 > MAX_INDEX {
-            self.selected_line = 0;
-            true
-        } else {
-            self.selected_line += 1;
-            false
+        match direction {
+            SelectionDirection::Next => {
+                self.selected_line = (self.selected_line + 1) % ENTRY_COUNT;
+            }
+            SelectionDirection::Previous => {
+                self.selected_line = (self.selected_line + ENTRY_COUNT - 1) % ENTRY_COUNT;
+            }
         }
-    }
-    pub(crate) fn previous_line(&mut self) {
-        if self.state != InsertState::Inputting {
-            return;
-        }
-        if self.selected_line.checked_sub(1).is_none() {
-            self.selected_line = MAX_INDEX
-        } else {
-            self.selected_line -= 1
-        }
+        self.selected_line == 0
     }
 }
 
