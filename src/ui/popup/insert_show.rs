@@ -1,7 +1,9 @@
+use super::{centered_rect, title_selection::TitlesPopup};
 use crate::{
     app::App,
     ui::{FocusedWindow, SelectionDirection},
 };
+
 use lma::Episode;
 use ratatui::{
     backend::Backend,
@@ -38,6 +40,7 @@ impl Default for InsertState {
     }
 }
 
+// path, title, sync_service_id, episode_count
 const ENTRY_COUNT: usize = 4;
 impl InsertPopup {
     pub(crate) fn current_line(&self) -> usize {
@@ -60,8 +63,6 @@ impl InsertPopup {
     }
 }
 
-use super::{centered_rect, title_selection::TitlesPopup};
-
 pub(crate) fn build<B: Backend>(frame: &mut Frame<B>, app: &mut App, rt: &Runtime) {
     let area = centered_rect(70, 70, frame.size());
     let text_area = area.inner(&Margin {
@@ -69,120 +70,10 @@ pub(crate) fn build<B: Backend>(frame: &mut Frame<B>, app: &mut App, rt: &Runtim
         horizontal: 1,
     });
 
-    let parse_number = |str: &mut String| -> i64 {
-        if let Ok(number) = str.trim().parse() {
-            number
-        } else {
-            *str = String::new();
-            0
-        }
-    };
-
     match app.insert_popup.state {
-        InsertState::Inputting => match app.insert_popup.current_line() {
-            0 => app.insert_popup.path = app.insert_popup.data.clone(),
-            1 => app.insert_popup.title = app.insert_popup.data.clone(),
-            2 => app.insert_popup.sync_service_id = parse_number(&mut app.insert_popup.data),
-            3 => app.insert_popup.episode_count = parse_number(&mut app.insert_popup.data),
-            _ => {}
-        },
-        InsertState::Next => {
-            match app.insert_popup.current_line() {
-                // after going to the next line, when data in the previous one is present
-                1 if !app.insert_popup.path.is_empty() && app.insert_popup.title.is_empty() => {
-                    // sanitize user input
-                    app.insert_popup.title = app
-                        .shows
-                        .items
-                        .guess_shows_title(&app.insert_popup.path)
-                        .unwrap_or_default();
-                }
-                2 if !app.insert_popup.title.is_empty()
-                    && app.insert_popup.sync_service_id == 0 =>
-                {
-                    // create a popup to select the exact show from a sync service
-                    let items: Vec<_> = rt.block_on(async {
-                        app.shows.items.list_titles(&app.insert_popup.title).await
-                    });
-                    app.titles_popup = TitlesPopup::with_items(items);
-                    app.titles_popup.state.select(Some(0));
-                    app.focused_window = FocusedWindow::TitleSelection
-                }
-                3 if app.insert_popup.sync_service_id != 0
-                    && app.insert_popup.episode_count == 0
-                    && !app.insert_popup.path.is_empty() =>
-                {
-                    // compare number of video files with the retrieved number of episodes
-                    let episode_count = rt.block_on(async {
-                        app.shows
-                            .items
-                            .get_episode_count(app.insert_popup.sync_service_id as u32)
-                            .await
-                    });
-                    let video_files_count = app
-                        .shows
-                        .items
-                        .count_video_files(&app.insert_popup.path)
-                        .unwrap_or_default();
-                    app.insert_popup.episode_count = episode_count.map_or(0, |count| {
-                        if count == video_files_count as u32 {
-                            app.insert_popup.episodes = app
-                                .shows
-                                .items
-                                .get_video_file_paths(&app.insert_popup.path)
-                                .unwrap_or_default()
-                                .into_iter()
-                                .enumerate()
-                                .map(|(k, path)| Episode {
-                                    number: k as i64 + 1,
-                                    path: path.to_string_lossy().to_string(),
-                                })
-                                .collect();
-
-                            count.into()
-                        } else {
-                            0
-                            // not all episodes are present?
-                        }
-                    });
-                }
-                _ => {}
-            };
-            app.insert_popup.data = match app.insert_popup.current_line() {
-                0 if !app.insert_popup.path.is_empty() => app.insert_popup.path.clone(),
-                1 if !app.insert_popup.title.is_empty() => app.insert_popup.title.clone(),
-                2 if !app.insert_popup.sync_service_id != 0 => {
-                    app.insert_popup.sync_service_id.to_string()
-                }
-                3 if !app.insert_popup.episode_count != 0 => {
-                    app.insert_popup.episode_count.to_string()
-                }
-                _ => String::new(),
-            };
-            app.insert_popup.state = InsertState::Inputting;
-        }
-        InsertState::Save => {
-            // temporarily as data retrieval from MAL isn't yet implemented
-            // TODO: Don't allow for empty titles etc.
-            if let Err(why) = app.shows.items.add_show(
-                &app.insert_popup.title,
-                app.insert_popup.sync_service_id,
-                app.insert_popup.episode_count,
-                0,
-            ) {
-                eprintln!("{}", why);
-            }
-            app.insert_popup.episodes.iter().for_each(|episode| {
-                app.shows.items.add_episode_service_id(
-                    app.insert_popup.sync_service_id,
-                    episode.number,
-                    &episode.path,
-                ).unwrap()
-            });
-            app.insert_popup.state = InsertState::None;
-            app.insert_popup = InsertPopup::default();
-            app.focused_window = FocusedWindow::MainMenu; // close the popup
-        }
+        InsertState::Inputting => handle_inputting_state(app),
+        InsertState::Next => handle_next_state(app, rt),
+        InsertState::Save => handle_save_state(app),
         _ => {}
     }
 
@@ -221,4 +112,116 @@ pub(crate) fn build<B: Backend>(frame: &mut Frame<B>, app: &mut App, rt: &Runtim
     frame.render_widget(Clear, area);
     frame.render_widget(block, area);
     frame.render_widget(form, text_area)
+}
+
+fn handle_inputting_state(app: &mut App) {
+    match app.insert_popup.current_line() {
+        0 => app.insert_popup.path = app.insert_popup.data.clone(),
+        1 => app.insert_popup.title = app.insert_popup.data.clone(),
+        2 => app.insert_popup.sync_service_id = parse_number(&mut app.insert_popup.data),
+        3 => app.insert_popup.episode_count = parse_number(&mut app.insert_popup.data),
+        _ => {}
+    }
+}
+
+fn handle_next_state(app: &mut App, rt: &Runtime) {
+    match app.insert_popup.current_line() {
+        // after going to the next line, when data in the previous one is present
+        1 if !app.insert_popup.path.is_empty() && app.insert_popup.title.is_empty() => {
+            // sanitize user input
+            app.insert_popup.title = app
+                .shows
+                .items
+                .guess_shows_title(&app.insert_popup.path)
+                .unwrap_or_default();
+        }
+        2 if !app.insert_popup.title.is_empty() && app.insert_popup.sync_service_id == 0 => {
+            // create a popup to select the exact show from a sync service
+            let items: Vec<_> =
+                rt.block_on(async { app.shows.items.list_titles(&app.insert_popup.title).await });
+            app.titles_popup = TitlesPopup::with_items(items);
+            app.titles_popup.state.select(Some(0));
+            app.focused_window = FocusedWindow::TitleSelection
+        }
+        3 if app.insert_popup.sync_service_id != 0
+            && app.insert_popup.episode_count == 0
+            && !app.insert_popup.path.is_empty() =>
+        {
+            // compare number of video files with the retrieved number of episodes
+            let episode_count = rt.block_on(async {
+                app.shows
+                    .items
+                    .get_episode_count(app.insert_popup.sync_service_id as u32)
+                    .await
+            });
+            let video_files_count = app
+                .shows
+                .items
+                .count_video_files(&app.insert_popup.path)
+                .unwrap_or_default();
+            app.insert_popup.episode_count = episode_count.map_or(0, |count| {
+                if count == video_files_count as u32 {
+                    app.insert_popup.episodes = app
+                        .shows
+                        .items
+                        .get_video_file_paths(&app.insert_popup.path)
+                        .unwrap_or_default()
+                        .into_iter()
+                        .enumerate()
+                        .map(|(k, path)| Episode {
+                            number: k as i64 + 1,
+                            path: path.to_string_lossy().to_string(),
+                        })
+                        .collect();
+
+                    count.into()
+                } else {
+                    0
+                    // not all episodes are present?
+                }
+            });
+        }
+        _ => {}
+    };
+    app.insert_popup.data = match app.insert_popup.current_line() {
+        0 if !app.insert_popup.path.is_empty() => app.insert_popup.path.clone(),
+        1 if !app.insert_popup.title.is_empty() => app.insert_popup.title.clone(),
+        2 if !app.insert_popup.sync_service_id != 0 => app.insert_popup.sync_service_id.to_string(),
+        3 if !app.insert_popup.episode_count != 0 => app.insert_popup.episode_count.to_string(),
+        _ => String::new(),
+    };
+    app.insert_popup.state = InsertState::Inputting;
+}
+
+fn handle_save_state(app: &mut App) {
+    if let Err(why) = app.shows.items.add_show(
+        &app.insert_popup.title,
+        app.insert_popup.sync_service_id,
+        app.insert_popup.episode_count,
+        0,
+    ) {
+        eprintln!("{}", why);
+    }
+    app.insert_popup.episodes.iter().for_each(|episode| {
+        app.shows
+            .items
+            .add_episode_service_id(
+                app.insert_popup.sync_service_id,
+                episode.number,
+                &episode.path,
+            )
+            .unwrap()
+    });
+    app.insert_popup.state = InsertState::None;
+    app.insert_popup = InsertPopup::default();
+    app.focused_window = FocusedWindow::MainMenu;
+}
+
+fn parse_number(str: &mut String) -> i64 {
+    if let Ok(number) = str.trim().parse() {
+        number
+    } else {
+        *str = String::new();
+        0
+    }
 }
