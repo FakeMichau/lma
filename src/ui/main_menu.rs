@@ -79,7 +79,6 @@ impl StatefulList {
                 .selected()
                 .unwrap_or_default();
 
-            // SANITIZE USER INPUT
             let path = &self
                 .list_cache
                 .get(self.episodes_state.selected_show_id as usize - 1)
