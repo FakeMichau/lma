@@ -68,7 +68,8 @@ impl AnimeList {
                 episode_count,
                 progress,
             ]
-        ).map(|_| ()).map_err(|e| e.to_string())
+        ).map_err(|e| e.to_string())?;
+        Ok(())
     }
     pub fn add_episode(&self, show_id: i64, episode_number: i64, path: &str) -> Result<(), String> {
         self.db_connection
@@ -176,10 +177,15 @@ impl AnimeList {
         self.service.get_episode_count(id).await
     }
 
-    #[allow(dead_code)]
-    fn remove_entry() {}
-    #[allow(dead_code)]
-    fn refresh_filesystem() {}
+    pub fn remove_entry(&self, show_id: i64) -> Result<(), String> {
+        self.db_connection
+            .execute("DELETE FROM Episodes WHERE show_id = ?1", params![show_id])
+            .map_err(|e| e.to_string())?;
+        self.db_connection
+            .execute("DELETE FROM Shows WHERE id = ?1", params![show_id])
+            .map_err(|e| e.to_string())?;
+        Ok(())
+    }
 }
 
 pub struct Show {

@@ -93,7 +93,7 @@ pub(crate) fn run<B: Backend>(
     mut app: app::App,
     tick_rate: Duration,
     rt: Runtime,
-) -> io::Result<()> {
+) -> Result<(), Box<dyn Error>> {
     let mut last_tick = Instant::now();
     loop {
         terminal.draw(|f| ui::ui(f, &mut app, &rt))?;
@@ -126,13 +126,14 @@ fn handle_main_menu_key<B: Backend>(
     app: &mut App,
     rt: &Runtime,
     terminal: &mut Terminal<B>,
-) -> Result<Option<bool>, io::Error> {
+) -> Result<Option<bool>, Box<dyn Error>> {
     match key.code {
         KeyCode::Char('q') => return Ok(None),
         KeyCode::Down => app.shows.move_selection(SelectionDirection::Next),
         KeyCode::Up => app.shows.move_selection(SelectionDirection::Previous),
-        KeyCode::Right => app.shows.select(),
+        KeyCode::Right | KeyCode::Enter => app.shows.select(),
         KeyCode::Left => app.shows.unselect(),
+        KeyCode::Delete => app.shows.delete()?,
         KeyCode::Char('n') => {
             app.focused_window = FocusedWindow::InsertPopup;
             app.insert_popup.state = InsertState::Inputting;

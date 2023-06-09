@@ -1,4 +1,4 @@
-use std::process::{Command, Stdio};
+use std::{process::{Command, Stdio}, error::Error};
 
 use lma::{AnimeList, Show};
 use ratatui::{
@@ -16,11 +16,11 @@ pub(crate) struct StatefulList {
     pub(crate) state: ListState,
     pub(crate) episodes_state: EpisodesState,
     pub(crate) items: AnimeList,
+    pub(crate) selected_id: i64,
     list_cache: Vec<Show>,
 }
 
 pub(crate) struct EpisodesState {
-    pub(crate) selected_show_id: i64,
     pub(crate) list_state: ListState,
     pub(crate) selection_enabled: bool,
 }
@@ -31,13 +31,24 @@ impl StatefulList {
         StatefulList {
             state: ListState::default(),
             episodes_state: EpisodesState {
-                selected_show_id: 0,
                 list_state: ListState::default(),
                 selection_enabled: false,
             },
             items: shows,
+            selected_id: 0,
             list_cache,
         }
+    }
+
+    pub(crate) fn delete(&mut self) -> Result<(), Box<dyn Error>> {
+        if self.episodes_state.selection_enabled {
+            // todo: delete just an episode
+        } else {
+            self.items.remove_entry(self.selected_id)?;
+            self.update_cache();
+            self.update_selected_id(self.state.selected().unwrap_or_default());
+        }
+        Ok(())
     }
 
     pub(crate) fn move_selection(&mut self, direction: SelectionDirection) {
@@ -47,13 +58,16 @@ impl StatefulList {
             self.update_cache();
             let i = self.select_element(self.list_cache.len(), self.state.selected(), direction);
             self.state.select(Some(i));
-            let selected_id = if let Some(show) = self.list_cache.get(i) {
-                show.id
-            } else {
-                0
-            };
-            self.episodes_state.selected_show_id = selected_id;
+            self.update_selected_id(i);
         }
+    }
+
+    fn update_selected_id(&mut self, index: usize) {
+        self.selected_id = if let Some(show) = self.list_cache.get(index) {
+            show.id
+        } else {
+            0
+        };
     }
 
     fn move_episode_selection(&mut self, direction: SelectionDirection) {
@@ -81,7 +95,9 @@ impl StatefulList {
 
             let path = &self
                 .list_cache
-                .get(self.episodes_state.selected_show_id as usize - 1)
+                .iter()
+                .filter(|show| show.id == self.selected_id)
+                .next()
                 .unwrap()
                 .episodes
                 .get(selected_episode)
@@ -172,7 +188,7 @@ pub(crate) fn build<B: Backend>(frame: &mut Frame<'_, B>, app: &mut App) {
         .get_list()
         .unwrap()
         .iter()
-        .filter(|show| show.id == app.shows.episodes_state.selected_show_id)
+        .filter(|show| show.id == app.shows.selected_id)
         .flat_map(|show| {
             let mut temp: Vec<ListItem> = Vec::new();
             for episode in &show.episodes {
