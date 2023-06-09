@@ -133,7 +133,10 @@ fn handle_main_menu_key<B: Backend>(
         KeyCode::Up => app.shows.move_selection(SelectionDirection::Previous),
         KeyCode::Right => app.shows.select(),
         KeyCode::Left => app.shows.unselect(),
-        KeyCode::Char('n') => app.focused_window = FocusedWindow::InsertPopup,
+        KeyCode::Char('n') => {
+            app.focused_window = FocusedWindow::InsertPopup;
+            app.insert_popup.state = InsertState::Inputting;
+        },
         KeyCode::Char('l') => app.handle_login_popup(rt, terminal)?,
         KeyCode::Char('p') => debug_assert!(app.generate_test_data()),
         _ => {}
