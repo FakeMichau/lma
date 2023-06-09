@@ -51,11 +51,6 @@ impl AnimeList {
         shows.iter_mut().for_each(|show| {
             show.episodes.sort_by_key(|episode| episode.number);
         });
-        // shows
-        //     .iter_mut()
-        //     .for_each(|show| {
-        //         show.title = self.list_titles(&show.title).first().unwrap_or(&show.title).clone()
-        //     });
         Ok(shows)
     }
     pub fn add_show(
