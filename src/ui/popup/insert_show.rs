@@ -106,6 +106,7 @@ pub(crate) fn build<B: Backend>(frame: &mut Frame<B>, app: &mut App, rt: &Runtim
                         app.shows.items.list_titles(&app.insert_popup.title).await
                     });
                     app.titles_popup = TitlesPopup::with_items(items);
+                    app.titles_popup.state.select(Some(0));
                     app.focused_window = FocusedWindow::TitleSelection
                 }
                 3 if app.insert_popup.sync_service_id != 0

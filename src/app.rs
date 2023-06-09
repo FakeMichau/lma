@@ -119,7 +119,9 @@ pub(crate) fn run<B: Backend>(
                         KeyCode::Down => app.titles_popup.move_selection(SelectionDirection::Next),
                         KeyCode::Up => app.titles_popup.move_selection(SelectionDirection::Previous),
                         KeyCode::Enter => {
-                            app.insert_popup.sync_service_id = app.titles_popup.selected_id() as i64;
+                            let selected_show = app.titles_popup.selected_show();
+                            app.insert_popup.sync_service_id = selected_show.id as i64;
+                            app.insert_popup.title = selected_show.title.to_owned(); // make it a config?
                             app.insert_popup.state = InsertState::Confirmation;
                             app.focused_window = FocusedWindow::InsertPopup
                         },
