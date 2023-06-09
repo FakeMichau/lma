@@ -25,7 +25,7 @@ pub(crate) struct InsertPopup {
 pub(crate) enum InsertState {
     None,
     Inputting,
-    Confirmation,
+    Next,
     Save,
 }
 
@@ -35,26 +35,30 @@ impl Default for InsertState {
     }
 }
 
+const MAX_INDEX: usize = 3;
 impl InsertPopup {
     pub(crate) fn current_line(&self) -> usize {
         self.selected_line
     }
-    pub(crate) fn next_line(&mut self, max_index: usize) {
+    // return true on return to the beginning
+    pub(crate) fn next_line(&mut self) -> bool {
         if self.state != InsertState::Inputting {
-            return;
+            return false
         }
-        if self.selected_line + 1 > max_index {
+        if self.selected_line + 1 > MAX_INDEX {
             self.selected_line = 0;
+            true
         } else {
-            self.selected_line += 1
+            self.selected_line += 1;
+            false
         }
     }
-    pub(crate) fn previous_line(&mut self, max_index: usize) {
+    pub(crate) fn previous_line(&mut self) {
         if self.state != InsertState::Inputting {
             return;
         }
         if self.selected_line.checked_sub(1).is_none() {
-            self.selected_line = max_index
+            self.selected_line = MAX_INDEX
         } else {
             self.selected_line -= 1
         }
@@ -87,7 +91,7 @@ pub(crate) fn build<B: Backend>(frame: &mut Frame<B>, app: &mut App, rt: &Runtim
             3 => app.insert_popup.episode_count = parse_number(&mut app.insert_popup.data),
             _ => {}
         },
-        InsertState::Confirmation => {
+        InsertState::Next => {
             match app.insert_popup.current_line() {
                 // after going to the next line, when data in the previous one is present
                 1 if !app.insert_popup.path.is_empty() && app.insert_popup.title.is_empty() => {

@@ -89,13 +89,20 @@ pub(crate) fn run<B: Backend>(
                             KeyCode::Char(c) => app.insert_popup.data.push(c),
                             KeyCode::Backspace => _=app.insert_popup.data.pop(),
                             KeyCode::Esc => app.insert_popup.state = InsertState::None,
-                            KeyCode::Down | KeyCode::Enter => {
-                                app.insert_popup.next_line(3);
-                                app.insert_popup.state = InsertState::Confirmation;
+                            KeyCode::Down => {
+                                app.insert_popup.next_line();
+                                app.insert_popup.state = InsertState::Next;
+                            },
+                            KeyCode::Enter => {
+                                app.insert_popup.state = if app.insert_popup.next_line() {
+                                    InsertState::Save
+                                } else {
+                                    InsertState::Next
+                                };
                             },
                             KeyCode::Up => {
-                                app.insert_popup.previous_line(3);
-                                app.insert_popup.state = InsertState::Confirmation;
+                                app.insert_popup.previous_line();
+                                app.insert_popup.state = InsertState::Next;
                             },
                             _ => {}
                         },
@@ -106,8 +113,8 @@ pub(crate) fn run<B: Backend>(
                             },
                             KeyCode::Char('e') => app.insert_popup.state = InsertState::Inputting,
                             KeyCode::Char('i') => app.insert_popup.state = InsertState::Save,
-                            KeyCode::Down => app.insert_popup.next_line(3),
-                            KeyCode::Up => app.insert_popup.previous_line(3),
+                            KeyCode::Down => _=app.insert_popup.next_line(),
+                            KeyCode::Up => app.insert_popup.previous_line(),
                             _ => {}
                         },
                     },
@@ -122,7 +129,7 @@ pub(crate) fn run<B: Backend>(
                             let selected_show = app.titles_popup.selected_show();
                             app.insert_popup.sync_service_id = selected_show.id as i64;
                             app.insert_popup.title = selected_show.title.to_owned(); // make it a config?
-                            app.insert_popup.state = InsertState::Confirmation;
+                            app.insert_popup.state = InsertState::Next;
                             app.focused_window = FocusedWindow::InsertPopup
                         },
                         KeyCode::Esc => app.focused_window = FocusedWindow::InsertPopup,
