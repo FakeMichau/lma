@@ -223,79 +223,74 @@ pub(crate) fn build<B: Backend>(frame: &mut Frame<'_, B>, app: &mut App) {
     frame.render_widget(help, chunks[1]);
 }
 
+struct HelpItem {
+    text: &'static str,
+    key: &'static str,
+    text_style: Style,
+    key_style: Style,
+}
+
+impl HelpItem {
+    fn new(text: &'static str, key: &'static str) -> Self {
+        let text_style = Style::default().bg(Color::Rgb(0, 50, 0));
+        let key_style = text_style.add_modifier(Modifier::BOLD);
+        HelpItem {
+            text,
+            key,
+            text_style,
+            key_style,
+        }
+    }
+
+    fn to_span<'a>(self) -> Vec<Span<'a>> {
+        vec![
+            Span::styled(format!("{} ", self.text), self.text_style),
+            Span::styled(format!("[{}]", self.key), self.key_style),
+            Span::raw(" "),
+        ]
+    }
+}
+
 fn build_help<'a>(focused_window: &FocusedWindow, insert_state: &InsertState) -> Paragraph<'a> {
     // Create help text at the bottom
-    let hint_text_style = Style::default().bg(Color::Rgb(0, 50, 0));
-    let hint_key_style = hint_text_style.add_modifier(Modifier::BOLD);
-    
-    let navigation = vec![
-        Span::styled("Navigation ", hint_text_style),
-        Span::styled("[ARROWS]", hint_key_style),
-        Span::raw(" ")
-    ];
-    let insert = vec![
-        Span::styled("Insert new show ", hint_text_style),
-        Span::styled("[N]", hint_key_style),
-        Span::raw(" "),
-    ];
-    let delete = vec![
-        Span::styled("Delete the entry ", hint_text_style),
-        Span::styled("[DEL]", hint_key_style),
-        Span::raw(" "),
-    ];
-    let close_window = vec![
-        Span::styled("Close the window ", hint_text_style),
-        Span::styled("[ESC]", hint_key_style),
-        Span::raw(" "),
-    ];
-    let exit_inputting = vec![
-        Span::styled("Stop inputting ", hint_text_style),
-        Span::styled("[ESC]", hint_key_style),
-        Span::raw(" "),
-    ];
-    let start_inputting = vec![
-        Span::styled("Start inputting ", hint_text_style),
-        Span::styled("[E]", hint_key_style),
-        Span::raw(" "),
-    ];
-    let login = vec![
-        Span::styled("Login to MAL ", hint_text_style),
-        Span::styled("[L]", hint_key_style),
-        Span::raw(" "),
-    ];
-    let quit = vec![
-        Span::styled("Quit ", hint_text_style),
-        Span::styled("[Q]", hint_key_style),
-    ];
+    let navigation = HelpItem::new("Navigation", "ARROWS");
+    let insert = HelpItem::new("Insert new show", "N");
+    let delete = HelpItem::new("Delete the entry", "DEL");
+    let close_window = HelpItem::new("Close the window", "ESC");
+    let exit_inputting = HelpItem::new("Stop inputting", "ESC");
+    let start_inputting = HelpItem::new("Start inputting", "E");
+    let confirm = HelpItem::new("Confirm", "ENTER");
+    let login = HelpItem::new("Login to MAL", "L");
+    let quit = HelpItem::new("Quit", "Q");
 
     let mut information = Vec::new();
     match focused_window {
         FocusedWindow::MainMenu => {
-            information.extend(navigation);
-            information.extend(insert);
-            information.extend(delete);
-            information.extend(login);
-            information.extend(quit);
+            information.extend(navigation.to_span());
+            information.extend(insert.to_span());
+            information.extend(delete.to_span());
+            information.extend(login.to_span());
+            information.extend(quit.to_span());
         },
         FocusedWindow::InsertPopup => {
-            information.extend(navigation);
+            information.extend(navigation.to_span());
             match insert_state {
                 InsertState::Inputting | InsertState::Next => {
-                    information.extend(exit_inputting);
+                    information.extend(confirm.to_span());
+                    information.extend(exit_inputting.to_span());
                 },
                 _ => {
-                    information.extend(start_inputting);
-                    information.extend(close_window);
+                    information.extend(start_inputting.to_span());
+                    information.extend(close_window.to_span());
                 }
             }
-
         },
         FocusedWindow::Login => {
-            information.extend(close_window);
+            information.extend(close_window.to_span());
         },
         FocusedWindow::TitleSelection => {
-            information.extend(navigation);
-            information.extend(close_window);
+            information.extend(navigation.to_span());
+            information.extend(close_window.to_span());
         },
     };
 
