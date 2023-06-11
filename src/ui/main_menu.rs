@@ -9,7 +9,7 @@ use ratatui::{
     Frame, text::{Span, Line},
 };
 
-use super::SelectionDirection;
+use super::{SelectionDirection, FocusedWindow, popup::insert_show::InsertState};
 use crate::app::App;
 
 pub(crate) struct StatefulList {
@@ -211,27 +211,7 @@ pub(crate) fn build<B: Backend>(frame: &mut Frame<'_, B>, app: &mut App) {
         )
         .highlight_symbol(">> ");
 
-    // Create help text at the bottom
-    let hint_text_style = Style::default().bg(Color::Rgb(0, 50, 0));
-    let hint_key_style = hint_text_style.add_modifier(Modifier::BOLD);
-    
-    let information = Line::from(vec![
-        Span::styled("Navigation ", hint_text_style),
-        Span::styled("[ARROWS]", hint_key_style),
-        Span::raw(" "),
-        Span::styled("Insert new show ", hint_text_style),
-        Span::styled("[N]", hint_key_style),
-        Span::raw(" "),
-        Span::styled("Login to MAL ", hint_text_style),
-        Span::styled("[L]", hint_key_style),
-        Span::raw(" "),
-        Span::styled("Close a window ", hint_text_style),
-        Span::styled("[ESC]", hint_key_style),
-        Span::raw(" "),
-        Span::styled("Quit ", hint_text_style),
-        Span::styled("[Q]", hint_key_style),
-    ]);
-    let help = Paragraph::new(information);
+    let help = build_help(&app.focused_window, &app.insert_popup.state);
 
     // We can now render the item list
     frame.render_stateful_widget(items, main_chunks[0], &mut app.shows.state);
@@ -241,4 +221,83 @@ pub(crate) fn build<B: Backend>(frame: &mut Frame<'_, B>, app: &mut App) {
         &mut app.shows.episodes_state.list_state,
     );
     frame.render_widget(help, chunks[1]);
+}
+
+fn build_help<'a>(focused_window: &FocusedWindow, insert_state: &InsertState) -> Paragraph<'a> {
+    // Create help text at the bottom
+    let hint_text_style = Style::default().bg(Color::Rgb(0, 50, 0));
+    let hint_key_style = hint_text_style.add_modifier(Modifier::BOLD);
+    
+    let navigation = vec![
+        Span::styled("Navigation ", hint_text_style),
+        Span::styled("[ARROWS]", hint_key_style),
+        Span::raw(" ")
+    ];
+    let insert = vec![
+        Span::styled("Insert new show ", hint_text_style),
+        Span::styled("[N]", hint_key_style),
+        Span::raw(" "),
+    ];
+    let delete = vec![
+        Span::styled("Delete the entry ", hint_text_style),
+        Span::styled("[DEL]", hint_key_style),
+        Span::raw(" "),
+    ];
+    let close_window = vec![
+        Span::styled("Close the window ", hint_text_style),
+        Span::styled("[ESC]", hint_key_style),
+        Span::raw(" "),
+    ];
+    let exit_inputting = vec![
+        Span::styled("Stop inputting ", hint_text_style),
+        Span::styled("[ESC]", hint_key_style),
+        Span::raw(" "),
+    ];
+    let start_inputting = vec![
+        Span::styled("Start inputting ", hint_text_style),
+        Span::styled("[E]", hint_key_style),
+        Span::raw(" "),
+    ];
+    let login = vec![
+        Span::styled("Login to MAL ", hint_text_style),
+        Span::styled("[L]", hint_key_style),
+        Span::raw(" "),
+    ];
+    let quit = vec![
+        Span::styled("Quit ", hint_text_style),
+        Span::styled("[Q]", hint_key_style),
+    ];
+
+    let mut information = Vec::new();
+    match focused_window {
+        FocusedWindow::MainMenu => {
+            information.extend(navigation);
+            information.extend(insert);
+            information.extend(delete);
+            information.extend(login);
+            information.extend(quit);
+        },
+        FocusedWindow::InsertPopup => {
+            information.extend(navigation);
+            match insert_state {
+                InsertState::Inputting | InsertState::Next => {
+                    information.extend(exit_inputting);
+                },
+                _ => {
+                    information.extend(start_inputting);
+                    information.extend(close_window);
+                }
+            }
+
+        },
+        FocusedWindow::Login => {
+            information.extend(close_window);
+        },
+        FocusedWindow::TitleSelection => {
+            information.extend(navigation);
+            information.extend(close_window);
+        },
+    };
+
+    Paragraph::new(Line::from(information))
 }
