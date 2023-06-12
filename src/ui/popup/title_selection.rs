@@ -73,8 +73,7 @@ pub(crate) fn build<B: Backend>(frame: &mut Frame<B>, app: &mut App) {
             Style::default()
                 .bg(Color::LightGreen)
                 .add_modifier(Modifier::BOLD),
-        )
-        .highlight_symbol(">> ");
+        );
     
     frame.render_widget(Clear, area);
     frame.render_stateful_widget(items, list_area, &mut app.titles_popup.state);

@@ -176,8 +176,7 @@ pub(crate) fn build<B: Backend>(frame: &mut Frame<'_, B>, app: &mut App) {
             Style::default()
                 .bg(Color::LightGreen)
                 .add_modifier(Modifier::BOLD),
-        )
-        .highlight_symbol(">> ");
+        );
 
     // Iterate through all elements in the `items` app
     let episodes: Vec<ListItem> = app
@@ -205,8 +204,7 @@ pub(crate) fn build<B: Backend>(frame: &mut Frame<'_, B>, app: &mut App) {
             Style::default()
                 .bg(Color::LightGreen)
                 .add_modifier(Modifier::BOLD),
-        )
-        .highlight_symbol(">> ");
+        );
 
     let help = build_help(&app.focused_window, &app.insert_popup.state);
 
