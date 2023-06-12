@@ -4,7 +4,7 @@ use crate::{
     ui::{FocusedWindow, SelectionDirection},
 };
 
-use lma::Episode;
+use lma::{Episode, AnimeList};
 use ratatui::{
     backend::Backend,
     layout::Margin,
@@ -161,10 +161,7 @@ fn handle_next_state(app: &mut App, rt: &Runtime) {
                 .unwrap_or_default();
             app.insert_popup.episode_count = episode_count.map_or(0, |count| {
                 if count == video_files_count as u32 {
-                    app.insert_popup.episodes = app
-                        .shows
-                        .items
-                        .get_video_file_paths(&app.insert_popup.path)
+                    app.insert_popup.episodes = AnimeList::get_video_file_paths(&app.insert_popup.path)
                         .unwrap_or_default()
                         .into_iter()
                         .enumerate()

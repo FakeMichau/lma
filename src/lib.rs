@@ -98,7 +98,7 @@ impl AnimeList {
             .map_err(|e| e.to_string())
     }
 
-    pub fn get_video_file_paths(&self, path: &str) -> Result<Vec<PathBuf>, std::io::Error> {
+    pub fn get_video_file_paths(path: &str) -> Result<Vec<PathBuf>, std::io::Error> {
         let read_dir = fs::read_dir(path)?;
         let mut files = read_dir
             .into_iter()
@@ -123,7 +123,7 @@ impl AnimeList {
 
     pub fn guess_shows_title(&self, path: &str) -> Result<String, std::io::Error> {
         Ok(AnimeList::remove_after_last_dash(
-            &self.get_video_file_paths(path)?
+            &AnimeList::get_video_file_paths(&path)?
                 .iter()
                 .map(|dir| {
                     let filename = dir.file_stem().unwrap_or_default();
@@ -135,7 +135,7 @@ impl AnimeList {
     }
 
     pub fn count_video_files(&self, path: &str) -> Result<usize, std::io::Error> {
-        Ok(self.get_video_file_paths(path)?.len())
+        Ok(AnimeList::get_video_file_paths(path)?.len())
     }
 
     fn cleanup_title(input: &OsStr) -> String {
