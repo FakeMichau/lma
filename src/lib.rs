@@ -121,27 +121,21 @@ impl AnimeList {
         Ok(files)
     }
 
-
-    pub fn get_video_file_titles(&self, path: &str) -> Result<Vec<String>, std::io::Error> {
-        let files = self.get_video_file_paths(path).unwrap().iter()
-            .map(|dir| {
-                let filename = dir.file_stem().unwrap_or_default();
-                AnimeList::cleanup_title(filename)
-            })
-            .collect::<Vec<_>>();
-        Ok(files)
-    }
-
     pub fn guess_shows_title(&self, path: &str) -> Result<String, std::io::Error> {
         Ok(AnimeList::remove_after_last_dash(
-            self.get_video_file_titles(path)?
-                .first()
-                .unwrap_or(&"".to_string()),
+            &self.get_video_file_paths(path)?
+                .iter()
+                .map(|dir| {
+                    let filename = dir.file_stem().unwrap_or_default();
+                    AnimeList::cleanup_title(filename)
+                })
+                .next()
+                .unwrap_or("".to_string()),
         ))
     }
 
     pub fn count_video_files(&self, path: &str) -> Result<usize, std::io::Error> {
-        Ok(self.get_video_file_titles(path)?.len())
+        Ok(self.get_video_file_paths(path)?.len())
     }
 
     fn cleanup_title(input: &OsStr) -> String {
