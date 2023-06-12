@@ -120,4 +120,13 @@ impl MAL {
             }
         }
     }
+
+    pub async fn set_progress(&mut self, id: u32, progress: u32) {
+        let mut update = StatusUpdate::new();
+        update.num_watched_episodes(progress);
+        self.client
+            .update_user_anime_status(id, update)
+            .await
+            .expect("Update user's list"); // likely will fail
+    }
 }

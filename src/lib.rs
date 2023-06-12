@@ -61,7 +61,10 @@ impl AnimeList {
         progress: i64,
     ) -> Result<(), String> {
         self.db_connection.execute(
-            "REPLACE INTO Shows (title, sync_service_id, episode_count, progress) VALUES (?1, ?2, ?3, ?4)", 
+            "INSERT INTO Shows (title, sync_service_id, episode_count, progress) 
+                VALUES (?1, ?2, ?3, ?4)
+                ON CONFLICT(sync_service_id)
+	            DO UPDATE SET title=excluded.title, episode_count=excluded.episode_count, progress=excluded.progress", 
             params![
                 title,
                 sync_service_id,
@@ -189,6 +192,10 @@ impl AnimeList {
 
     pub async fn init_show(&mut self, id: u32) {
         self.service.init_show(id).await;
+    }
+
+    pub async fn set_progress(&mut self, id: u32, progress: u32) {
+        self.service.set_progress(id, progress).await;
     }
 }
 

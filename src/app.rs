@@ -8,6 +8,7 @@ use crate::ui::{
 };
 use crossterm::event::{self, Event, KeyCode};
 use ratatui::{backend::Backend, Terminal};
+use std::collections::HashMap;
 use std::error::Error;
 use std::{
     io,
@@ -79,6 +80,62 @@ impl App {
         Ok(())
     }
 
+    fn update_progress(&mut self, rt: &Runtime) {
+        if let None = self.shows.items.service.get_url() {
+            let user_service_progress: HashMap<u32, u32> = rt.block_on(async {
+                self.shows
+                    .items
+                    .service
+                    .get_user_list()
+                    .await
+                    .iter()
+                    .map(|entry| {
+                        (
+                            entry.node.id,
+                            entry
+                                .list_status
+                                .clone()
+                                .expect("Entry list status")
+                                .num_episodes_watched
+                                .unwrap_or_default(),
+                        )
+                    })
+                    .collect()
+            });
+            self.shows
+                .items
+                .get_list()
+                .expect("List from the local database")
+                .into_iter()
+                .for_each(|show| {
+                    let user_service_progress_current = user_service_progress
+                        .get(&(show.sync_service_id as u32))
+                        .unwrap_or(&0)
+                        .clone();
+                    let local_progress_current = show.progress as u32;
+                    // progress different between local and service
+                    if user_service_progress_current > local_progress_current {
+                        self.shows.items.add_show(
+                            &show.title,
+                            show.sync_service_id,
+                            show.episode_count,
+                            user_service_progress_current as i64,
+                        ).unwrap();
+                    } else if user_service_progress_current < local_progress_current {
+                        rt.block_on(async {
+                            self.shows
+                                .items
+                                .set_progress(
+                                    (show.sync_service_id as i64).try_into().unwrap(),
+                                    local_progress_current,
+                                )
+                                .await
+                        });
+                    }
+                })
+        }
+    }
+
     fn fill_with_api_data(&mut self) {
         let selected_show = self.titles_popup.selected_show();
         self.insert_popup.sync_service_id = selected_show.id as i64;
@@ -138,7 +195,10 @@ fn handle_main_menu_key<B: Backend>(
             app.focused_window = FocusedWindow::InsertPopup;
             app.insert_popup.state = InsertState::Inputting;
         },
-        KeyCode::Char('l') => app.handle_login_popup(rt, terminal)?,
+        KeyCode::Char('l') => {
+            app.handle_login_popup(rt, terminal)?;
+            app.update_progress(rt);
+        },
         KeyCode::Char('p') => debug_assert!(app.generate_test_data()),
         _ => {}
     }
