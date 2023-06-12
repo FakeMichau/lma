@@ -118,7 +118,9 @@ impl StatefulList {
             match self.list_cache.get(selected_id) {
                 Some(show) => {
                     if show.episodes.len() > 0 {
-                        self.episodes_state.list_state.select(Some(show.progress as usize));
+                        self.episodes_state
+                            .list_state
+                            .select(Some(show.progress as usize));
                         self.episodes_state.selection_enabled = true;
                     }
                 }
@@ -188,10 +190,13 @@ pub(crate) fn build<B: Backend>(frame: &mut Frame<'_, B>, app: &mut App) {
         .flat_map(|show| {
             let mut temp: Vec<ListItem> = Vec::new();
             for episode in &show.episodes {
-                let style = if episode.number > show.progress { Style::default() } else { Style::default().fg(Color::Rgb(50, 50, 50)) };
+                let style = if episode.number > show.progress { 
+                    Style::default() 
+                } else { 
+                    Style::default().fg(Color::Rgb(50, 50, 50)) 
+                };
                 temp.push(
-                    ListItem::new(format!("{} {}", episode.number, episode.path))
-                        .style(style),
+                    ListItem::new(format!("{} {}", episode.number, episode.path)).style(style),
                 );
             }
             temp
@@ -267,27 +272,27 @@ fn build_help<'a>(focused_window: &FocusedWindow, insert_state: &InsertState) ->
             information.extend(delete.to_span());
             information.extend(login.to_span());
             information.extend(quit.to_span());
-        },
+        }
         FocusedWindow::InsertPopup => {
             information.extend(navigation.to_span());
             match insert_state {
                 InsertState::Inputting | InsertState::Next => {
                     information.extend(confirm.to_span());
                     information.extend(exit_inputting.to_span());
-                },
+                }
                 _ => {
                     information.extend(start_inputting.to_span());
                     information.extend(close_window.to_span());
                 }
             }
-        },
+        }
         FocusedWindow::Login => {
             information.extend(close_window.to_span());
-        },
+        }
         FocusedWindow::TitleSelection => {
             information.extend(navigation.to_span());
             information.extend(close_window.to_span());
-        },
+        }
     };
 
     Paragraph::new(Line::from(information))

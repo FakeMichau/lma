@@ -23,16 +23,14 @@ impl TitlesPopup {
     }
 
     pub(crate) fn move_selection(&mut self, direction: SelectionDirection) {
-        let i = self.select_element(
-            self.service_titles.len(), 
-            self.state.selected(), 
-            direction
-        );
+        let i = self.select_element(self.service_titles.len(), self.state.selected(), direction);
         self.state.select(Some(i))
     }
 
     pub(crate) fn selected_show(&self) -> &ServiceTitle {
-        self.service_titles.get(self.state.selected().unwrap_or_default()).unwrap()
+        self.service_titles
+            .get(self.state.selected().unwrap_or_default())
+            .unwrap()
     }
 
     fn select_element(
@@ -64,7 +62,9 @@ pub(crate) fn build<B: Backend>(frame: &mut Frame<B>, app: &mut App) {
         .titles_popup
         .service_titles
         .iter()
-        .map(|service_title| ListItem::new(format!("{}", service_title.title)).style(Style::default()))
+        .map(|service_title| {
+            ListItem::new(format!("{}", service_title.title)).style(Style::default())
+        })
         .collect();
 
     let items = List::new(items)
@@ -74,7 +74,7 @@ pub(crate) fn build<B: Backend>(frame: &mut Frame<B>, app: &mut App) {
                 .bg(Color::LightGreen)
                 .add_modifier(Modifier::BOLD),
         );
-    
+
     frame.render_widget(Clear, area);
     frame.render_stateful_widget(items, list_area, &mut app.titles_popup.state);
 }

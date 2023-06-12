@@ -32,7 +32,9 @@ pub(crate) fn build<B: Backend>(frame: &mut Frame<'_, B>, app: &mut App) {
         ))]
     };
     let block = Block::default().title("Login").borders(Borders::ALL);
-    let form = Paragraph::new(login_info).wrap(Wrap { trim: true }).alignment(Alignment::Center);
+    let form = Paragraph::new(login_info)
+        .wrap(Wrap { trim: true })
+        .alignment(Alignment::Center);
     frame.render_widget(Clear, area);
     frame.render_widget(block, area);
     frame.render_widget(form, text_area)

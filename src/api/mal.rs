@@ -1,6 +1,13 @@
 use std::path::PathBuf;
 
-use lib_mal::{ClientBuilder, MALClient, prelude::{fields::AnimeFields, ListNode, options::{StatusUpdate, Status}}};
+use lib_mal::{
+    prelude::{
+        fields::AnimeFields,
+        options::{Status, StatusUpdate},
+        ListNode,
+    },
+    ClientBuilder, MALClient,
+};
 
 use crate::ServiceTitle;
 
@@ -54,18 +61,7 @@ impl MAL {
         self.url = None;
     }
 
-    pub async fn test(&self) {
-        let anime = self.client.get_anime_details(80, None).await.unwrap();
-        println!(
-            "{}: started airing on {}, ended on {}, ranked #{}",
-            anime.show.title,
-            anime.start_date.unwrap(),
-            anime.end_date.unwrap(),
-            anime.rank.unwrap()
-        );
-    }
-
-    pub async fn get_episode_count(&mut self, id: u32,) -> Option<u32> {
+    pub async fn get_episode_count(&mut self, id: u32) -> Option<u32> {
         self.client
             .get_anime_details(id, AnimeFields::NumEpisodes)
             .await
@@ -75,15 +71,15 @@ impl MAL {
 
     pub async fn search_title(&mut self, potential_title: &str) -> Vec<ServiceTitle> {
         // what does it do when it returns 0 results?
-        self
-            .client
+        self.client
             .get_anime_list(potential_title, 20)
             .await
             .expect("MAL search result") // likely will fail
             .data
             .iter()
-            .map(|entry| {
-                ServiceTitle{ id: entry.node.id, title: entry.node.title.to_string() }
+            .map(|entry| ServiceTitle {
+                id: entry.node.id,
+                title: entry.node.title.to_string(),
             })
             .collect()
     }
@@ -100,9 +96,7 @@ impl MAL {
         self.get_user_list()
             .await
             .into_iter()
-            .filter(|entry| {
-                entry.node.id == id
-            })
+            .filter(|entry| entry.node.id == id)
             .next()
     }
 

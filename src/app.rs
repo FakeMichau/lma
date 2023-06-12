@@ -35,25 +35,6 @@ impl App {
         })
     }
 
-    fn generate_test_data(&self) -> bool {
-        for i in 1..6 {
-            _ = self.shows.items.add_show(
-                format!("Show {}", i).as_str(),
-                1000 + i,
-                12 * (i % 3) + 1,
-                5 * (i % 3) + 1,
-            );
-            for e in 1..i + 2 {
-                _ = self.shows.items.add_episode(
-                    i,
-                    e,
-                    format!("/path/to/episode{}.mp4", e).as_str(),
-                );
-            }
-        }
-        true
-    }
-
     async fn handle_login_popup_async<B: Backend>(
         &mut self,
         rt: &Runtime,
@@ -89,17 +70,15 @@ impl App {
                     .get_user_list()
                     .await
                     .iter()
-                    .map(|entry| {
-                        (
-                            entry.node.id,
-                            entry
-                                .list_status
-                                .clone()
-                                .expect("Entry list status")
-                                .num_episodes_watched
-                                .unwrap_or_default(),
-                        )
-                    })
+                    .map(|entry| (
+                        entry.node.id,
+                        entry
+                            .list_status
+                            .clone()
+                            .expect("Entry list status")
+                            .num_episodes_watched
+                            .unwrap_or_default(),
+                    ))
                     .collect()
             });
             self.shows
@@ -194,12 +173,11 @@ fn handle_main_menu_key<B: Backend>(
         KeyCode::Char('n') => {
             app.focused_window = FocusedWindow::InsertPopup;
             app.insert_popup.state = InsertState::Inputting;
-        },
+        }
         KeyCode::Char('l') => {
             app.handle_login_popup(rt, terminal)?;
             app.update_progress(rt);
-        },
-        KeyCode::Char('p') => debug_assert!(app.generate_test_data()),
+        }
         _ => {}
     }
     return Ok(Some(true));
@@ -245,7 +223,7 @@ fn handle_insert_popup_key(app: &mut App, key: event::KeyEvent) {
             KeyCode::Down => _=app.insert_popup.move_line_selection(SelectionDirection::Next),
             KeyCode::Up => _=app.insert_popup.move_line_selection(SelectionDirection::Previous),
             _ => {}
-        },
+        }
     }
 }
 
