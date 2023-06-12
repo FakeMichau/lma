@@ -111,10 +111,11 @@ impl StatefulList {
                     .spawn();
             }
         } else {
-            match self
-                .list_cache
-                .get(self.state.selected().unwrap_or_default())
-            {
+            let selected_id = match self.state.selected() {
+                Some(selected) => selected,
+                None => return,
+            };
+            match self.list_cache.get(selected_id) {
                 Some(show) => {
                     if show.episodes.len() > 0 {
                         self.episodes_state.list_state.select(Some(show.progress as usize));
