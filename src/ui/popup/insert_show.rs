@@ -73,7 +73,7 @@ pub(crate) fn build<B: Backend>(frame: &mut Frame<B>, app: &mut App, rt: &Runtim
     match app.insert_popup.state {
         InsertState::Inputting => handle_inputting_state(app),
         InsertState::Next => handle_next_state(app, rt),
-        InsertState::Save => handle_save_state(app),
+        InsertState::Save => handle_save_state(app, rt),
         _ => {}
     }
 
@@ -193,28 +193,39 @@ fn handle_next_state(app: &mut App, rt: &Runtime) {
     app.insert_popup.state = InsertState::Inputting;
 }
 
-fn handle_save_state(app: &mut App) {
+fn handle_save_state(app: &mut App, rt: &Runtime) {
     if let Err(why) = app.shows.items.add_show(
         &app.insert_popup.title,
         app.insert_popup.sync_service_id,
         app.insert_popup.episode_count,
         0,
     ) {
-        eprintln!("{}", why);
-    }
-    app.insert_popup.episodes.iter().for_each(|episode| {
-        app.shows
-            .items
-            .add_episode_service_id(
+        if why.contains("FOREIGN KEY constraint failed") {
+            // show with this sync_service_id already exists
+            app.insert_popup.data = app.insert_popup.path.clone() // prevent path from clearing
+        } else {
+            eprintln!("{}", why);
+        }
+    } else {
+        app.insert_popup.episodes.iter().for_each(|episode| {
+            if let Err(why) = app.shows.items.add_episode_service_id(
                 app.insert_popup.sync_service_id,
                 episode.number,
                 &episode.path,
-            )
-            .unwrap()
-    });
-    app.insert_popup.state = InsertState::None;
-    app.insert_popup = InsertPopup::default();
-    app.focused_window = FocusedWindow::MainMenu;
+            ) {
+                eprintln!("{}", why);
+            }
+        });
+        rt.block_on(async {
+            app.shows
+                .items
+                .init_show(app.insert_popup.sync_service_id as u32)
+                .await
+        });
+        app.insert_popup.state = InsertState::None;
+        app.insert_popup = InsertPopup::default();
+        app.focused_window = FocusedWindow::MainMenu;
+    }
 }
 
 fn parse_number(str: &mut String) -> i64 {

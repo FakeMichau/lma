@@ -186,6 +186,10 @@ impl AnimeList {
             .map_err(|e| e.to_string())?;
         Ok(())
     }
+
+    pub async fn init_show(&mut self, id: u32) {
+        self.service.init_show(id).await;
+    }
 }
 
 pub struct Show {

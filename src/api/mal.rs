@@ -1,6 +1,6 @@
 use std::path::PathBuf;
 
-use lib_mal::{ClientBuilder, MALClient, prelude::fields::AnimeFields};
+use lib_mal::{ClientBuilder, MALClient, prelude::{fields::AnimeFields, ListNode, options::{StatusUpdate, Status}}};
 
 use crate::ServiceTitle;
 
@@ -79,12 +79,45 @@ impl MAL {
             .client
             .get_anime_list(potential_title, 20)
             .await
-            .expect("MAL search result")
+            .expect("MAL search result") // likely will fail
             .data
             .iter()
             .map(|entry| {
                 ServiceTitle{ id: entry.node.id, title: entry.node.title.to_string() }
             })
             .collect()
+    }
+
+    pub async fn get_user_list(&mut self) -> Vec<ListNode> {
+        self.client
+            .get_user_anime_list()
+            .await
+            .expect("User's anime list") // likely will fail
+            .data
+    }
+
+    async fn search_in_user_list(&mut self, id: u32) -> Option<ListNode> {
+        self.get_user_list()
+            .await
+            .into_iter()
+            .filter(|entry| {
+                entry.node.id == id
+            })
+            .next()
+    }
+
+    pub async fn init_show(&mut self, id: u32) {
+        match self.search_in_user_list(id).await {
+            Some(_existing_show) => { /* leave as is */ }
+            None => {
+                // add to plan to watch
+                let mut update = StatusUpdate::new();
+                update.status(Status::PlanToWatch);
+                self.client
+                    .update_user_anime_status(id, update)
+                    .await
+                    .expect("Update user's list"); // likely will fail
+            }
+        }
     }
 }
