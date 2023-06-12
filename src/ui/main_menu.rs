@@ -17,7 +17,7 @@ pub(crate) struct StatefulList {
     pub(crate) episodes_state: EpisodesState,
     pub(crate) items: AnimeList,
     pub(crate) selected_id: i64,
-    list_cache: Vec<Show>,
+    pub(crate) list_cache: Vec<Show>,
 }
 
 pub(crate) struct EpisodesState {
@@ -117,7 +117,7 @@ impl StatefulList {
             {
                 Some(show) => {
                     if show.episodes.len() > 0 {
-                        self.episodes_state.list_state.select(Some(0));
+                        self.episodes_state.list_state.select(Some(show.progress as usize));
                         self.episodes_state.selection_enabled = true;
                     }
                 }
@@ -164,9 +164,7 @@ pub(crate) fn build<B: Backend>(frame: &mut Frame<'_, B>, app: &mut App) {
 
     let items: Vec<_> = app
         .shows
-        .items
-        .get_list()
-        .unwrap()
+        .list_cache
         .iter()
         .map(|show| ListItem::new(format!("{}", show.title)).style(Style::default()))
         .collect();
@@ -184,17 +182,16 @@ pub(crate) fn build<B: Backend>(frame: &mut Frame<'_, B>, app: &mut App) {
     // Iterate through all elements in the `items` app
     let episodes: Vec<ListItem> = app
         .shows
-        .items
-        .get_list()
-        .unwrap()
+        .list_cache
         .iter()
         .filter(|show| show.id == app.shows.selected_id)
         .flat_map(|show| {
             let mut temp: Vec<ListItem> = Vec::new();
             for episode in &show.episodes {
+                let style = if episode.number > show.progress { Style::default() } else { Style::default().fg(Color::Rgb(50, 50, 50)) };
                 temp.push(
                     ListItem::new(format!("{} {}", episode.number, episode.path))
-                        .style(Style::default()),
+                        .style(style),
                 );
             }
             temp
