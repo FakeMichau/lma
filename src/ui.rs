@@ -10,6 +10,7 @@ pub(crate) enum FocusedWindow {
     InsertPopup,
     Login,
     TitleSelection,
+    EpisodeMismatch,
 }
 
 #[derive(PartialEq)]
@@ -25,6 +26,7 @@ pub(crate) fn ui<B: Backend>(frame: &mut Frame<B>, mut app: &mut app::App, rt: &
         FocusedWindow::InsertPopup => popup::insert_show::build(frame, &mut app, &rt),
         FocusedWindow::Login => popup::login::build(frame, &mut app),
         FocusedWindow::TitleSelection => popup::title_selection::build(frame, &mut app),
+        FocusedWindow::EpisodeMismatch => popup::episode_mismatch::build(frame, &mut app),
         _ => {}
     }
 }

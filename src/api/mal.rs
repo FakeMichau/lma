@@ -69,12 +69,21 @@ impl MAL {
             .num_episodes
     }
 
+    pub async fn get_title(&mut self, id: u32) -> String {
+        self.client
+            .get_anime_details(id, AnimeFields::Title)
+            .await
+            .expect("Anime title") // likely will fail
+            .show
+            .title
+    }
+
     pub async fn search_title(&mut self, potential_title: &str) -> Vec<ServiceTitle> {
         // what does it do when it returns 0 results?
         self.client
             .get_anime_list(potential_title, 20)
             .await
-            .expect("MAL search result") // likely will fail
+            .expect("MAL search result") // fails on too short query < 3 letters
             .data
             .iter()
             .map(|entry| ServiceTitle {
@@ -84,6 +93,7 @@ impl MAL {
             .collect()
     }
 
+    /// Returns only 4 values, REWORK NEEDED!
     pub async fn get_user_list(&mut self) -> Vec<ListNode> {
         self.client
             .get_user_anime_list()

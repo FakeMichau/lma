@@ -114,21 +114,22 @@ impl StatefulList {
                 }
             }
         } else {
-            let selected_id = match self.state.selected() {
-                Some(selected) => selected,
-                None => return,
-            };
-            match self.list_cache.get(selected_id) {
-                Some(show) => {
-                    if show.episodes.len() > 0 {
-                        self.episodes_state
-                            .list_state
-                            .select(Some(show.progress as usize));
+            if let Some(selected_id) = self.state.selected() {
+                if let Some(show) = self.list_cache.get(selected_id) {
+                    if !show.episodes.is_empty() {
+                        let index = show
+                            .episodes
+                            .iter()
+                            .position(|episode| episode.number == show.progress)
+                            .map(|pos| pos + 1)
+                            .unwrap_or(0);
+            
+                        self.episodes_state.list_state.select(Some(index));
                         self.episodes_state.selection_enabled = true;
                     }
                 }
-                None => {}
             }
+            
         }
     }
     pub(crate) fn unselect(&mut self) {
@@ -300,6 +301,10 @@ fn build_help<'a>(focused_window: &FocusedWindow, insert_state: &InsertState) ->
             information.extend(navigation.to_span());
             information.extend(close_window.to_span());
         }
+        FocusedWindow::EpisodeMismatch => {
+            information.extend(confirm.to_span());
+            information.extend(close_window.to_span());
+        },
     };
 
     Paragraph::new(Line::from(information))

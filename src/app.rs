@@ -1,4 +1,5 @@
 use crate::app;
+use crate::ui::popup::episode_mismatch::MismatchPopup;
 use crate::ui::popup::title_selection::TitlesPopup;
 use crate::ui::{
     self,
@@ -21,6 +22,7 @@ pub(crate) struct App {
     pub(crate) focused_window: FocusedWindow,
     pub(crate) insert_popup: InsertPopup,
     pub(crate) titles_popup: TitlesPopup,
+    pub(crate) mismatch_popup: MismatchPopup,
 }
 
 impl App {
@@ -32,6 +34,7 @@ impl App {
             focused_window: FocusedWindow::MainMenu,
             insert_popup: InsertPopup::default(),
             titles_popup: TitlesPopup::default(),
+            mismatch_popup: MismatchPopup::default(),
         })
     }
 
@@ -64,6 +67,7 @@ impl App {
     fn update_progress(&mut self, rt: &Runtime) {
         if let None = self.shows.items.service.get_url() {
             let user_service_progress: HashMap<u32, u32> = rt.block_on(async {
+                // TODO: rework, query each entry separately
                 self.shows
                     .items
                     .service
@@ -118,7 +122,6 @@ impl App {
     fn fill_with_api_data(&mut self) {
         let selected_show = self.titles_popup.selected_show();
         self.insert_popup.sync_service_id = selected_show.id as i64;
-        self.insert_popup.title = selected_show.title.to_owned(); // make it a config?
         self.insert_popup.state = InsertState::Next;
         self.focused_window = FocusedWindow::InsertPopup
     }
@@ -148,6 +151,7 @@ pub(crate) fn run<B: Backend>(
                     FocusedWindow::Login => handle_login_key(key, &mut app),
                     FocusedWindow::InsertPopup => handle_insert_popup_key(&mut app, key),
                     FocusedWindow::TitleSelection => handle_title_selection_key(key, &mut app),
+                    FocusedWindow::EpisodeMismatch => handle_mismatch_popup_key(key, &mut app),
                 }
             }
         }
@@ -234,6 +238,19 @@ fn handle_title_selection_key(key: event::KeyEvent, app: &mut App) {
             .titles_popup
             .move_selection(SelectionDirection::Previous),
         KeyCode::Enter => app.fill_with_api_data(),
+        KeyCode::Esc => app.focused_window = FocusedWindow::InsertPopup,
+        _ => {}
+    }
+}
+
+fn handle_mismatch_popup_key(key: event::KeyEvent, app: &mut App) {
+    match key.code {
+        KeyCode::Char(c) => app.mismatch_popup.owned_episodes.push(c),
+        KeyCode::Backspace => _ = app.mismatch_popup.owned_episodes.pop(),
+        KeyCode::Enter => {
+            app.insert_popup.episodes = app.mismatch_popup.save(&app.insert_popup.path);
+            app.focused_window = FocusedWindow::InsertPopup
+        },
         KeyCode::Esc => app.focused_window = FocusedWindow::InsertPopup,
         _ => {}
     }

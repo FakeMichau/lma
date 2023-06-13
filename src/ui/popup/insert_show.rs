@@ -1,4 +1,4 @@
-use super::{centered_rect, title_selection::TitlesPopup};
+use super::{centered_rect, title_selection::TitlesPopup, episode_mismatch::MismatchPopup};
 use crate::{
     app::App,
     ui::{FocusedWindow, SelectionDirection},
@@ -152,6 +152,8 @@ fn handle_next_state(app: &mut App, rt: &Runtime) {
             && app.insert_popup.episode_count == 0
             && !app.insert_popup.path.is_empty() =>
         {
+            let title = rt.block_on(app.shows.items.service.get_title(app.insert_popup.sync_service_id as u32));
+            app.insert_popup.title = title; // make it a config?
             // compare number of video files with the retrieved number of episodes
             let episode_count = rt.block_on(async {
                 app.shows
@@ -164,9 +166,9 @@ fn handle_next_state(app: &mut App, rt: &Runtime) {
                 .shows
                 .items
                 .count_video_files(&app.insert_popup.path)
-                .unwrap_or_default();
+                .unwrap_or_default() as u32;
             app.insert_popup.episode_count = episode_count.map_or(0, |count| {
-                if count == video_files_count as u32 {
+                if count == video_files_count {
                     app.insert_popup.episodes = AnimeList::get_video_file_paths(&app.insert_popup.path)
                         .unwrap_or_default()
                         .into_iter()
@@ -178,9 +180,13 @@ fn handle_next_state(app: &mut App, rt: &Runtime) {
                         .collect();
 
                     count.into()
+                } else if count > video_files_count {
+                    app.mismatch_popup = MismatchPopup::new(count, video_files_count);
+                    app.focused_window = FocusedWindow::EpisodeMismatch;
+                    video_files_count.into()
                 } else {
+                    // more files locally than expected
                     0
-                    // not all episodes are present?
                 }
             });
         }
