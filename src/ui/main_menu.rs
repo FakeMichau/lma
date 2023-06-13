@@ -103,12 +103,15 @@ impl StatefulList {
                 .get(selected_episode)
                 .unwrap()
                 .path;
-            if cfg!(target_os = "linux") {
-                _ = Command::new("xdg-open")
-                    .arg(path)
-                    .stderr(Stdio::null())
-                    .stdout(Stdio::null())
-                    .spawn();
+            
+            if path.exists() {
+                if cfg!(target_os = "linux") {
+                    _ = Command::new("xdg-open")
+                        .arg(path)
+                        .stderr(Stdio::null())
+                        .stdout(Stdio::null())
+                        .spawn();
+                }
             }
         } else {
             let selected_id = match self.state.selected() {
@@ -190,13 +193,15 @@ pub(crate) fn build<B: Backend>(frame: &mut Frame<'_, B>, app: &mut App) {
         .flat_map(|show| {
             let mut temp: Vec<ListItem> = Vec::new();
             for episode in &show.episodes {
-                let style = if episode.number > show.progress { 
-                    Style::default() 
-                } else { 
-                    Style::default().fg(Color::Rgb(50, 50, 50)) 
-                };
+                let mut style = Style::default();
+                if episode.number <= show.progress { 
+                    style = style.fg(Color::Rgb(50, 50, 50))
+                }
+                if !episode.path.exists() {
+                    style = style.fg(Color::Red)
+                }
                 temp.push(
-                    ListItem::new(format!("{} {}", episode.number, episode.path)).style(style),
+                    ListItem::new(format!("{} {}", episode.number, episode.path.display())).style(style),
                 );
             }
             temp

@@ -167,7 +167,7 @@ fn handle_next_state(app: &mut App, rt: &Runtime) {
                         .enumerate()
                         .map(|(k, path)| Episode {
                             number: k as i64 + 1,
-                            path: path.to_string_lossy().to_string(),
+                            path,
                         })
                         .collect();
 
@@ -208,7 +208,7 @@ fn handle_save_state(app: &mut App, rt: &Runtime) {
             if let Err(why) = app.shows.items.add_episode_service_id(
                 app.insert_popup.sync_service_id,
                 episode.number,
-                &episode.path,
+                &episode.path.to_string_lossy().to_string(),
             ) {
                 eprintln!("{}", why);
             }
