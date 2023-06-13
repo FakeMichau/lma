@@ -97,7 +97,6 @@ impl App {
                         self.shows.items.add_show(
                             &show.title,
                             show.sync_service_id,
-                            show.episode_count,
                             user_service_progress_current as i64,
                         ).unwrap();
                     } else if user_service_progress_current < local_progress_current {

@@ -14,7 +14,7 @@ pub struct AnimeList {
 impl AnimeList {
     pub fn get_list(&self) -> Result<Vec<Show>> {
         let mut stmt = self.db_connection.prepare("
-            SELECT Shows.id, Shows.title, Shows.sync_service_id, Shows.episode_count, Shows.progress,
+            SELECT Shows.id, Shows.title, Shows.sync_service_id, Shows.progress,
             COALESCE(Episodes.episode_number, -1) AS episode_number, COALESCE(Episodes.path, '') AS path
             FROM Shows
             LEFT JOIN Episodes ON Shows.id = Episodes.show_id;
@@ -25,17 +25,15 @@ impl AnimeList {
             let show_id: i64 = row.get(0)?;
             let title: String = row.get(1)?;
             let sync_service_id: i64 = row.get(2)?;
-            let episode_count: i64 = row.get(3)?;
-            let progress: i64 = row.get(4)?;
-            let episode_number: i64 = row.get(5)?;
-            let path: String = row.get(6)?;
+            let progress: i64 = row.get(3)?;
+            let episode_number: i64 = row.get(4)?;
+            let path: String = row.get(5)?;
 
             // I'm using a hashmap just for this step, find a way to avoid it?
             let show = shows.entry(show_id).or_insert_with(|| Show {
                 id: show_id,
                 title,
                 progress,
-                episode_count,
                 episodes: Vec::new(),
                 sync_service_id,
             });
@@ -57,18 +55,16 @@ impl AnimeList {
         &self,
         title: &str,
         sync_service_id: i64,
-        episode_count: i64,
         progress: i64,
     ) -> Result<(), String> {
         self.db_connection.execute(
-            "INSERT INTO Shows (title, sync_service_id, episode_count, progress) 
-                VALUES (?1, ?2, ?3, ?4)
+            "INSERT INTO Shows (title, sync_service_id, progress) 
+                VALUES (?1, ?2, ?3)
                 ON CONFLICT(sync_service_id)
-	            DO UPDATE SET title=excluded.title, episode_count=excluded.episode_count, progress=excluded.progress", 
+	            DO UPDATE SET title=excluded.title, progress=excluded.progress", 
             params![
                 title,
                 sync_service_id,
-                episode_count,
                 progress,
             ]
         ).map_err(|e| e.to_string())?;
@@ -181,7 +177,6 @@ pub struct Show {
     pub id: i64,
     pub title: String,
     pub sync_service_id: i64,
-    pub episode_count: i64,
     pub episodes: Vec<Episode>,
     pub progress: i64,
 }
@@ -205,7 +200,7 @@ pub fn create(service: MAL) -> AnimeList {
     }
     match db_connection.execute_batch(
         "
-        CREATE TABLE Shows (id INTEGER PRIMARY KEY AUTOINCREMENT, title TEXT, sync_service_id INTEGER UNIQUE, episode_count INTEGER, progress INTEGER);
+        CREATE TABLE Shows (id INTEGER PRIMARY KEY AUTOINCREMENT, title TEXT, sync_service_id INTEGER UNIQUE, progress INTEGER);
         CREATE TABLE Episodes (show_id INTEGER, episode_number INTEGER, path TEXT, PRIMARY KEY (show_id, episode_number), FOREIGN KEY (show_id) REFERENCES Shows(id));
         "
     ) {

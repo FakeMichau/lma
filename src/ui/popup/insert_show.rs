@@ -200,7 +200,6 @@ fn handle_save_state(app: &mut App, rt: &Runtime) {
     if let Err(why) = app.shows.items.add_show(
         &app.insert_popup.title,
         app.insert_popup.sync_service_id,
-        app.insert_popup.episode_count,
         0,
     ) {
         if why.contains("FOREIGN KEY constraint failed") {
