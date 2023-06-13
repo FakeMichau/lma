@@ -200,8 +200,10 @@ pub(crate) fn build<B: Backend>(frame: &mut Frame<'_, B>, app: &mut App) {
                 if !episode.path.exists() {
                     style = style.fg(Color::Red)
                 }
+                // maybe make a config for that in the future
+                let episode_display_name = episode.path.file_name().unwrap_or_default().to_string_lossy();
                 temp.push(
-                    ListItem::new(format!("{} {}", episode.number, episode.path.display())).style(style),
+                    ListItem::new(format!("{} {}", episode.number, episode_display_name)).style(style),
                 );
             }
             temp
