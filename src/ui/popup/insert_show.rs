@@ -137,8 +137,13 @@ fn handle_next_state(app: &mut App, rt: &Runtime) {
         }
         2 if !app.insert_popup.title.is_empty() && app.insert_popup.sync_service_id == 0 => {
             // create a popup to select the exact show from a sync service
-            let items: Vec<_> =
-                rt.block_on(async { app.shows.items.list_titles(&app.insert_popup.title).await });
+            let items: Vec<_> = rt.block_on(async { 
+                app.shows
+                    .items
+                    .service
+                    .search_title(&app.insert_popup.title)
+                    .await 
+            });
             app.titles_popup = TitlesPopup::with_items(items);
             app.titles_popup.state.select(Some(0));
             app.focused_window = FocusedWindow::TitleSelection
@@ -151,6 +156,7 @@ fn handle_next_state(app: &mut App, rt: &Runtime) {
             let episode_count = rt.block_on(async {
                 app.shows
                     .items
+                    .service
                     .get_episode_count(app.insert_popup.sync_service_id as u32)
                     .await
             });
@@ -216,6 +222,7 @@ fn handle_save_state(app: &mut App, rt: &Runtime) {
         rt.block_on(async {
             app.shows
                 .items
+                .service
                 .init_show(app.insert_popup.sync_service_id as u32)
                 .await
         });

@@ -104,6 +104,7 @@ impl App {
                         rt.block_on(async {
                             self.shows
                                 .items
+                                .service
                                 .set_progress(
                                     (show.sync_service_id as i64).try_into().unwrap(),
                                     local_progress_current,

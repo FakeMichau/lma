@@ -166,14 +166,6 @@ impl AnimeList {
         input.to_string()
     }
 
-    pub async fn list_titles(&mut self, potential_title: &str) -> Vec<ServiceTitle> {
-        self.service.search_title(potential_title).await
-    }
-
-    pub async fn get_episode_count(&mut self, id: u32) -> Option<u32> {
-        self.service.get_episode_count(id).await
-    }
-
     pub fn remove_entry(&self, show_id: i64) -> Result<(), String> {
         self.db_connection
             .execute("DELETE FROM Episodes WHERE show_id = ?1", params![show_id])
@@ -182,14 +174,6 @@ impl AnimeList {
             .execute("DELETE FROM Shows WHERE id = ?1", params![show_id])
             .map_err(|e| e.to_string())?;
         Ok(())
-    }
-
-    pub async fn init_show(&mut self, id: u32) {
-        self.service.init_show(id).await;
-    }
-
-    pub async fn set_progress(&mut self, id: u32, progress: u32) {
-        self.service.set_progress(id, progress).await;
     }
 }
 
