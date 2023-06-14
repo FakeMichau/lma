@@ -8,6 +8,7 @@ use ratatui::{
     widgets::{Block, Borders, List, ListItem, ListState, Paragraph},
     Frame, text::{Span, Line},
 };
+use tokio::runtime::Runtime;
 
 use super::{SelectionDirection, FocusedWindow, popup::insert_show::InsertState};
 use crate::app::App;
@@ -26,7 +27,7 @@ pub(crate) struct EpisodesState {
 }
 
 impl StatefulList {
-    pub(crate) fn with_items(shows: AnimeList) -> StatefulList {
+    pub(crate) fn new(shows: AnimeList) -> StatefulList {
         let list_cache = shows.get_list().unwrap();
         StatefulList {
             state: ListState::default(),
@@ -70,11 +71,32 @@ impl StatefulList {
         };
     }
 
-    fn move_episode_selection(&mut self, direction: SelectionDirection) {
-        let selected_show = self
-            .list_cache
+    pub(crate) fn selected_show(&self) -> &Show {
+        self.list_cache
             .get(self.state.selected().unwrap_or_default())
-            .unwrap();
+            .unwrap()
+    }
+
+    pub(crate) fn move_progress(&mut self, rt: &Runtime, direction: SelectionDirection) {
+        let selected_show = self.selected_show();
+        let offset = match direction {
+            SelectionDirection::Next => 1,
+            SelectionDirection::Previous => -1,
+        };
+        let progress = selected_show.progress + offset;
+        self.items.set_progress(selected_show.id, progress)
+            .expect("Set local progress");
+        rt.block_on(
+            self.items.service.set_progress(
+                selected_show.sync_service_id as u32, 
+                progress as u32
+            )
+        );
+        self.update_cache();
+    }
+
+    fn move_episode_selection(&mut self, direction: SelectionDirection) {
+        let selected_show = self.selected_show();
         let episodes_len = selected_show.episodes.len();
         let i = self.select_element(
             episodes_len,
@@ -152,7 +174,7 @@ impl StatefulList {
         }
     }
 
-    fn update_cache(&mut self) {
+    pub(crate) fn update_cache(&mut self) {
         self.list_cache = self.items.get_list().unwrap();
     }
 }
@@ -270,6 +292,7 @@ fn build_help<'a>(focused_window: &FocusedWindow, insert_state: &InsertState) ->
     let start_inputting = HelpItem::new("Start inputting", "E");
     let confirm = HelpItem::new("Confirm", "ENTER");
     let login = HelpItem::new("Login to MAL", "L");
+    let progress = HelpItem::new("Progress", "< >");
     let quit = HelpItem::new("Quit", "Q");
 
     let mut information = Vec::new();
@@ -279,6 +302,7 @@ fn build_help<'a>(focused_window: &FocusedWindow, insert_state: &InsertState) ->
             information.extend(insert.to_span());
             information.extend(delete.to_span());
             information.extend(login.to_span());
+            information.extend(progress.to_span());
             information.extend(quit.to_span());
         }
         FocusedWindow::InsertPopup => {

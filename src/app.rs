@@ -29,7 +29,7 @@ impl App {
         let service = rt.block_on(async { lma::MAL::new().await });
         let anime_list = lma::create(service);
         Ok(App {
-            shows: StatefulList::with_items(anime_list),
+            shows: StatefulList::new(anime_list),
             focused_window: FocusedWindow::MainMenu,
             insert_popup: InsertPopup::default(),
             titles_popup: TitlesPopup::default(),
@@ -115,6 +115,8 @@ fn handle_main_menu_key<B: Backend>(
         KeyCode::Char('q') => return Ok(None),
         KeyCode::Down => app.shows.move_selection(SelectionDirection::Next),
         KeyCode::Up => app.shows.move_selection(SelectionDirection::Previous),
+        KeyCode::Char('.') => app.shows.move_progress(rt, SelectionDirection::Next),
+        KeyCode::Char(',') => app.shows.move_progress(rt, SelectionDirection::Previous),
         KeyCode::Right | KeyCode::Enter => app.shows.select(),
         KeyCode::Left => app.shows.unselect(),
         KeyCode::Delete => app.shows.delete()?,
@@ -133,7 +135,10 @@ fn handle_main_menu_key<B: Backend>(
 
 fn handle_login_key(key: event::KeyEvent, app: &mut App) {
     match key.code {
-        KeyCode::Esc => app.focused_window = FocusedWindow::MainMenu,
+        KeyCode::Esc => {
+            app.focused_window = FocusedWindow::MainMenu;
+            app.shows.update_cache();
+        },
         _ => {}
     }
 }

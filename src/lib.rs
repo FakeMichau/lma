@@ -52,17 +52,10 @@ impl AnimeList {
         });
         Ok(shows)
     }
-    pub fn add_show(
-        &self,
-        title: &str,
-        sync_service_id: i64,
-        progress: i64,
-    ) -> Result<(), String> {
+    pub fn add_show(&self, title: &str, sync_service_id: i64, progress: i64) -> Result<(), String> {
         self.db_connection.execute(
             "INSERT INTO Shows (title, sync_service_id, progress) 
-                VALUES (?1, ?2, ?3)
-                ON CONFLICT(sync_service_id)
-	            DO UPDATE SET title=excluded.title, progress=excluded.progress", 
+            VALUES (?1, ?2, ?3)", 
             params![
                 title,
                 sync_service_id,
@@ -71,6 +64,19 @@ impl AnimeList {
         ).map_err(|e| e.to_string())?;
         Ok(())
     }
+    pub fn set_progress(&self, id: i64, progress: i64) -> Result<(), String> {
+        self.db_connection.execute(
+            "UPDATE Shows
+            SET progress = ?2
+            WHERE id = ?1", 
+            params![
+                id,
+                progress,
+            ]
+        ).map_err(|e| e.to_string())?;
+        Ok(())
+    }
+
     pub fn add_episode(&self, show_id: i64, episode_number: i64, path: &str) -> Result<(), String> {
         self.db_connection
             .execute(
@@ -113,20 +119,12 @@ impl AnimeList {
                     let local_progress_current = show.progress as u32;
                     // progress different between local and service
                     if user_service_progress_current > local_progress_current {
-                        self.add_show(
-                            &show.title,
-                            show.sync_service_id,
-                            user_service_progress_current as i64,
-                        ).unwrap();
+                        self.set_progress(show.id, user_service_progress_current as i64)
+                            .expect("Set local progress");
                     } else if user_service_progress_current < local_progress_current {
-                        rt.block_on(async {
-                            self.service
-                                .set_progress(
-                                    (show.sync_service_id as i64).try_into().unwrap(),
-                                    local_progress_current,
-                                )
-                                .await
-                        });
+                        rt.block_on(
+                            self.service.set_progress(show.sync_service_id as u32, local_progress_current)
+                        );
                     }
                 })
         }

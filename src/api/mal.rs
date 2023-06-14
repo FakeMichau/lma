@@ -133,9 +133,14 @@ impl MAL {
         }
     }
 
+    // TODO
+    // set as completed on the last episode and end date
+    // set start date when progress == 1
+    // set dates only if they are not set
     pub async fn set_progress(&mut self, id: u32, progress: u32) {
         let mut update = StatusUpdate::new();
         update.num_watched_episodes(progress);
+        update.status(Status::Watching);
         self.client
             .update_user_anime_status(id, update)
             .await
