@@ -9,7 +9,6 @@ use crate::ui::{
 };
 use crossterm::event::{self, Event, KeyCode};
 use ratatui::{backend::Backend, Terminal};
-use std::collections::HashMap;
 use std::error::Error;
 use std::{
     io,
@@ -62,49 +61,6 @@ impl App {
     ) -> io::Result<()> {
         rt.block_on(self.handle_login_popup_async(rt, terminal))?;
         Ok(())
-    }
-
-    fn update_progress(&mut self, rt: &Runtime) {
-        if let None = self.shows.items.service.get_url() {
-            self.shows
-                .items
-                .get_list()
-                .expect("List from the local database")
-                .into_iter()
-                .for_each(|show| {
-                    let user_entry_details = rt.block_on(self
-                        .shows
-                        .items
-                        .service
-                        .get_user_entry_details(show.sync_service_id.try_into().unwrap())
-                    );
-                    let user_service_progress_current = user_entry_details
-                        .map(|details| details.num_episodes_watched)
-                        .unwrap_or_default()
-                        .unwrap_or_default();
-
-                    let local_progress_current = show.progress as u32;
-                    // progress different between local and service
-                    if user_service_progress_current > local_progress_current {
-                        self.shows.items.add_show(
-                            &show.title,
-                            show.sync_service_id,
-                            user_service_progress_current as i64,
-                        ).unwrap();
-                    } else if user_service_progress_current < local_progress_current {
-                        rt.block_on(async {
-                            self.shows
-                                .items
-                                .service
-                                .set_progress(
-                                    (show.sync_service_id as i64).try_into().unwrap(),
-                                    local_progress_current,
-                                )
-                                .await
-                        });
-                    }
-                })
-        }
     }
 
     fn fill_with_api_data(&mut self) {
@@ -168,7 +124,7 @@ fn handle_main_menu_key<B: Backend>(
         }
         KeyCode::Char('l') => {
             app.handle_login_popup(rt, terminal)?;
-            app.update_progress(rt);
+            app.shows.items.update_progress(rt);
         }
         _ => {}
     }
