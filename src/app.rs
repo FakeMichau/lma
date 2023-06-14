@@ -66,35 +66,23 @@ impl App {
 
     fn update_progress(&mut self, rt: &Runtime) {
         if let None = self.shows.items.service.get_url() {
-            let user_service_progress: HashMap<u32, u32> = rt.block_on(async {
-                // TODO: rework, query each entry separately
-                self.shows
-                    .items
-                    .service
-                    .get_user_list()
-                    .await
-                    .iter()
-                    .map(|entry| (
-                        entry.node.id,
-                        entry
-                            .list_status
-                            .clone()
-                            .expect("Entry list status")
-                            .num_episodes_watched
-                            .unwrap_or_default(),
-                    ))
-                    .collect()
-            });
             self.shows
                 .items
                 .get_list()
                 .expect("List from the local database")
                 .into_iter()
                 .for_each(|show| {
-                    let user_service_progress_current = user_service_progress
-                        .get(&(show.sync_service_id as u32))
-                        .unwrap_or(&0)
-                        .clone();
+                    let user_entry_details = rt.block_on(self
+                        .shows
+                        .items
+                        .service
+                        .get_user_entry_details(show.sync_service_id.try_into().unwrap())
+                    );
+                    let user_service_progress_current = user_entry_details
+                        .map(|details| details.num_episodes_watched)
+                        .unwrap_or_default()
+                        .unwrap_or_default();
+
                     let local_progress_current = show.progress as u32;
                     // progress different between local and service
                     if user_service_progress_current > local_progress_current {

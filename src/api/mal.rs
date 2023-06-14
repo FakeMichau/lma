@@ -4,7 +4,7 @@ use lib_mal::{
     prelude::{
         fields::AnimeFields,
         options::{Status, StatusUpdate},
-        ListNode,
+        ListNode, ListStatus,
     },
     ClientBuilder, MALClient,
 };
@@ -100,6 +100,14 @@ impl MAL {
             .await
             .expect("User's anime list") // likely will fail
             .data
+    }
+
+    pub async fn get_user_entry_details(&mut self, id: u32) -> Option<ListStatus> {
+        self.client
+            .get_anime_details(id, AnimeFields::MyListStatus)
+            .await
+            .expect("Anime details") // likely will fail
+            .my_list_status
     }
 
     async fn search_in_user_list(&mut self, id: u32) -> Option<ListNode> {
