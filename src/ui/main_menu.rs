@@ -123,8 +123,10 @@ impl StatefulList {
                 .unwrap()
                 .episodes
                 .get(selected_episode)
-                .unwrap()
-                .path;
+                .map(|episode| {
+                    episode.path.clone()
+                })
+                .unwrap_or_default();
             
             if path.exists() {
                 if cfg!(target_os = "linux") {
@@ -143,7 +145,7 @@ impl StatefulList {
                             .episodes
                             .iter()
                             .position(|episode| episode.number == show.progress)
-                            .map(|pos| pos + 1)
+                            .map(|pos| (pos + 1) % show.episodes.len())
                             .unwrap_or(0);
             
                         self.episodes_state.list_state.select(Some(index));
