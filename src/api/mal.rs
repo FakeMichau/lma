@@ -1,4 +1,5 @@
 use std::path::PathBuf;
+use time::OffsetDateTime;
 
 use lib_mal::{
     prelude::{
@@ -133,17 +134,39 @@ impl MAL {
         }
     }
 
-    // TODO
-    // set as completed on the last episode and end date
-    // set start date when progress == 1
-    // set dates only if they are not set
     pub async fn set_progress(&mut self, id: u32, progress: u32) {
         let mut update = StatusUpdate::new();
         update.num_watched_episodes(progress);
-        update.status(Status::Watching);
+        if progress  == 0 {
+            update.status(Status::PlanToWatch);
+            update.start_date("");
+        } else {
+            update.status(Status::Watching);
+        }
+        let updated_status = self.update_status(id, update).await;
+
+        let local_date = OffsetDateTime::now_utc().date();
+        if let None = updated_status.start_date {
+            if progress == 1 {
+                let mut update = StatusUpdate::new();
+                update.start_date(&format!("{}", local_date));
+                self.update_status(id, update).await;
+            }
+        }
+        if updated_status.num_episodes_watched.unwrap_or_default() <= progress {
+            let mut update = StatusUpdate::new();
+            update.status(Status::Completed);
+            if let None = updated_status.finish_date {
+                update.finish_date(&format!("{}", local_date));
+            }
+            self.update_status(id, update).await;
+        }
+    }
+
+    async fn update_status(&mut self, id: u32, update: StatusUpdate) -> ListStatus {
         self.client
             .update_user_anime_status(id, update)
             .await
-            .expect("Update user's list"); // likely will fail
+            .expect("Update user's list") // likely will fail
     }
 }

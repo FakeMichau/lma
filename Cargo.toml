@@ -11,4 +11,5 @@ ratatui = { version = "0.21.0", features = ["all-widgets"] }
 crossterm = "0.26"
 reqwest = "0.11"
 tokio = { version = "1.28.2", features = ["full"] }
+time = { version = "0.3", features = ["macros"] }
 lib-mal = { git = "https://github.com/FakeMichau/lib-mal.git" }

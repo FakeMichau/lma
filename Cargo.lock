@@ -672,7 +672,7 @@ checksum = "e2abad23fbc42b3700f2f279844dc832adb2b2eb069b2df918f455c4e18cc646"
 [[package]]
 name = "lib-mal"
 version = "0.5.1"
-source = "git+https://github.com/FakeMichau/lib-mal.git#6d1c49c8686ffd218fc5dc49d59180bc8978525f"
+source = "git+https://github.com/FakeMichau/lib-mal.git"
 dependencies = [
  "aes-gcm",
  "bitflags 1.3.2",
@@ -723,6 +723,7 @@ dependencies = [
  "ratatui",
  "reqwest",
  "rusqlite",
+ "time 0.3.21",
  "tokio",
 ]
 
