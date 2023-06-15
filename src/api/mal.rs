@@ -137,7 +137,7 @@ impl MAL {
     pub async fn set_progress(&mut self, id: u32, progress: u32) {
         let mut update = StatusUpdate::new();
         update.num_watched_episodes(progress);
-        if progress  == 0 {
+        if progress == 0 {
             update.status(Status::PlanToWatch);
             update.start_date("");
         } else {
@@ -153,13 +153,27 @@ impl MAL {
                 self.update_status(id, update).await;
             }
         }
-        if updated_status.num_episodes_watched.unwrap_or_default() <= progress {
+        let episode_count = self.client
+            .get_anime_details(id, AnimeFields::NumEpisodes)
+            .await
+            .expect("Anime details") // likely will fail
+            .num_episodes
+            .map(|count| {
+                if count == 0 {
+                    u32::MAX
+                } else {
+                    count
+                }
+            })
+            .unwrap_or(u32::MAX);
+        if updated_status.num_episodes_watched.unwrap_or_default() >= episode_count {
             let mut update = StatusUpdate::new();
             update.status(Status::Completed);
             if let None = updated_status.finish_date {
                 update.finish_date(&format!("{}", local_date));
             }
             self.update_status(id, update).await;
+            // ask user for a score?
         }
     }
 
