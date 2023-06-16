@@ -226,7 +226,12 @@ pub(crate) fn build<B: Backend>(frame: &mut Frame<'_, B>, app: &mut App) {
                     style = style.fg(Color::Red)
                 }
                 // maybe make a config for that in the future
-                let episode_display_name = episode.path.file_name().unwrap_or_default().to_string_lossy();
+                let episode_display_name = if episode.title.is_empty() {
+                    episode.path.file_name().unwrap_or_default().to_string_lossy().into()
+                } else {
+                    episode.title.clone()
+                };
+
                 temp.push(
                     ListItem::new(format!("{} {}", episode.number, episode_display_name)).style(style),
                 );

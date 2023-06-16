@@ -16,7 +16,7 @@ impl AnimeList {
     pub fn get_list(&self) -> Result<Vec<Show>> {
         let mut stmt = self.db_connection.prepare("
             SELECT Shows.id, Shows.title, Shows.sync_service_id, Shows.progress,
-            COALESCE(Episodes.episode_number, -1) AS episode_number, COALESCE(Episodes.path, '') AS path
+            COALESCE(Episodes.episode_number, -1) AS episode_number, COALESCE(Episodes.path, '') AS path, COALESCE(Episodes.title, '') AS episode_title
             FROM Shows
             LEFT JOIN Episodes ON Shows.id = Episodes.show_id;
         ")?;
@@ -29,6 +29,7 @@ impl AnimeList {
             let progress: i64 = row.get(3)?;
             let episode_number: i64 = row.get(4)?;
             let path: String = row.get(5)?;
+            let episode_title: String = row.get(6)?;
 
             // I'm using a hashmap just for this step, find a way to avoid it?
             let show = shows.entry(show_id).or_insert_with(|| Show {
@@ -42,6 +43,7 @@ impl AnimeList {
                 show.episodes.push(Episode {
                     number: episode_number,
                     path: PathBuf::from(path),
+                    title: episode_title,
                 });
             }
         }
@@ -77,25 +79,25 @@ impl AnimeList {
         Ok(())
     }
 
-    pub fn add_episode(&self, show_id: i64, episode_number: i64, path: &str) -> Result<(), String> {
+    pub fn add_episode(&self, show_id: i64, episode_number: i64, path: &str, title: &str) -> Result<(), String> {
         self.db_connection
             .execute(
-                "REPLACE INTO Episodes (show_id, episode_number, path) VALUES (?1, ?2, ?3)",
-                params![show_id, episode_number, path,],
+                "REPLACE INTO Episodes (show_id, episode_number, path, title) VALUES (?1, ?2, ?3, ?4)",
+                params![show_id, episode_number, path, title],
             )
             .map(|_| ())
             .map_err(|e| e.to_string())
     }
 
-    pub fn add_episode_service_id(&self, sync_service_id: i64, episode_number: i64, path: &str) -> Result<(), String> {
+    pub fn add_episode_service_id(&self, sync_service_id: i64, episode_number: i64, path: &str, title: &str) -> Result<(), String> {
         self.db_connection
             .execute(
-                "INSERT INTO Episodes (show_id, episode_number, path)
-                SELECT id, ?2, ?3
+                "INSERT INTO Episodes (show_id, episode_number, path, title)
+                SELECT id, ?2, ?3, ?4
                 FROM Shows
                 WHERE sync_service_id = ?1;
                 ",
-                params![sync_service_id, episode_number, path,],
+                params![sync_service_id, episode_number, path, title],
             )
             .map(|_| ())
             .map_err(|e| e.to_string())
@@ -220,6 +222,7 @@ pub struct Show {
 pub struct Episode {
     pub number: i64,
     pub path: PathBuf,
+    pub title: String
 }
 
 pub fn create(service: MAL) -> AnimeList {
@@ -237,7 +240,7 @@ pub fn create(service: MAL) -> AnimeList {
     match db_connection.execute_batch(
         "
         CREATE TABLE Shows (id INTEGER PRIMARY KEY AUTOINCREMENT, title TEXT, sync_service_id INTEGER UNIQUE, progress INTEGER);
-        CREATE TABLE Episodes (show_id INTEGER, episode_number INTEGER, path TEXT, PRIMARY KEY (show_id, episode_number), FOREIGN KEY (show_id) REFERENCES Shows(id));
+        CREATE TABLE Episodes (show_id INTEGER, episode_number INTEGER, path TEXT, title TEXT, PRIMARY KEY (show_id, episode_number), FOREIGN KEY (show_id) REFERENCES Shows(id));
         "
     ) {
             Ok(_) => println!("Tables created"),

@@ -5,7 +5,7 @@ use lib_mal::{
     prelude::{
         fields::AnimeFields,
         options::{Status, StatusUpdate},
-        ListNode, ListStatus,
+        ListNode, ListStatus, EpisodeNode,
     },
     ClientBuilder, MALClient,
 };
@@ -77,6 +77,14 @@ impl MAL {
             .expect("Anime title") // likely will fail
             .show
             .title
+    }
+
+    pub async fn get_episodes(&mut self, id: u32) -> Vec<EpisodeNode> {
+        self.client
+            .get_anime_episodes(id)
+            .await
+            .expect("Anime title") // likely will fail
+            .data
     }
 
     pub async fn search_title(&mut self, potential_title: &str) -> Vec<ServiceTitle> {

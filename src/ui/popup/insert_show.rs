@@ -176,6 +176,7 @@ fn handle_next_state(app: &mut App, rt: &Runtime) {
                         .map(|(k, path)| Episode {
                             number: k as i64 + 1,
                             path,
+                            title: String::new(),
                         })
                         .collect();
 
@@ -215,11 +216,27 @@ fn handle_save_state(app: &mut App, rt: &Runtime) {
             eprintln!("{}", why);
         }
     } else {
+        let episodes = rt.block_on(
+            app.shows
+                .items
+                .service
+                .get_episodes(app.insert_popup.sync_service_id as u32)
+            );
+        let use_titles = episodes.len() == app.insert_popup.episodes.len();
         app.insert_popup.episodes.iter().for_each(|episode| {
+            let potential_title = episodes.get((episode.number - 1) as usize).map(|episode| {
+                    episode.title.clone()
+                });
+            let title = if use_titles {
+                potential_title.unwrap_or_default().unwrap_or_default()
+            } else {
+                String::new()
+            };
             if let Err(why) = app.shows.items.add_episode_service_id(
                 app.insert_popup.sync_service_id,
                 episode.number,
                 &episode.path.to_string_lossy().to_string(),
+                &title,
             ) {
                 eprintln!("{}", why);
             }

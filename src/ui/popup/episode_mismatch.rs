@@ -40,6 +40,7 @@ impl MismatchPopup {
                     .clone()
                     .into(),
                 path,
+                title: String::new(),
             })
             .collect()
     }
