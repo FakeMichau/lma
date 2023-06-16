@@ -20,12 +20,12 @@ pub struct MAL {
 }
 
 impl MAL {
-    pub async fn new() -> Self {
+    pub async fn new(cache_dir: PathBuf) -> Self {
         let token = "8f7bd7e31dcf4f931949fc0b418c76d8".to_string();
         let client = ClientBuilder::new()
             .secret(token)
             .caching(true)
-            .cache_dir(Some(PathBuf::new()))
+            .cache_dir(Some(cache_dir))
             .build_with_refresh()
             .await
             .unwrap();

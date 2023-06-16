@@ -225,8 +225,8 @@ pub struct Episode {
     pub title: String
 }
 
-pub fn create(service: MAL) -> AnimeList {
-    let path = "./database.db3";
+pub fn create(service: MAL, data_path: &PathBuf) -> AnimeList {
+    let path = data_path.join("database.db3");
     let db_connection = match Connection::open(path) {
         Ok(conn) => conn,
         Err(why) => panic!("Cry - {}", why),

@@ -1,4 +1,5 @@
 use crate::app;
+use crate::config::Config;
 use crate::ui::popup::episode_mismatch::MismatchPopup;
 use crate::ui::popup::title_selection::TitlesPopup;
 use crate::ui::{
@@ -24,12 +25,14 @@ pub(crate) struct App {
     pub(crate) mismatch_popup: MismatchPopup,
     pub(crate) list_state: StatefulList,
     pub(crate) anime_list: AnimeList,
+    pub(crate) config: Config,
 }
 
 impl App {
     pub(crate) fn build(rt: &Runtime) -> Result<App, Box<dyn Error>> {
-        let service = rt.block_on(async { lma::MAL::new().await });
-        let anime_list = lma::create(service);
+        let config = Config::default();
+        let service = rt.block_on(lma::MAL::new(config.data_dir().to_path_buf()));
+        let anime_list = lma::create(service, config.data_dir());
         Ok(App {
             list_state: StatefulList::new(&anime_list),
             focused_window: FocusedWindow::MainMenu,
@@ -37,6 +40,7 @@ impl App {
             titles_popup: TitlesPopup::default(),
             mismatch_popup: MismatchPopup::default(),
             anime_list,
+            config,
         })
     }
 
