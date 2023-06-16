@@ -81,10 +81,15 @@ impl MAL {
 
     pub async fn search_title(&mut self, potential_title: &str) -> Vec<ServiceTitle> {
         // what does it do when it returns 0 results?
+        // pad titles below 3 characters to avoid errors
+        let mut padded_title = String::from(potential_title);
+        while padded_title.len() < 3 {
+            padded_title += r"\&nbsp";
+        }
         self.client
-            .get_anime_list(potential_title, 20)
+            .get_anime_list(&padded_title, 20)
             .await
-            .expect("MAL search result") // fails on too short query < 3 letters
+            .expect("MAL search result")
             .data
             .iter()
             .map(|entry| ServiceTitle {
