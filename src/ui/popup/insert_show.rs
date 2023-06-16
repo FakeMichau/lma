@@ -19,9 +19,9 @@ use tokio::runtime::Runtime;
 #[derive(Default)]
 pub(crate) struct InsertPopup {
     pub(crate) path: String,
-    pub(crate) title: String,
+    title: String,
     pub(crate) sync_service_id: i64,
-    pub(crate) episode_count: i64,
+    episode_count: i64,
     pub(crate) state: InsertState,
     pub(crate) data: String,
     pub(crate) episodes: Vec<Episode>,

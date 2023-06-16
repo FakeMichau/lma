@@ -14,15 +14,15 @@ use super::{SelectionDirection, FocusedWindow, popup::insert_show::InsertState};
 use crate::app::App;
 
 pub(crate) struct StatefulList {
-    pub(crate) state: ListState,
-    pub(crate) episodes_state: EpisodesState,
-    pub(crate) selected_id: i64,
-    pub(crate) list_cache: Vec<Show>,
+    state: ListState,
+    episodes_state: EpisodesState,
+    selected_id: i64,
+    list_cache: Vec<Show>,
 }
 
-pub(crate) struct EpisodesState {
-    pub(crate) list_state: ListState,
-    pub(crate) selection_enabled: bool,
+struct EpisodesState {
+    list_state: ListState,
+    selection_enabled: bool,
 }
 
 impl StatefulList {

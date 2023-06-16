@@ -14,8 +14,8 @@ use crate::app::App;
 
 #[derive(Default)]
 pub(crate) struct MismatchPopup {
-    pub(crate) episodes_count: u32,
-    pub(crate) video_files_count: u32,
+    episodes_count: u32,
+    video_files_count: u32,
     pub(crate) owned_episodes: String,
 }
 

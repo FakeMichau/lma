@@ -11,7 +11,7 @@ use crate::{ui::SelectionDirection, app::App};
 #[derive(Default)]
 pub(crate) struct TitlesPopup {
     pub(crate) state: ListState,
-    pub(crate) service_titles: Vec<ServiceTitle>,
+    service_titles: Vec<ServiceTitle>,
 }
 
 impl TitlesPopup {
