@@ -17,7 +17,7 @@ pub(crate) fn build<B: Backend>(frame: &mut Frame<'_, B>, app: &mut App) {
         horizontal: 1,
     });
 
-    let login_info = if let Some(url) = app.shows.items.service.get_url() {
+    let login_info = if let Some(url) = app.anime_list.service.get_url() {
         vec![
             Line::from(Span::raw("Login using the link below")),
             Line::from(Span::styled(

@@ -130,16 +130,14 @@ fn handle_next_state(app: &mut App, rt: &Runtime) {
         1 if !app.insert_popup.path.is_empty() && app.insert_popup.title.is_empty() => {
             // sanitize user input
             app.insert_popup.title = app
-                .shows
-                .items
+                .anime_list
                 .guess_shows_title(&app.insert_popup.path)
                 .unwrap_or_default();
         }
         2 if !app.insert_popup.title.is_empty() && app.insert_popup.sync_service_id == 0 => {
             // create a popup to select the exact show from a sync service
             let items: Vec<_> = rt.block_on(async { 
-                app.shows
-                    .items
+                app.anime_list
                     .service
                     .search_title(&app.insert_popup.title)
                     .await 
@@ -152,19 +150,17 @@ fn handle_next_state(app: &mut App, rt: &Runtime) {
             && app.insert_popup.episode_count == 0
             && !app.insert_popup.path.is_empty() =>
         {
-            let title = rt.block_on(app.shows.items.service.get_title(app.insert_popup.sync_service_id as u32));
+            let title = rt.block_on(app.anime_list.service.get_title(app.insert_popup.sync_service_id as u32));
             app.insert_popup.title = title; // make it a config?
             // compare number of video files with the retrieved number of episodes
             let episode_count = rt.block_on(async {
-                app.shows
-                    .items
+                app.anime_list
                     .service
                     .get_episode_count(app.insert_popup.sync_service_id as u32)
                     .await
             });
             let video_files_count = app
-                .shows
-                .items
+                .anime_list
                 .count_video_files(&app.insert_popup.path)
                 .unwrap_or_default() as u32;
             app.insert_popup.episode_count = episode_count.map_or(0, |count| {
@@ -204,7 +200,7 @@ fn handle_next_state(app: &mut App, rt: &Runtime) {
 }
 
 fn handle_save_state(app: &mut App, rt: &Runtime) {
-    if let Err(why) = app.shows.items.add_show(
+    if let Err(why) = app.anime_list.add_show(
         &app.insert_popup.title,
         app.insert_popup.sync_service_id,
         0,
@@ -217,8 +213,7 @@ fn handle_save_state(app: &mut App, rt: &Runtime) {
         }
     } else {
         let episodes = rt.block_on(
-            app.shows
-                .items
+            app.anime_list
                 .service
                 .get_episodes(app.insert_popup.sync_service_id as u32)
             );
@@ -232,7 +227,7 @@ fn handle_save_state(app: &mut App, rt: &Runtime) {
             } else {
                 String::new()
             };
-            if let Err(why) = app.shows.items.add_episode_service_id(
+            if let Err(why) = app.anime_list.add_episode_service_id(
                 app.insert_popup.sync_service_id,
                 episode.number,
                 &episode.path.to_string_lossy().to_string(),
@@ -242,14 +237,14 @@ fn handle_save_state(app: &mut App, rt: &Runtime) {
             }
         });
         rt.block_on(async {
-            app.shows
-                .items
+            app.anime_list
                 .service
                 .init_show(app.insert_popup.sync_service_id as u32)
                 .await
         });
         app.insert_popup.state = InsertState::None;
         app.insert_popup = InsertPopup::default();
+        app.list_state.update_cache(&app.anime_list);
         app.focused_window = FocusedWindow::MainMenu;
     }
 }

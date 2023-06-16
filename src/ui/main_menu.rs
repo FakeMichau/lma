@@ -16,7 +16,6 @@ use crate::app::App;
 pub(crate) struct StatefulList {
     pub(crate) state: ListState,
     pub(crate) episodes_state: EpisodesState,
-    pub(crate) items: AnimeList,
     pub(crate) selected_id: i64,
     pub(crate) list_cache: Vec<Show>,
 }
@@ -27,7 +26,7 @@ pub(crate) struct EpisodesState {
 }
 
 impl StatefulList {
-    pub(crate) fn new(shows: AnimeList) -> StatefulList {
+    pub(crate) fn new(shows: &AnimeList) -> StatefulList {
         let list_cache = shows.get_list().unwrap();
         StatefulList {
             state: ListState::default(),
@@ -35,28 +34,27 @@ impl StatefulList {
                 list_state: ListState::default(),
                 selection_enabled: false,
             },
-            items: shows,
             selected_id: 0,
             list_cache,
         }
     }
 
-    pub(crate) fn delete(&mut self) -> Result<(), Box<dyn Error>> {
+    pub(crate) fn delete(&mut self, shows: &AnimeList) -> Result<(), Box<dyn Error>> {
         if self.episodes_state.selection_enabled {
             // todo: delete just an episode
         } else {
-            self.items.remove_entry(self.selected_id)?;
-            self.update_cache();
+            shows.remove_entry(self.selected_id)?;
+            self.update_cache(shows);
             self.update_selected_id(self.state.selected().unwrap_or_default());
         }
         Ok(())
     }
 
-    pub(crate) fn move_selection(&mut self, direction: SelectionDirection) {
+    pub(crate) fn move_selection(&mut self, direction: SelectionDirection, shows: &AnimeList, ) {
         if self.episodes_state.selection_enabled {
             self.move_episode_selection(direction);
         } else {
-            self.update_cache();
+            self.update_cache(shows);
             let i = self.select_element(self.list_cache.len(), self.state.selected(), direction);
             self.state.select(Some(i));
             self.update_selected_id(i);
@@ -77,22 +75,22 @@ impl StatefulList {
             .unwrap()
     }
 
-    pub(crate) fn move_progress(&mut self, rt: &Runtime, direction: SelectionDirection) {
+    pub(crate) fn move_progress(&mut self, direction: SelectionDirection, shows: &mut AnimeList, rt: &Runtime) {
         let selected_show = self.selected_show();
         let offset = match direction {
             SelectionDirection::Next => 1,
             SelectionDirection::Previous => -1,
         };
         let progress = selected_show.progress + offset;
-        self.items.set_progress(selected_show.id, progress)
+        shows.set_progress(selected_show.id, progress)
             .expect("Set local progress");
         rt.block_on(
-            self.items.service.set_progress(
+            shows.service.set_progress(
                 selected_show.sync_service_id as u32, 
                 progress as u32
             )
         );
-        self.update_cache();
+        self.update_cache(shows);
     }
 
     fn move_episode_selection(&mut self, direction: SelectionDirection) {
@@ -176,8 +174,8 @@ impl StatefulList {
         }
     }
 
-    pub(crate) fn update_cache(&mut self) {
-        self.list_cache = self.items.get_list().unwrap();
+    pub(crate) fn update_cache(&mut self, shows: &AnimeList) {
+        self.list_cache = shows.get_list().unwrap();
     }
 }
 
@@ -194,7 +192,7 @@ pub(crate) fn build<B: Backend>(frame: &mut Frame<'_, B>, app: &mut App) {
         .split(chunks[0]);
 
     let items: Vec<_> = app
-        .shows
+        .list_state
         .list_cache
         .iter()
         .map(|show| ListItem::new(format!("{}", show.title)).style(Style::default()))
@@ -211,10 +209,10 @@ pub(crate) fn build<B: Backend>(frame: &mut Frame<'_, B>, app: &mut App) {
 
     // Iterate through all elements in the `items` app
     let episodes: Vec<ListItem> = app
-        .shows
+        .list_state
         .list_cache
         .iter()
-        .filter(|show| show.id == app.shows.selected_id)
+        .filter(|show| show.id == app.list_state.selected_id)
         .flat_map(|show| {
             let mut temp: Vec<ListItem> = Vec::new();
             for episode in &show.episodes {
@@ -252,11 +250,11 @@ pub(crate) fn build<B: Backend>(frame: &mut Frame<'_, B>, app: &mut App) {
     let help = build_help(&app.focused_window, &app.insert_popup.state);
 
     // We can now render the item list
-    frame.render_stateful_widget(items, main_chunks[0], &mut app.shows.state);
+    frame.render_stateful_widget(items, main_chunks[0], &mut app.list_state.state);
     frame.render_stateful_widget(
         episodes,
         main_chunks[1],
-        &mut app.shows.episodes_state.list_state,
+        &mut app.list_state.episodes_state.list_state,
     );
     frame.render_widget(help, chunks[1]);
 }

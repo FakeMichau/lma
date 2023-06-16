@@ -8,6 +8,7 @@ use crate::ui::{
     FocusedWindow, SelectionDirection,
 };
 use crossterm::event::{self, Event, KeyCode};
+use lma::AnimeList;
 use ratatui::{backend::Backend, Terminal};
 use std::error::Error;
 use std::{
@@ -17,11 +18,12 @@ use std::{
 use tokio::runtime::Runtime;
 
 pub(crate) struct App {
-    pub(crate) shows: StatefulList,
     pub(crate) focused_window: FocusedWindow,
     pub(crate) insert_popup: InsertPopup,
     pub(crate) titles_popup: TitlesPopup,
     pub(crate) mismatch_popup: MismatchPopup,
+    pub(crate) list_state: StatefulList,
+    pub(crate) anime_list: AnimeList,
 }
 
 impl App {
@@ -29,11 +31,12 @@ impl App {
         let service = rt.block_on(async { lma::MAL::new().await });
         let anime_list = lma::create(service);
         Ok(App {
-            shows: StatefulList::new(anime_list),
+            list_state: StatefulList::new(&anime_list),
             focused_window: FocusedWindow::MainMenu,
             insert_popup: InsertPopup::default(),
             titles_popup: TitlesPopup::default(),
             mismatch_popup: MismatchPopup::default(),
+            anime_list,
         })
     }
 
@@ -42,11 +45,11 @@ impl App {
         rt: &Runtime,
         terminal: &mut Terminal<B>,
     ) -> io::Result<()> {
-        self.shows.items.service.auth().await;
+        self.anime_list.service.auth().await;
         self.focused_window = FocusedWindow::Login;
         terminal.draw(|f| ui::ui(f, self, rt))?;
-        if self.shows.items.service.get_url().is_some() {
-            self.shows.items.service.login().await; // freezes the app as it waits
+        if self.anime_list.service.get_url().is_some() {
+            self.anime_list.service.login().await; // freezes the app as it waits
             self.focused_window = FocusedWindow::MainMenu;
             terminal.draw(|f| ui::ui(f, self, rt)).unwrap();
             self.focused_window = FocusedWindow::Login;
@@ -113,20 +116,20 @@ fn handle_main_menu_key<B: Backend>(
 ) -> Result<Option<bool>, Box<dyn Error>> {
     match key.code {
         KeyCode::Char('q') => return Ok(None),
-        KeyCode::Down => app.shows.move_selection(SelectionDirection::Next),
-        KeyCode::Up => app.shows.move_selection(SelectionDirection::Previous),
-        KeyCode::Char('.') => app.shows.move_progress(rt, SelectionDirection::Next),
-        KeyCode::Char(',') => app.shows.move_progress(rt, SelectionDirection::Previous),
-        KeyCode::Right | KeyCode::Enter => app.shows.select(),
-        KeyCode::Left => app.shows.unselect(),
-        KeyCode::Delete => app.shows.delete()?,
+        KeyCode::Down => app.list_state.move_selection(SelectionDirection::Next, &app.anime_list),
+        KeyCode::Up => app.list_state.move_selection(SelectionDirection::Previous, &app.anime_list),
+        KeyCode::Char('.') => app.list_state.move_progress(SelectionDirection::Next, &mut app.anime_list, rt),
+        KeyCode::Char(',') => app.list_state.move_progress(SelectionDirection::Previous, &mut app.anime_list, rt),
+        KeyCode::Right | KeyCode::Enter => app.list_state.select(),
+        KeyCode::Left => app.list_state.unselect(),
+        KeyCode::Delete => app.list_state.delete(&app.anime_list)?,
         KeyCode::Char('n') => {
             app.focused_window = FocusedWindow::InsertPopup;
             app.insert_popup.state = InsertState::Inputting;
         }
         KeyCode::Char('l') => {
             app.handle_login_popup(rt, terminal)?;
-            app.shows.items.update_progress(rt);
+            app.anime_list.update_progress(rt);
         }
         _ => {}
     }
@@ -137,7 +140,7 @@ fn handle_login_key(key: event::KeyEvent, app: &mut App) {
     match key.code {
         KeyCode::Esc => {
             app.focused_window = FocusedWindow::MainMenu;
-            app.shows.update_cache();
+            app.list_state.update_cache(&app.anime_list);
         },
         _ => {}
     }
