@@ -111,16 +111,8 @@ impl MAL {
             .my_list_status
     }
 
-    async fn search_in_user_list(&mut self, id: u32) -> Option<ListNode> {
-        self.get_user_list()
-            .await
-            .into_iter()
-            .filter(|entry| entry.node.id == id)
-            .next()
-    }
-
     pub async fn init_show(&mut self, id: u32) {
-        match self.search_in_user_list(id).await {
+        match self.get_user_entry_details(id).await {
             Some(_existing_show) => { /* leave as is */ }
             None => {
                 // add to plan to watch
