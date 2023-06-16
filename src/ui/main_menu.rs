@@ -69,14 +69,17 @@ impl StatefulList {
         };
     }
 
-    pub(crate) fn selected_show(&self) -> &Show {
+    pub(crate) fn selected_show(&self) -> Option<&Show> {
         self.list_cache
             .get(self.state.selected().unwrap_or_default())
-            .unwrap()
     }
 
     pub(crate) fn move_progress(&mut self, direction: SelectionDirection, shows: &mut AnimeList, rt: &Runtime) {
-        let selected_show = self.selected_show();
+        let selected_show = if let Some(selected_show) = self.selected_show() {
+            selected_show
+        } else {
+            return
+        };
         let offset = match direction {
             SelectionDirection::Next => 1,
             SelectionDirection::Previous => -1,
@@ -94,7 +97,11 @@ impl StatefulList {
     }
 
     fn move_episode_selection(&mut self, direction: SelectionDirection) {
-        let selected_show = self.selected_show();
+        let selected_show = if let Some(selected_show) = self.selected_show() {
+            selected_show
+        } else {
+            return
+        };
         let episodes_len = selected_show.episodes.len();
         let i = self.select_element(
             episodes_len,
@@ -165,6 +172,9 @@ impl StatefulList {
         selected_element: Option<usize>,
         direction: SelectionDirection,
     ) -> usize {
+        if list_length == 0 {
+            return 0;
+        }
         match selected_element {
             Some(i) => match direction {
                 SelectionDirection::Next => (i + 1) % list_length,
