@@ -1,3 +1,5 @@
+use std::collections::HashMap;
+
 use super::{centered_rect, title_selection::TitlesPopup, episode_mismatch::MismatchPopup};
 use crate::{
     app::App,
@@ -212,21 +214,19 @@ fn handle_save_state(app: &mut App, rt: &Runtime) {
             eprintln!("{}", why);
         }
     } else {
-        let episodes = rt.block_on(
+        let episodes_details = rt.block_on(
             app.anime_list
                 .service
                 .get_episodes(app.insert_popup.sync_service_id as u32)
             );
-        let use_titles = episodes.len() == app.insert_popup.episodes.len();
+        let episodes_details_hash: HashMap<u32, String> = episodes_details.iter()
+            .map(|episode| {
+                (episode.mal_id.unwrap_or_default(), episode.title.clone().unwrap_or_default())
+            })
+            .collect();
         app.insert_popup.episodes.iter().for_each(|episode| {
-            let potential_title = episodes.get((episode.number - 1) as usize).map(|episode| {
-                    episode.title.clone()
-                });
-            let title = if use_titles {
-                potential_title.unwrap_or_default().unwrap_or_default()
-            } else {
-                String::new()
-            };
+            let potential_title = episodes_details_hash.get(&(episode.number as u32));
+            let title = potential_title.unwrap_or(&String::new()).clone();
             if let Err(why) = app.anime_list.add_episode_service_id(
                 app.insert_popup.sync_service_id,
                 episode.number,
