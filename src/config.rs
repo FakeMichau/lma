@@ -76,18 +76,20 @@ impl Config {
             default_config.clone()
         };
 
-        let colors = config.colors.unwrap_or(Colors::default());
-        let mapped_colors = TermColors {
-            text: colors.text.unwrap_or(Colors::default().text.unwrap()).into(),
-            text_watched: colors.text_watched.unwrap_or(Colors::default().text_watched.unwrap()).into(),
-            text_deleted: colors.text_deleted.unwrap_or(Colors::default().text_deleted.unwrap()).into(),
-            highlight: colors.highlight.unwrap_or(Colors::default().highlight.unwrap()).into(),
-            highlight_dark: colors.highlight_dark.unwrap_or(Colors::default().highlight_dark.unwrap()).into(),
+        let data_dir = config.data_dir.unwrap_or(default_config.data_dir.unwrap());
+        let default_colors = Colors::default();
+        let colors = config.colors.unwrap_or(default_colors.clone());
+        let term_colors = TermColors {
+            text: colors.text.unwrap_or(default_colors.text.unwrap()).into(),
+            text_watched: colors.text_watched.unwrap_or(default_colors.text_watched.unwrap()).into(),
+            text_deleted: colors.text_deleted.unwrap_or(default_colors.text_deleted.unwrap()).into(),
+            highlight: colors.highlight.unwrap_or(default_colors.highlight.unwrap()).into(),
+            highlight_dark: colors.highlight_dark.unwrap_or(default_colors.highlight_dark.unwrap()).into(),
         };
 
         Config {
-            data_dir: config.data_dir.unwrap_or(default_config.data_dir.unwrap()),
-            colors: mapped_colors
+            data_dir,
+            colors: term_colors
         }
     }
 
