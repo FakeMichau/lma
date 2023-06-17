@@ -54,18 +54,43 @@ impl AnimeList {
         });
         Ok(shows)
     }
-    pub fn add_show(&self, title: &str, sync_service_id: i64, progress: i64) -> Result<(), String> {
-        self.db_connection.execute(
-            "INSERT INTO Shows (title, sync_service_id, progress) 
-            VALUES (?1, ?2, ?3)", 
-            params![
-                title,
-                sync_service_id,
-                progress,
-            ]
-        ).map_err(|e| e.to_string())?;
-        Ok(())
+
+    /// Returns local id of the added show
+    pub fn add_show(&self, title: &str, sync_service_id: i64, progress: i64) -> Result<i64, String> {
+        let mut stmt = self
+            .db_connection
+            .prepare(
+                "INSERT INTO Shows (title, sync_service_id, progress) 
+            VALUES (?1, ?2, ?3)
+            RETURNING *",
+            )
+            .map_err(|e| e.to_string())?;
+
+        let mut rows = stmt
+            .query(params![title, sync_service_id, progress])
+            .map_err(|e| e.to_string())?;
+
+        let local_id: i64 = rows.next().map_err(|e| e.to_string())?.unwrap().get(0).unwrap();
+        Ok(local_id)
     }
+
+    pub fn get_local_show_id(&self, title: &str) -> Result<i64, String> {
+        let mut stmt = self
+            .db_connection
+            .prepare(
+                "SELECT id FROM Shows 
+            WHERE title=?1",
+            )
+            .map_err(|e| e.to_string())?;
+
+        let mut rows = stmt
+            .query(params![title])
+            .map_err(|e| e.to_string())?;
+
+        let local_id: i64 = rows.next().unwrap().unwrap().get(0).unwrap();
+        Ok(local_id)
+    }
+
     pub fn set_progress(&self, id: i64, progress: i64) -> Result<(), String> {
         self.db_connection.execute(
             "UPDATE Shows
@@ -240,7 +265,7 @@ pub fn create(service: MAL, data_path: &PathBuf) -> AnimeList {
     }
     match db_connection.execute_batch(
         "
-        CREATE TABLE Shows (id INTEGER PRIMARY KEY AUTOINCREMENT, title TEXT, sync_service_id INTEGER UNIQUE, progress INTEGER);
+        CREATE TABLE Shows (id INTEGER PRIMARY KEY AUTOINCREMENT, title TEXT UNIQUE, sync_service_id INTEGER UNIQUE, progress INTEGER);
         CREATE TABLE Episodes (show_id INTEGER, episode_number INTEGER, path TEXT, title TEXT, PRIMARY KEY (show_id, episode_number), FOREIGN KEY (show_id) REFERENCES Shows(id));
         "
     ) {

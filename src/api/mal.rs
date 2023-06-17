@@ -1,4 +1,4 @@
-use std::path::PathBuf;
+use std::{path::PathBuf, collections::HashMap};
 use time::OffsetDateTime;
 
 use lib_mal::{
@@ -7,7 +7,7 @@ use lib_mal::{
         options::{Status, StatusUpdate},
         ListNode, ListStatus, EpisodeNode,
     },
-    ClientBuilder, MALClient,
+    ClientBuilder, MALClient, MALError,
 };
 
 use crate::ServiceTitle;
@@ -83,13 +83,24 @@ impl MAL {
             .title
     }
 
-    pub async fn get_episodes(&mut self, id: u32) -> Vec<EpisodeNode> {
+    async fn get_episodes(&mut self, id: u32) -> Result<Vec<EpisodeNode>, MALError>{
         self.client
             .get_anime_episodes(id)
             .await
-            .expect("Anime title") // likely will fail
-            .data
+            .map(|episodes| {
+                episodes.data
+            })
     }
+
+    pub async fn get_episodes_titles(&mut self, id: u32) -> HashMap<u32, String> {
+        let episodes_details = self.get_episodes(id).await.unwrap_or(Vec::new());
+        episodes_details.iter()
+            .map(|episode| {
+                (episode.mal_id.unwrap_or_default(), episode.title.clone().unwrap_or_default())
+            })
+            .collect()
+    }
+
 
     pub async fn search_title(&mut self, potential_title: &str) -> Vec<ServiceTitle> {
         // what does it do when it returns 0 results?

@@ -1,5 +1,3 @@
-use std::collections::HashMap;
-
 use super::{centered_rect, title_selection::TitlesPopup, episode_mismatch::MismatchPopup};
 use crate::{
     app::App,
@@ -155,39 +153,36 @@ fn handle_next_state(app: &mut App, rt: &Runtime) {
             let title = rt.block_on(app.anime_list.service.get_title(app.insert_popup.service_id as u32));
             app.insert_popup.title = title; // make it a config?
             // compare number of video files with the retrieved number of episodes
-            let episode_count = rt.block_on(async {
+            let episode_count = rt.block_on(
                 app.anime_list
                     .service
                     .get_episode_count(app.insert_popup.service_id as u32)
-                    .await
-            });
+                )
+                .unwrap_or_default();
             let video_files_count = app
                 .anime_list
                 .count_video_files(&app.insert_popup.path)
                 .unwrap_or_default() as u32;
-            app.insert_popup.episode_count = episode_count.map_or(0, |count| {
-                if count == video_files_count {
-                    app.insert_popup.episodes = AnimeList::get_video_file_paths(&app.insert_popup.path)
-                        .unwrap_or_default()
-                        .into_iter()
-                        .enumerate()
-                        .map(|(k, path)| Episode {
-                            number: k as i64 + 1,
-                            path,
-                            title: String::new(),
-                        })
-                        .collect();
 
-                    count.into()
-                } else if count > video_files_count {
-                    app.mismatch_popup = MismatchPopup::new(count, video_files_count);
-                    app.focused_window = FocusedWindow::EpisodeMismatch;
-                    video_files_count.into()
-                } else {
-                    // more files locally than expected
-                    0
-                }
-            });
+            app.insert_popup.episode_count = episode_count.into();
+            if episode_count == video_files_count {
+                app.insert_popup.episodes = AnimeList::get_video_file_paths(&app.insert_popup.path)
+                    .unwrap_or_default()
+                    .into_iter()
+                    .enumerate()
+                    .map(|(k, path)| Episode {
+                        number: k as i64 + 1,
+                        path,
+                        title: String::new(),
+                    })
+                    .collect();
+            } else if episode_count > video_files_count {
+                app.mismatch_popup = MismatchPopup::new(episode_count, video_files_count);
+                app.focused_window = FocusedWindow::EpisodeMismatch;
+            } else {
+                // more files locally than expected
+                app.insert_popup.episode_count = 0;
+            }
         }
         _ => {}
     };
@@ -202,51 +197,58 @@ fn handle_next_state(app: &mut App, rt: &Runtime) {
 }
 
 fn handle_save_state(app: &mut App, rt: &Runtime) {
-    if let Err(why) = app.anime_list.add_show(
+    match app.anime_list.add_show(
         &app.insert_popup.title,
         app.insert_popup.service_id,
         0,
     ) {
-        if why.contains("FOREIGN KEY constraint failed") {
-            // show with this sync_service_id already exists
-            app.insert_popup.data = app.insert_popup.path.clone() // prevent path from clearing
-        } else {
-            eprintln!("{}", why);
-        }
-    } else {
-        let episodes_details = rt.block_on(
-            app.anime_list
-                .service
-                .get_episodes(app.insert_popup.service_id as u32)
-            );
-        let episodes_details_hash: HashMap<u32, String> = episodes_details.iter()
-            .map(|episode| {
-                (episode.mal_id.unwrap_or_default(), episode.title.clone().unwrap_or_default())
-            })
-            .collect();
-        app.insert_popup.episodes.iter().for_each(|episode| {
-            let potential_title = episodes_details_hash.get(&(episode.number as u32));
-            let title = potential_title.unwrap_or(&String::new()).clone();
-            if let Err(why) = app.anime_list.add_episode_service_id(
-                app.insert_popup.service_id,
-                episode.number,
-                &episode.path.to_string_lossy().to_string(),
-                &title,
-            ) {
+        Ok(local_id) => {
+            insert_episodes(rt, app, local_id);
+            rt.block_on(async {
+                app.anime_list
+                    .service
+                    .init_show(app.insert_popup.service_id as u32)
+                    .await
+            });
+        },
+        Err(why) => {
+            if why.contains("constraint failed") {
+                // show with this sync_service_id or title already exists
+                // get local_id of the show with the same title
+                if let Ok(local_id) = app.anime_list.get_local_show_id(&app.insert_popup.title) {
+                    insert_episodes(rt, app, local_id);
+                }
+                // don't do anything more if can't get the id by title
+            } else {
                 eprintln!("{}", why);
             }
-        });
-        rt.block_on(async {
-            app.anime_list
-                .service
-                .init_show(app.insert_popup.service_id as u32)
-                .await
-        });
-        app.insert_popup.state = InsertState::None;
-        app.insert_popup = InsertPopup::default();
-        app.list_state.update_cache(&app.anime_list);
-        app.focused_window = FocusedWindow::MainMenu;
+        },
     }
+    app.insert_popup.state = InsertState::None;
+    app.insert_popup = InsertPopup::default();
+    app.list_state.update_cache(&app.anime_list);
+    app.focused_window = FocusedWindow::MainMenu;
+}
+
+fn insert_episodes(rt: &Runtime, app: &mut App, local_id: i64) {
+    // service_id is fine because hashmap can be empty here
+    let episodes_details_hash = rt.block_on(
+        app.anime_list
+            .service
+            .get_episodes_titles(app.insert_popup.service_id as u32)
+    );
+    app.insert_popup.episodes.iter().for_each(|episode| {
+        let potential_title = episodes_details_hash.get(&(episode.number as u32));
+        let title = potential_title.unwrap_or(&String::new()).clone();
+        if let Err(why) = app.anime_list.add_episode(
+            local_id,
+            episode.number,
+            &episode.path.to_string_lossy().to_string(),
+            &title,
+        ) {
+            eprintln!("{}", why);
+        }
+    });
 }
 
 fn parse_number(str: &mut String) -> i64 {
