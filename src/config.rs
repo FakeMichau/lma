@@ -23,21 +23,21 @@ struct Color {
 
 #[derive(Serialize, Deserialize, Clone)]
 struct Colors {
-    text: Color,
-    text_watched: Color,
-    text_deleted: Color,
-    highlight: Color,
-    highlight_dark: Color,
+    text: Option<Color>,
+    text_watched: Option<Color>,
+    text_deleted: Option<Color>,
+    highlight: Option<Color>,
+    highlight_dark: Option<Color>,
 }
 
 impl Default for Colors {
     fn default() -> Self {
         Self {
-            text: Color { r:220, g:220, b: 220 },
-            text_watched: Color { r:70, g:70, b: 70 },
-            text_deleted: Color { r:200, g:0, b: 0 },
-            highlight: Color { r:91, g:174, b: 36 },
-            highlight_dark: Color { r:25, g:65, b: 10 },
+            text: Some(Color { r:220, g:220, b: 220 }),
+            text_watched: Some(Color { r:70, g:70, b: 70 }),
+            text_deleted: Some(Color { r:200, g:0, b: 0 }),
+            highlight: Some(Color { r:91, g:174, b: 36 }),
+            highlight_dark: Some(Color { r:25, g:65, b: 10 }),
         }
     }
 }
@@ -48,6 +48,12 @@ pub(crate) struct TermColors {
     pub(crate) text_deleted: TermColor,
     pub(crate) highlight: TermColor,
     pub(crate) highlight_dark: TermColor,
+}
+
+impl Into<TermColor> for Color {
+    fn into(self) -> TermColor {
+        TermColor::Rgb(self.r, self.g, self.b)
+    }
 }
 
 impl Config {
@@ -63,20 +69,20 @@ impl Config {
 
         let config = if config_file.exists() {
             let data = fs::read_to_string(config_file).expect("Config can't be read");
-            toml::from_str(&data).expect("Can't parse the config")
+            toml::from_str(&data).map_err(|err| err.message().to_owned()).expect("Can't parse the config")
         } else {
             let default_config_str = toml::to_string(&default_config).expect("Config serialized");
             fs::write(config_file, default_config_str).expect("Default config creation");
             default_config.clone()
         };
 
-        let colors = config.colors.unwrap_or(default_config.colors.unwrap());
+        let colors = config.colors.unwrap_or(Colors::default());
         let mapped_colors = TermColors {
-            text: TermColor::Rgb(colors.text.r, colors.text.g, colors.text.b),
-            text_watched: TermColor::Rgb(colors.text_watched.r, colors.text_watched.g, colors.text_watched.b),
-            text_deleted: TermColor::Rgb(colors.text_deleted.r, colors.text_deleted.g, colors.text_deleted.b),
-            highlight: TermColor::Rgb(colors.highlight.r, colors.highlight.g, colors.highlight.b),
-            highlight_dark: TermColor::Rgb(colors.highlight_dark.r, colors.highlight_dark.g, colors.highlight_dark.b),
+            text: colors.text.unwrap_or(Colors::default().text.unwrap()).into(),
+            text_watched: colors.text_watched.unwrap_or(Colors::default().text_watched.unwrap()).into(),
+            text_deleted: colors.text_deleted.unwrap_or(Colors::default().text_deleted.unwrap()).into(),
+            highlight: colors.highlight.unwrap_or(Colors::default().highlight.unwrap()).into(),
+            highlight_dark: colors.highlight_dark.unwrap_or(Colors::default().highlight_dark.unwrap()).into(),
         };
 
         Config {
