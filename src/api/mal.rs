@@ -52,6 +52,10 @@ impl MAL {
         &self.url
     }
 
+    pub fn is_logged_in(&self) -> bool {
+        !self.client.need_auth
+    }
+
     pub async fn login(&mut self) {
         let redirect_uri = "localhost:2525";
         self.client

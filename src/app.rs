@@ -52,7 +52,7 @@ impl App {
         self.anime_list.service.auth().await;
         self.focused_window = FocusedWindow::Login;
         terminal.draw(|f| ui::ui(f, self, rt))?;
-        if self.anime_list.service.get_url().is_some() {
+        if !self.anime_list.service.is_logged_in() {
             self.anime_list.service.login().await; // freezes the app as it waits
             self.focused_window = FocusedWindow::MainMenu;
             terminal.draw(|f| ui::ui(f, self, rt)).unwrap();

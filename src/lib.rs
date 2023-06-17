@@ -104,32 +104,33 @@ impl AnimeList {
     }
 
     pub fn update_progress(&mut self, rt: &Runtime) {
-        if let None = self.service.get_url() {
-            self.get_list()
-                .expect("List from the local database")
-                .into_iter()
-                .for_each(|show| {
-                    let user_entry_details = rt.block_on(self
-                        .service
-                        .get_user_entry_details(show.service_id.try_into().unwrap())
-                    );
-                    let user_service_progress_current = user_entry_details
-                        .map(|details| details.num_episodes_watched)
-                        .unwrap_or_default()
-                        .unwrap_or_default();
-
-                    let local_progress_current = show.progress as u32;
-                    // progress different between local and service
-                    if user_service_progress_current > local_progress_current {
-                        self.set_progress(show.local_id, user_service_progress_current as i64)
-                            .expect("Set local progress");
-                    } else if user_service_progress_current < local_progress_current {
-                        rt.block_on(
-                            self.service.set_progress(show.service_id as u32, local_progress_current)
-                        );
-                    }
-                })
+        if !self.service.is_logged_in() {
+            return
         }
+        self.get_list()
+            .expect("List from the local database")
+            .into_iter()
+            .for_each(|show| {
+                let user_entry_details = rt.block_on(self
+                    .service
+                    .get_user_entry_details(show.service_id.try_into().unwrap())
+                );
+                let user_service_progress_current = user_entry_details
+                    .map(|details| details.num_episodes_watched)
+                    .unwrap_or_default()
+                    .unwrap_or_default();
+
+                let local_progress_current = show.progress as u32;
+                // progress different between local and service
+                if user_service_progress_current > local_progress_current {
+                    self.set_progress(show.local_id, user_service_progress_current as i64)
+                        .expect("Set local progress");
+                } else if user_service_progress_current < local_progress_current {
+                    rt.block_on(
+                        self.service.set_progress(show.service_id as u32, local_progress_current)
+                    );
+                }
+            })
     }
 
     pub fn get_video_file_paths(path: &str) -> Result<Vec<PathBuf>, std::io::Error> {
