@@ -14,49 +14,43 @@ use super::{SelectionDirection, FocusedWindow, popup::insert_show::InsertState};
 use crate::app::App;
 
 pub(crate) struct StatefulList {
-    state: ListState,
-    episodes_state: EpisodesState,
+    shows_state: ListState,
+    episodes_state: ListState,
+    selecting_episode: bool,
     selected_local_id: i64,
     list_cache: Vec<Show>,
-}
-
-struct EpisodesState {
-    list_state: ListState,
-    selection_enabled: bool,
 }
 
 impl StatefulList {
     pub(crate) fn new(shows: &AnimeList) -> StatefulList {
         let list_cache = shows.get_list().unwrap();
         StatefulList {
-            state: ListState::default(),
-            episodes_state: EpisodesState {
-                list_state: ListState::default(),
-                selection_enabled: false,
-            },
+            shows_state: ListState::default(),
+            selecting_episode: false,
+            episodes_state: ListState::default(),
             selected_local_id: 0,
             list_cache,
         }
     }
 
     pub(crate) fn delete(&mut self, shows: &AnimeList) -> Result<(), Box<dyn Error>> {
-        if self.episodes_state.selection_enabled {
+        if self.selecting_episode {
             // todo: delete just an episode
         } else {
             shows.remove_entry(self.selected_local_id)?;
             self.update_cache(shows);
-            self.update_selected_id(self.state.selected().unwrap_or_default());
+            self.update_selected_id(self.shows_state.selected().unwrap_or_default());
         }
         Ok(())
     }
 
     pub(crate) fn move_selection(&mut self, direction: SelectionDirection, shows: &AnimeList, ) {
-        if self.episodes_state.selection_enabled {
+        if self.selecting_episode {
             self.move_episode_selection(direction);
         } else {
             self.update_cache(shows);
-            let i = self.select_element(self.list_cache.len(), self.state.selected(), direction);
-            self.state.select(Some(i));
+            let i = self.select_element(self.list_cache.len(), self.shows_state.selected(), direction);
+            self.shows_state.select(Some(i));
             self.update_selected_id(i);
         }
     }
@@ -71,7 +65,7 @@ impl StatefulList {
 
     pub(crate) fn selected_show(&self) -> Option<&Show> {
         self.list_cache
-            .get(self.state.selected().unwrap_or_default())
+            .get(self.shows_state.selected().unwrap_or_default())
     }
 
     pub(crate) fn move_progress(&mut self, direction: SelectionDirection, shows: &mut AnimeList, rt: &Runtime) {
@@ -105,18 +99,17 @@ impl StatefulList {
         let episodes_len = selected_show.episodes.len();
         let i = self.select_element(
             episodes_len,
-            self.episodes_state.list_state.selected(),
+            self.episodes_state.selected(),
             direction,
         );
-        self.episodes_state.list_state.select(Some(i));
+        self.episodes_state.select(Some(i));
     }
 
     pub(crate) fn select(&mut self) {
-        if self.episodes_state.selection_enabled {
+        if self.selecting_episode {
             // navigating inside the episodes tab
             let selected_episode = self
                 .episodes_state
-                .list_state
                 .selected()
                 .unwrap_or_default();
 
@@ -143,7 +136,7 @@ impl StatefulList {
                 }
             }
         } else {
-            if let Some(selected_id) = self.state.selected() {
+            if let Some(selected_id) = self.shows_state.selected() {
                 if let Some(show) = self.list_cache.get(selected_id) {
                     if !show.episodes.is_empty() {
                         let index = show
@@ -153,8 +146,8 @@ impl StatefulList {
                             .map(|pos| (pos + 1) % show.episodes.len())
                             .unwrap_or(0);
             
-                        self.episodes_state.list_state.select(Some(index));
-                        self.episodes_state.selection_enabled = true;
+                        self.episodes_state.select(Some(index));
+                        self.selecting_episode = true;
                     }
                 }
             }
@@ -162,8 +155,8 @@ impl StatefulList {
         }
     }
     pub(crate) fn unselect(&mut self) {
-        self.episodes_state.list_state.select(None);
-        self.episodes_state.selection_enabled = false;
+        self.episodes_state.select(None);
+        self.selecting_episode = false;
     }
 
     fn select_element(
@@ -267,11 +260,11 @@ pub(crate) fn build<B: Backend>(frame: &mut Frame<'_, B>, app: &mut App) {
     );
 
     // We can now render the item list
-    frame.render_stateful_widget(items, main_chunks[0], &mut app.list_state.state);
+    frame.render_stateful_widget(items, main_chunks[0], &mut app.list_state.shows_state);
     frame.render_stateful_widget(
         episodes,
         main_chunks[1],
-        &mut app.list_state.episodes_state.list_state,
+        &mut app.list_state.episodes_state,
     );
     frame.render_widget(help, chunks[1]);
 }
