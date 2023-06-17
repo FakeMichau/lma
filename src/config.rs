@@ -36,8 +36,8 @@ impl Default for Colors {
             text: Color { r:220, g:220, b: 220 },
             text_watched: Color { r:70, g:70, b: 70 },
             text_deleted: Color { r:200, g:0, b: 0 },
-            highlight: Color { r:14, g:188, b: 87 },
-            highlight_dark: Color { r:0, g:70, b: 0 },
+            highlight: Color { r:91, g:174, b: 36 },
+            highlight_dark: Color { r:25, g:65, b: 10 },
         }
     }
 }
