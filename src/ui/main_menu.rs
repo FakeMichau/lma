@@ -205,7 +205,10 @@ pub(crate) fn build<B: Backend>(frame: &mut Frame<'_, B>, app: &mut App) {
         .list_state
         .list_cache
         .iter()
-        .map(|show| ListItem::new(format!("{}", show.title)).style(Style::default()))
+        .map(|show| {
+            ListItem::new(format!("{}", show.title))
+                .style(Style::default().fg(app.config.colors().text))
+        })
         .collect();
 
     // Create a List from all list items and highlight the currently selected one
@@ -213,7 +216,7 @@ pub(crate) fn build<B: Backend>(frame: &mut Frame<'_, B>, app: &mut App) {
         .block(Block::default().borders(Borders::ALL).title("List"))
         .highlight_style(
             Style::default()
-                .bg(Color::LightGreen)
+                .bg(app.config.colors().highlight)
                 .add_modifier(Modifier::BOLD),
         );
 
@@ -228,10 +231,10 @@ pub(crate) fn build<B: Backend>(frame: &mut Frame<'_, B>, app: &mut App) {
             for episode in &show.episodes {
                 let mut style = Style::default();
                 if episode.number <= show.progress { 
-                    style = style.fg(Color::Rgb(50, 50, 50))
+                    style = style.fg(app.config.colors().text_watched)
                 }
                 if !episode.path.exists() {
-                    style = style.fg(Color::Red)
+                    style = style.fg(app.config.colors().text_deleted)
                 }
                 // maybe make a config for that in the future
                 let episode_display_name = if episode.title.is_empty() {
@@ -253,11 +256,15 @@ pub(crate) fn build<B: Backend>(frame: &mut Frame<'_, B>, app: &mut App) {
         .block(Block::default().borders(Borders::ALL).title("Episodes"))
         .highlight_style(
             Style::default()
-                .bg(Color::LightGreen)
+                .bg(app.config.colors().highlight)
                 .add_modifier(Modifier::BOLD),
         );
 
-    let help = build_help(&app.focused_window, &app.insert_popup.state);
+    let help = build_help(
+        &app.focused_window,
+        &app.insert_popup.state,
+        &app.config.colors().highlight_dark,
+    );
 
     // We can now render the item list
     frame.render_stateful_widget(items, main_chunks[0], &mut app.list_state.state);
@@ -277,8 +284,8 @@ struct HelpItem {
 }
 
 impl HelpItem {
-    fn new(text: &'static str, key: &'static str) -> Self {
-        let text_style = Style::default().bg(Color::Rgb(0, 50, 0));
+    fn new(text: &'static str, key: &'static str, highlight_color: &Color) -> Self {
+        let text_style = Style::default().bg(highlight_color.clone());
         let key_style = text_style.add_modifier(Modifier::BOLD);
         HelpItem {
             text,
@@ -297,18 +304,18 @@ impl HelpItem {
     }
 }
 
-fn build_help<'a>(focused_window: &FocusedWindow, insert_state: &InsertState) -> Paragraph<'a> {
+fn build_help<'a>(focused_window: &FocusedWindow, insert_state: &InsertState, highlight_color: &Color) -> Paragraph<'a> {
     // Create help text at the bottom
-    let navigation = HelpItem::new("Navigation", "ARROWS");
-    let insert = HelpItem::new("Insert new show", "N");
-    let delete = HelpItem::new("Delete the entry", "DEL");
-    let close_window = HelpItem::new("Close the window", "ESC");
-    let exit_inputting = HelpItem::new("Stop inputting", "ESC");
-    let start_inputting = HelpItem::new("Start inputting", "E");
-    let confirm = HelpItem::new("Confirm", "ENTER");
-    let login = HelpItem::new("Login to MAL", "L");
-    let progress = HelpItem::new("Progress", "< >");
-    let quit = HelpItem::new("Quit", "Q");
+    let navigation = HelpItem::new("Navigation", "ARROWS", highlight_color);
+    let insert = HelpItem::new("Insert new show", "N", highlight_color);
+    let delete = HelpItem::new("Delete the entry", "DEL", highlight_color);
+    let close_window = HelpItem::new("Close the window", "ESC", highlight_color);
+    let exit_inputting = HelpItem::new("Stop inputting", "ESC", highlight_color);
+    let start_inputting = HelpItem::new("Start inputting", "E", highlight_color);
+    let confirm = HelpItem::new("Confirm", "ENTER", highlight_color);
+    let login = HelpItem::new("Login to MAL", "L", highlight_color);
+    let progress = HelpItem::new("Progress", "< >", highlight_color);
+    let quit = HelpItem::new("Quit", "Q", highlight_color);
 
     let mut information = Vec::new();
     match focused_window {

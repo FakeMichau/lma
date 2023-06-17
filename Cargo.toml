@@ -14,3 +14,5 @@ tokio = { version = "1.28.2", features = ["full"] }
 time = { version = "0.3", features = ["macros"] }
 lib-mal = { git = "https://github.com/FakeMichau/lib-mal.git" }
 directories = "5.0"
+serde = "1.0"
+toml = "0.7"
