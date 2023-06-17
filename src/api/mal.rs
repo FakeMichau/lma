@@ -101,7 +101,7 @@ impl MAL {
             .data
             .iter()
             .map(|entry| ServiceTitle {
-                id: entry.node.id,
+                service_id: entry.node.id,
                 title: entry.node.title.to_string(),
             })
             .collect()

@@ -15,7 +15,7 @@ pub(crate) struct TitlesPopup {
 }
 
 impl TitlesPopup {
-    pub(crate) fn with_items(titles: Vec<ServiceTitle>) -> TitlesPopup {
+    pub(crate) fn new(titles: Vec<ServiceTitle>) -> TitlesPopup {
         TitlesPopup {
             state: ListState::default(),
             service_titles: titles,

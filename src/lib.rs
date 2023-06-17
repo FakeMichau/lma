@@ -33,11 +33,11 @@ impl AnimeList {
 
             // I'm using a hashmap just for this step, find a way to avoid it?
             let show = shows.entry(show_id).or_insert_with(|| Show {
-                id: show_id,
+                local_id: show_id,
                 title,
                 progress,
                 episodes: Vec::new(),
-                sync_service_id,
+                service_id: sync_service_id,
             });
             if episode_number != -1 {
                 show.episodes.push(Episode {
@@ -48,7 +48,7 @@ impl AnimeList {
             }
         }
         let mut shows: Vec<Show> = shows.into_iter().map(|(_, show)| show).collect();
-        shows.sort_by_key(|show| show.id);
+        shows.sort_by_key(|show| show.local_id);
         shows.iter_mut().for_each(|show| {
             show.episodes.sort_by_key(|episode| episode.number);
         });
@@ -111,7 +111,7 @@ impl AnimeList {
                 .for_each(|show| {
                     let user_entry_details = rt.block_on(self
                         .service
-                        .get_user_entry_details(show.sync_service_id.try_into().unwrap())
+                        .get_user_entry_details(show.service_id.try_into().unwrap())
                     );
                     let user_service_progress_current = user_entry_details
                         .map(|details| details.num_episodes_watched)
@@ -121,11 +121,11 @@ impl AnimeList {
                     let local_progress_current = show.progress as u32;
                     // progress different between local and service
                     if user_service_progress_current > local_progress_current {
-                        self.set_progress(show.id, user_service_progress_current as i64)
+                        self.set_progress(show.local_id, user_service_progress_current as i64)
                             .expect("Set local progress");
                     } else if user_service_progress_current < local_progress_current {
                         rt.block_on(
-                            self.service.set_progress(show.sync_service_id as u32, local_progress_current)
+                            self.service.set_progress(show.service_id as u32, local_progress_current)
                         );
                     }
                 })
@@ -212,9 +212,9 @@ impl AnimeList {
 }
 
 pub struct Show {
-    pub id: i64,
+    pub local_id: i64,
     pub title: String,
-    pub sync_service_id: i64,
+    pub service_id: i64,
     pub episodes: Vec<Episode>,
     pub progress: i64,
 }

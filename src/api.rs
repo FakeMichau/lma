@@ -2,7 +2,7 @@ mod mal;
 pub use mal::*;
 
 pub struct ServiceTitle {
-    pub id: u32,
+    pub service_id: u32,
     pub title: String,
 }
 

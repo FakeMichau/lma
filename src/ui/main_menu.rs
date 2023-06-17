@@ -16,7 +16,7 @@ use crate::app::App;
 pub(crate) struct StatefulList {
     state: ListState,
     episodes_state: EpisodesState,
-    selected_id: i64,
+    selected_local_id: i64,
     list_cache: Vec<Show>,
 }
 
@@ -34,7 +34,7 @@ impl StatefulList {
                 list_state: ListState::default(),
                 selection_enabled: false,
             },
-            selected_id: 0,
+            selected_local_id: 0,
             list_cache,
         }
     }
@@ -43,7 +43,7 @@ impl StatefulList {
         if self.episodes_state.selection_enabled {
             // todo: delete just an episode
         } else {
-            shows.remove_entry(self.selected_id)?;
+            shows.remove_entry(self.selected_local_id)?;
             self.update_cache(shows);
             self.update_selected_id(self.state.selected().unwrap_or_default());
         }
@@ -62,8 +62,8 @@ impl StatefulList {
     }
 
     fn update_selected_id(&mut self, index: usize) {
-        self.selected_id = if let Some(show) = self.list_cache.get(index) {
-            show.id
+        self.selected_local_id = if let Some(show) = self.list_cache.get(index) {
+            show.local_id
         } else {
             0
         };
@@ -85,11 +85,11 @@ impl StatefulList {
             SelectionDirection::Previous => -1,
         };
         let progress = selected_show.progress + offset;
-        shows.set_progress(selected_show.id, progress)
+        shows.set_progress(selected_show.local_id, progress)
             .expect("Set local progress");
         rt.block_on(
             shows.service.set_progress(
-                selected_show.sync_service_id as u32, 
+                selected_show.service_id as u32, 
                 progress as u32
             )
         );
@@ -123,7 +123,7 @@ impl StatefulList {
             let path = &self
                 .list_cache
                 .iter()
-                .filter(|show| show.id == self.selected_id)
+                .filter(|show| show.local_id == self.selected_local_id)
                 .next()
                 .unwrap()
                 .episodes
@@ -225,7 +225,7 @@ pub(crate) fn build<B: Backend>(frame: &mut Frame<'_, B>, app: &mut App) {
         .list_state
         .list_cache
         .iter()
-        .filter(|show| show.id == app.list_state.selected_id)
+        .filter(|show| show.local_id == app.list_state.selected_local_id)
         .flat_map(|show| {
             let mut temp: Vec<ListItem> = Vec::new();
             for episode in &show.episodes {

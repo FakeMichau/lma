@@ -20,7 +20,7 @@ use tokio::runtime::Runtime;
 pub(crate) struct InsertPopup {
     pub(crate) path: String,
     title: String,
-    pub(crate) sync_service_id: i64,
+    pub(crate) service_id: i64,
     episode_count: i64,
     pub(crate) state: InsertState,
     pub(crate) data: String,
@@ -90,7 +90,7 @@ pub(crate) fn build<B: Backend>(frame: &mut Frame<B>, app: &mut App, rt: &Runtim
         ]),
         Line::from(vec![
             Span::raw("Sync service ID: "),
-            Span::raw(app.insert_popup.sync_service_id.to_string()),
+            Span::raw(app.insert_popup.service_id.to_string()),
         ]),
         Line::from(vec![
             Span::raw("Number of episodes: "),
@@ -120,7 +120,7 @@ fn handle_inputting_state(app: &mut App) {
     match app.insert_popup.current_line() {
         0 => app.insert_popup.path = app.insert_popup.data.clone(),
         1 => app.insert_popup.title = app.insert_popup.data.clone(),
-        2 => app.insert_popup.sync_service_id = parse_number(&mut app.insert_popup.data),
+        2 => app.insert_popup.service_id = parse_number(&mut app.insert_popup.data),
         3 => app.insert_popup.episode_count = parse_number(&mut app.insert_popup.data),
         _ => {}
     }
@@ -136,7 +136,7 @@ fn handle_next_state(app: &mut App, rt: &Runtime) {
                 .guess_shows_title(&app.insert_popup.path)
                 .unwrap_or_default();
         }
-        2 if !app.insert_popup.title.is_empty() && app.insert_popup.sync_service_id == 0 => {
+        2 if !app.insert_popup.title.is_empty() && app.insert_popup.service_id == 0 => {
             // create a popup to select the exact show from a sync service
             let items: Vec<_> = rt.block_on(async { 
                 app.anime_list
@@ -144,21 +144,21 @@ fn handle_next_state(app: &mut App, rt: &Runtime) {
                     .search_title(&app.insert_popup.title)
                     .await 
             });
-            app.titles_popup = TitlesPopup::with_items(items);
+            app.titles_popup = TitlesPopup::new(items);
             app.titles_popup.state.select(Some(0));
             app.focused_window = FocusedWindow::TitleSelection
         }
-        3 if app.insert_popup.sync_service_id != 0
+        3 if app.insert_popup.service_id != 0
             && app.insert_popup.episode_count == 0
             && !app.insert_popup.path.is_empty() =>
         {
-            let title = rt.block_on(app.anime_list.service.get_title(app.insert_popup.sync_service_id as u32));
+            let title = rt.block_on(app.anime_list.service.get_title(app.insert_popup.service_id as u32));
             app.insert_popup.title = title; // make it a config?
             // compare number of video files with the retrieved number of episodes
             let episode_count = rt.block_on(async {
                 app.anime_list
                     .service
-                    .get_episode_count(app.insert_popup.sync_service_id as u32)
+                    .get_episode_count(app.insert_popup.service_id as u32)
                     .await
             });
             let video_files_count = app
@@ -194,7 +194,7 @@ fn handle_next_state(app: &mut App, rt: &Runtime) {
     app.insert_popup.data = match app.insert_popup.current_line() {
         0 if !app.insert_popup.path.is_empty() => app.insert_popup.path.clone(),
         1 if !app.insert_popup.title.is_empty() => app.insert_popup.title.clone(),
-        2 if !app.insert_popup.sync_service_id != 0 => app.insert_popup.sync_service_id.to_string(),
+        2 if !app.insert_popup.service_id != 0 => app.insert_popup.service_id.to_string(),
         3 if !app.insert_popup.episode_count != 0 => app.insert_popup.episode_count.to_string(),
         _ => String::new(),
     };
@@ -204,7 +204,7 @@ fn handle_next_state(app: &mut App, rt: &Runtime) {
 fn handle_save_state(app: &mut App, rt: &Runtime) {
     if let Err(why) = app.anime_list.add_show(
         &app.insert_popup.title,
-        app.insert_popup.sync_service_id,
+        app.insert_popup.service_id,
         0,
     ) {
         if why.contains("FOREIGN KEY constraint failed") {
@@ -217,7 +217,7 @@ fn handle_save_state(app: &mut App, rt: &Runtime) {
         let episodes_details = rt.block_on(
             app.anime_list
                 .service
-                .get_episodes(app.insert_popup.sync_service_id as u32)
+                .get_episodes(app.insert_popup.service_id as u32)
             );
         let episodes_details_hash: HashMap<u32, String> = episodes_details.iter()
             .map(|episode| {
@@ -228,7 +228,7 @@ fn handle_save_state(app: &mut App, rt: &Runtime) {
             let potential_title = episodes_details_hash.get(&(episode.number as u32));
             let title = potential_title.unwrap_or(&String::new()).clone();
             if let Err(why) = app.anime_list.add_episode_service_id(
-                app.insert_popup.sync_service_id,
+                app.insert_popup.service_id,
                 episode.number,
                 &episode.path.to_string_lossy().to_string(),
                 &title,
@@ -239,7 +239,7 @@ fn handle_save_state(app: &mut App, rt: &Runtime) {
         rt.block_on(async {
             app.anime_list
                 .service
-                .init_show(app.insert_popup.sync_service_id as u32)
+                .init_show(app.insert_popup.service_id as u32)
                 .await
         });
         app.insert_popup.state = InsertState::None;

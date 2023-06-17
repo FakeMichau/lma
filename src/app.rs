@@ -72,7 +72,7 @@ impl App {
 
     fn fill_with_api_data(&mut self) {
         let selected_show = self.titles_popup.selected_show();
-        self.insert_popup.sync_service_id = selected_show.id as i64;
+        self.insert_popup.service_id = selected_show.service_id as i64;
         self.insert_popup.state = InsertState::Next;
         self.focused_window = FocusedWindow::InsertPopup
     }
