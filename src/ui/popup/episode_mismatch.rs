@@ -39,8 +39,9 @@ impl MismatchPopup {
                     .expect("Number of episodes doesn't line up")
                     .clone()
                     .into(),
-                path,
+                path: path.clone(),
                 title: String::new(),
+                file_deleted: !path.exists()
             })
             .collect()
     }

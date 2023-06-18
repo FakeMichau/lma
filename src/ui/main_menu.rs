@@ -226,7 +226,7 @@ pub(crate) fn build<B: Backend>(frame: &mut Frame<'_, B>, app: &mut App) {
                 if episode.number <= show.progress { 
                     style = style.fg(app.config.colors().text_watched)
                 }
-                if !episode.path.exists() {
+                if episode.file_deleted {
                     style = style.fg(app.config.colors().text_deleted)
                 }
                 // maybe make a config for that in the future

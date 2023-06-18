@@ -42,8 +42,9 @@ impl AnimeList {
             if episode_number != -1 {
                 show.episodes.push(Episode {
                     number: episode_number,
-                    path: PathBuf::from(path),
+                    path: PathBuf::from(&path),
                     title: episode_title,
+                    file_deleted: !PathBuf::from(path).exists()
                 });
             }
         }
@@ -246,9 +247,10 @@ pub struct Show {
 }
 
 pub struct Episode {
+    pub title: String,
     pub number: i64,
     pub path: PathBuf,
-    pub title: String
+    pub file_deleted: bool,
 }
 
 pub fn create(service: MAL, data_path: &PathBuf) -> AnimeList {

@@ -172,8 +172,9 @@ fn handle_next_state(app: &mut App, rt: &Runtime) {
                     .enumerate()
                     .map(|(k, path)| Episode {
                         number: k as i64 + 1,
-                        path,
+                        path: path.clone(),
                         title: String::new(),
+                        file_deleted: !path.exists()
                     })
                     .collect();
             } else if episode_count > video_files_count {
