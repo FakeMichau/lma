@@ -1,6 +1,6 @@
 use std::{process::{Command, Stdio}, error::Error};
 
-use lma::{AnimeList, Show};
+use lma::{AnimeList, Show, Episode};
 use ratatui::{
     backend::Backend,
     layout::{Constraint, Direction, Layout},
@@ -235,10 +235,11 @@ pub(crate) fn build<B: Backend>(frame: &mut Frame<'_, B>, app: &mut App) {
                 } else {
                     episode.title.clone()
                 };
-
-                temp.push(
-                    ListItem::new(format!("{} {}", episode.number, episode_display_name)).style(style),
-                );
+                let recap_status = episode.number%3 == 0;
+                let filler_status = episode.number%6 == 0;
+                let mut new_episode = ListItem::new(format!("{} {}", episode.number, episode_display_name)).style(style);
+                append_extra_info(&mut new_episode, main_chunks[1].width, episode, recap_status, filler_status, episode_display_name, style);
+                temp.push(new_episode);
             }
             temp
         })
@@ -267,6 +268,46 @@ pub(crate) fn build<B: Backend>(frame: &mut Frame<'_, B>, app: &mut App) {
         &mut app.list_state.episodes_state,
     );
     frame.render_widget(help, chunks[1]);
+}
+
+fn append_extra_info(
+    new_episode: &mut ListItem<'_>,
+    space: u16,
+    episode: &Episode,
+    recap_status: bool,
+    filler_status: bool,
+    episode_display_name: String,
+    style: Style,
+) {
+    if !recap_status && !filler_status {
+        return
+    }
+    let recap = "RECAP";
+    let filler = "FILLER";
+    let text = if recap_status && filler_status {
+        format!("{}/{}", recap, filler)
+    } else if recap_status {
+        recap.to_string()
+    } else {
+        filler.to_string()
+    };
+    let trunc_symbol = "... ";
+    let episode_width = new_episode.width();
+    let offset = text.len() as u16 + (episode.number.checked_ilog10().unwrap_or(0) + 1) as u16 + 3;
+    if episode_width > (space - offset - trunc_symbol.len() as u16 + 3).into() {
+        let mut trunc_episode_display_name = episode_display_name.clone();
+        trunc_episode_display_name.truncate((space - offset - trunc_symbol.len() as u16).into());
+        trunc_episode_display_name += trunc_symbol;
+        trunc_episode_display_name += text.as_str();
+        *new_episode = ListItem::new(format!("{} {}", episode.number, trunc_episode_display_name))
+            .style(style);
+    } else {
+        let mut trunc_episode_display_name =
+            format!("{:1$}", episode_display_name, (space - offset).into());
+        trunc_episode_display_name += text.as_str();
+        *new_episode = ListItem::new(format!("{} {}", episode.number, trunc_episode_display_name))
+            .style(style);
+    }
 }
 
 struct HelpItem {
