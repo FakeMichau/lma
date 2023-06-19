@@ -4,7 +4,7 @@ use crate::{
     ui::{FocusedWindow, SelectionDirection},
 };
 
-use lma::{Episode, AnimeList, MAL};
+use lma::{Episode, AnimeList, Service, ServiceType};
 use std::collections::HashMap;
 use ratatui::{
     backend::Backend,
@@ -64,7 +64,7 @@ impl InsertPopup {
     }
 }
 
-pub(crate) fn build<B: Backend>(frame: &mut Frame<B>, app: &mut App, rt: &Runtime) {
+pub(crate) fn build<B: Backend, T: Service>(frame: &mut Frame<B>, app: &mut App<T>, rt: &Runtime) {
     let area = centered_rect(70, 70, frame.size());
     let text_area = area.inner(&Margin {
         vertical: 1,
@@ -115,7 +115,7 @@ pub(crate) fn build<B: Backend>(frame: &mut Frame<B>, app: &mut App, rt: &Runtim
     frame.render_widget(form, text_area)
 }
 
-fn handle_inputting_state(app: &mut App) {
+fn handle_inputting_state<T: Service>(app: &mut App<T>) {
     match app.insert_popup.current_line() {
         0 => app.insert_popup.path = app.insert_popup.data.clone(),
         1 => app.insert_popup.title = app.insert_popup.data.clone(),
@@ -125,7 +125,7 @@ fn handle_inputting_state(app: &mut App) {
     }
 }
 
-fn handle_next_state(app: &mut App, rt: &Runtime) {
+fn handle_next_state<T: Service>(app: &mut App<T>, rt: &Runtime) {
     match app.insert_popup.current_line() {
         // after going to the next line, when data in the previous one is present
         1 if !app.insert_popup.path.is_empty() && app.insert_popup.title.is_empty() => {
@@ -135,7 +135,9 @@ fn handle_next_state(app: &mut App, rt: &Runtime) {
                 .guess_shows_title(&app.insert_popup.path)
                 .unwrap_or_default();
         }
-        2 if !app.insert_popup.title.is_empty() && app.insert_popup.service_id == 0 => {
+        2 if !app.insert_popup.title.is_empty() 
+            && app.insert_popup.service_id == 0 
+            && app.anime_list.service.get_service_type() != ServiceType::Local => {
             // create a popup to select the exact show from a sync service
             let items: Vec<_> = rt.block_on(async { 
                 app.anime_list
@@ -147,12 +149,15 @@ fn handle_next_state(app: &mut App, rt: &Runtime) {
             app.titles_popup.state.select(Some(0));
             app.focused_window = FocusedWindow::TitleSelection
         }
-        3 if app.insert_popup.service_id != 0
+        3 if ((app.anime_list.service.get_service_type() == ServiceType::MAL && app.insert_popup.service_id != 0) || 
+            app.anime_list.service.get_service_type() == ServiceType::Local)
             && app.insert_popup.episode_count == 0
             && !app.insert_popup.path.is_empty() =>
         {
             let title = rt.block_on(app.anime_list.service.get_title(app.insert_popup.service_id as u32));
-            app.insert_popup.title = title; // make it a config?
+            if app.anime_list.service.get_service_type() != ServiceType::Local {
+                app.insert_popup.title = title; // make it a config?
+            }
             // compare number of video files with the retrieved number of episodes
             let episode_count = rt.block_on(
                 app.anime_list
@@ -166,8 +171,8 @@ fn handle_next_state(app: &mut App, rt: &Runtime) {
                 .unwrap_or_default() as u32;
 
             app.insert_popup.episode_count = episode_count.into();
-            if episode_count == video_files_count {
-                app.insert_popup.episodes = AnimeList::get_video_file_paths(&app.insert_popup.path)
+            if episode_count == video_files_count || app.anime_list.service.get_service_type() == ServiceType::Local {
+                app.insert_popup.episodes = AnimeList::<T>::get_video_file_paths(&app.insert_popup.path)
                     .unwrap_or_default()
                     .into_iter()
                     .enumerate()
@@ -200,7 +205,7 @@ fn handle_next_state(app: &mut App, rt: &Runtime) {
     app.insert_popup.state = InsertState::Inputting;
 }
 
-fn handle_save_state(app: &mut App, rt: &Runtime) {
+fn handle_save_state<T: Service>(app: &mut App<T>, rt: &Runtime) {
     match app.anime_list.add_show(
         &app.insert_popup.title,
         app.insert_popup.service_id,
@@ -232,20 +237,38 @@ fn handle_save_state(app: &mut App, rt: &Runtime) {
     app.insert_popup = InsertPopup::default();
     app.list_state.update_cache(&app.anime_list);
     app.focused_window = FocusedWindow::MainMenu;
+    // to update episodes list
+    app.list_state.move_selection(SelectionDirection::Next, &app.anime_list);
 }
 
-fn insert_episodes(rt: &Runtime, app: &mut App, local_id: i64) {
+fn insert_episodes<T: Service>(rt: &Runtime, app: &mut App<T>, local_id: i64) {
     // service_id is fine because hashmap can be empty here
     let episodes_details_hash = rt.block_on(
         get_episodes_info(&mut app.anime_list.service, app.insert_popup.service_id as u32)
     );
+    // surely I can be smarter about it
+    let episode_offset = if app.anime_list.service.get_service_type() == ServiceType::Local {
+        app.anime_list.get_list().map(|shows| {
+            shows.iter()
+                .filter(|show| {
+                    show.local_id == local_id
+                })
+                .next()
+                .map(|show| {
+                    show.episodes.len()
+                })
+                .unwrap_or_default()
+        }).unwrap_or_default() as i64
+    } else {
+        0
+    };
     app.insert_popup.episodes.iter().for_each(|episode| {
         let potential_title = episodes_details_hash.get(&(episode.number as u32));
         let (title, recap, filler) = potential_title.unwrap_or(&(String::new(), false, false)).clone();
 
         if let Err(why) = app.anime_list.add_episode(
             local_id,
-            episode.number,
+            episode.number + episode_offset,
             &episode.path.to_string_lossy().to_string(),
             &title,
             generate_extra_info(recap, filler)
@@ -255,7 +278,7 @@ fn insert_episodes(rt: &Runtime, app: &mut App, local_id: i64) {
     });
 }
 
-async fn get_episodes_info(service: &mut MAL, id: u32) -> HashMap<u32, (String, bool, bool)> {
+async fn get_episodes_info<T: Service>(service: &mut T, id: u32) -> HashMap<u32, (String, bool, bool)> {
     let episodes_details = service.get_episodes(id).await.unwrap_or(Vec::new());
     episodes_details
         .iter()

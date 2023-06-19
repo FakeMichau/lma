@@ -1,4 +1,4 @@
-use lma::ServiceTitle;
+use lma::{ServiceTitle, Service};
 use ratatui::{
     backend::Backend,
     layout::Margin,
@@ -27,10 +27,13 @@ impl TitlesPopup {
         self.state.select(Some(i))
     }
 
-    pub(crate) fn selected_show(&self) -> &ServiceTitle {
+    pub(crate) fn selected_show(&self) -> ServiceTitle {
         self.service_titles
             .get(self.state.selected().unwrap_or_default())
-            .unwrap()
+            .map_or(ServiceTitle {
+                service_id: 0,
+                title: String::new(),
+            }, |s| s.clone())
     }
 
     fn select_element(
@@ -39,6 +42,9 @@ impl TitlesPopup {
         selected_element: Option<usize>,
         direction: SelectionDirection,
     ) -> usize {
+        if list_length == 0 {
+            return 0
+        }
         match selected_element {
             Some(i) => match direction {
                 SelectionDirection::Next => (i + 1) % list_length,
@@ -51,7 +57,7 @@ impl TitlesPopup {
 
 use super::centered_rect;
 
-pub(crate) fn build<B: Backend>(frame: &mut Frame<B>, app: &mut App) {
+pub(crate) fn build<B: Backend, T: Service>(frame: &mut Frame<B>, app: &mut App<T>) {
     let area = centered_rect(70, 70, frame.size());
     let list_area = area.inner(&Margin {
         vertical: 1,

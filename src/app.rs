@@ -9,7 +9,7 @@ use crate::ui::{
     FocusedWindow, SelectionDirection,
 };
 use crossterm::event::{self, Event, KeyCode};
-use lma::AnimeList;
+use lma::{AnimeList,Service};
 use ratatui::{backend::Backend, Terminal};
 use std::error::Error;
 use std::{
@@ -18,20 +18,19 @@ use std::{
 };
 use tokio::runtime::Runtime;
 
-pub(crate) struct App {
+pub(crate) struct App<T: Service> {
     pub(crate) focused_window: FocusedWindow,
     pub(crate) insert_popup: InsertPopup,
     pub(crate) titles_popup: TitlesPopup,
     pub(crate) mismatch_popup: MismatchPopup,
     pub(crate) list_state: StatefulList,
-    pub(crate) anime_list: AnimeList,
+    pub(crate) anime_list: AnimeList<T>,
     pub(crate) config: Config,
 }
 
-impl App {
-    pub(crate) fn build(rt: &Runtime) -> Result<App, Box<dyn Error>> {
-        let config = Config::default();
-        let service = rt.block_on(lma::MAL::new(config.data_dir().to_path_buf()));
+impl<T: Service> App<T> {
+    pub(crate) fn build(rt: &Runtime, config: Config) -> Result<App<T>, Box<dyn Error>> {
+        let service = rt.block_on(lma::Service::new(config.data_dir().to_path_buf()));
         let anime_list = lma::create(service, config.data_dir());
         Ok(App {
             list_state: StatefulList::new(&anime_list),
@@ -78,9 +77,9 @@ impl App {
     }
 }
 
-pub(crate) fn run<B: Backend>(
+pub(crate) fn run<B: Backend, T: Service>(
     terminal: &mut Terminal<B>,
-    mut app: app::App,
+    mut app: app::App<T>,
     tick_rate: Duration,
     rt: Runtime,
 ) -> Result<(), Box<dyn Error>> {
@@ -112,9 +111,9 @@ pub(crate) fn run<B: Backend>(
     }
 }
 
-fn handle_main_menu_key<B: Backend>(
+fn handle_main_menu_key<B: Backend, T: Service>(
     key: event::KeyEvent,
-    app: &mut App,
+    app: &mut App<T>,
     rt: &Runtime,
     terminal: &mut Terminal<B>,
 ) -> Result<Option<bool>, Box<dyn Error>> {
@@ -140,7 +139,7 @@ fn handle_main_menu_key<B: Backend>(
     return Ok(Some(true));
 }
 
-fn handle_login_key(key: event::KeyEvent, app: &mut App) {
+fn handle_login_key<T: Service>(key: event::KeyEvent, app: &mut App<T>) {
     match key.code {
         KeyCode::Esc => {
             app.focused_window = FocusedWindow::MainMenu;
@@ -150,7 +149,7 @@ fn handle_login_key(key: event::KeyEvent, app: &mut App) {
     }
 }
 
-fn handle_insert_popup_key(app: &mut App, key: event::KeyEvent) {
+fn handle_insert_popup_key<T: Service>(app: &mut App<T>, key: event::KeyEvent) {
     match app.insert_popup.state {
         InsertState::Inputting => match key.code {
             KeyCode::Char(c) => app.insert_popup.data.push(c),
@@ -187,7 +186,7 @@ fn handle_insert_popup_key(app: &mut App, key: event::KeyEvent) {
     }
 }
 
-fn handle_title_selection_key(key: event::KeyEvent, app: &mut App) {
+fn handle_title_selection_key<T: Service>(key: event::KeyEvent, app: &mut App<T>) {
     match key.code {
         KeyCode::Down => app.titles_popup.move_selection(SelectionDirection::Next),
         KeyCode::Up => app
@@ -199,12 +198,12 @@ fn handle_title_selection_key(key: event::KeyEvent, app: &mut App) {
     }
 }
 
-fn handle_mismatch_popup_key(key: event::KeyEvent, app: &mut App) {
+fn handle_mismatch_popup_key<T: Service>(key: event::KeyEvent, app: &mut App<T>) {
     match key.code {
         KeyCode::Char(c) => app.mismatch_popup.owned_episodes.push(c),
         KeyCode::Backspace => _ = app.mismatch_popup.owned_episodes.pop(),
         KeyCode::Enter => {
-            app.insert_popup.episodes = app.mismatch_popup.save(&app.insert_popup.path);
+            app.insert_popup.episodes = app.mismatch_popup.save::<T>(&app.insert_popup.path);
             app.focused_window = FocusedWindow::InsertPopup
         },
         KeyCode::Esc => app.focused_window = FocusedWindow::InsertPopup,
