@@ -1,4 +1,5 @@
 use std::collections::HashMap;
+use std::path::PathBuf;
 use ratatui::backend::Backend;
 use ratatui::layout::Margin;
 use ratatui::text::{Line, Span};
@@ -12,7 +13,7 @@ use crate::ui::{FocusedWindow, SelectionDirection};
 
 #[derive(Default)]
 pub(crate) struct InsertPopup {
-    pub(crate) path: String,
+    pub(crate) path: PathBuf,
     title: String,
     pub(crate) service_id: i64,
     episode_count: i64,
@@ -76,7 +77,7 @@ pub(crate) fn build<B: Backend, T: Service>(frame: &mut Frame<B>, app: &mut App<
     let input_form = vec![
         Line::from(vec![
             Span::raw("Path to the folder: "),
-            Span::raw(app.insert_popup.path.clone()),
+            Span::raw(app.insert_popup.path.to_string_lossy()),
         ]),
         Line::from(vec![
             Span::raw("Show's title: "),
@@ -112,7 +113,7 @@ pub(crate) fn build<B: Backend, T: Service>(frame: &mut Frame<B>, app: &mut App<
 
 fn handle_inputting_state<T: Service>(app: &mut App<T>) {
     match app.insert_popup.current_line() {
-        0 => app.insert_popup.path = app.insert_popup.data.clone(),
+        0 => app.insert_popup.path = app.insert_popup.data.clone().into(),
         1 => app.insert_popup.title = app.insert_popup.data.clone(),
         2 => app.insert_popup.service_id = parse_number(&mut app.insert_popup.data),
         3 => app.insert_popup.episode_count = parse_number(&mut app.insert_popup.data),
@@ -123,7 +124,7 @@ fn handle_inputting_state<T: Service>(app: &mut App<T>) {
 fn handle_next_state<T: Service>(app: &mut App<T>, rt: &Runtime) {
     match app.insert_popup.current_line() {
         // after going to the next line, when data in the previous one is present
-        1 if !app.insert_popup.path.is_empty() && app.insert_popup.title.is_empty() => {
+        1 if !app.insert_popup.path.to_string_lossy().is_empty() && app.insert_popup.title.is_empty() => {
             // sanitize user input
             app.insert_popup.title = app
                 .anime_list
@@ -147,7 +148,7 @@ fn handle_next_state<T: Service>(app: &mut App<T>, rt: &Runtime) {
         3 if ((app.anime_list.service.get_service_type() == ServiceType::MAL && app.insert_popup.service_id != 0) || 
             app.anime_list.service.get_service_type() == ServiceType::Local)
             && app.insert_popup.episode_count == 0
-            && !app.insert_popup.path.is_empty() =>
+            && !app.insert_popup.path.to_string_lossy().is_empty() =>
         {
             let title = rt.block_on(app.anime_list.service.get_title(app.insert_popup.service_id as u32));
             if app.anime_list.service.get_service_type() != ServiceType::Local {
@@ -191,7 +192,7 @@ fn handle_next_state<T: Service>(app: &mut App<T>, rt: &Runtime) {
         _ => {}
     };
     app.insert_popup.data = match app.insert_popup.current_line() {
-        0 if !app.insert_popup.path.is_empty() => app.insert_popup.path.clone(),
+        0 if !app.insert_popup.path.to_string_lossy().is_empty() => app.insert_popup.path.to_string_lossy().into(),
         1 if !app.insert_popup.title.is_empty() => app.insert_popup.title.clone(),
         2 if !app.insert_popup.service_id != 0 => app.insert_popup.service_id.to_string(),
         3 if !app.insert_popup.episode_count != 0 => app.insert_popup.episode_count.to_string(),

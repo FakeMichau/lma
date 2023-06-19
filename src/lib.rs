@@ -164,32 +164,25 @@ impl<T: Service> AnimeList<T> {
             })
     }
 
-    pub fn get_video_file_paths(path: &str) -> Result<Vec<PathBuf>, std::io::Error> {
+    pub fn get_video_file_paths(path: &PathBuf) -> Result<Vec<PathBuf>, std::io::Error> {
+        if is_video_file(&path) {
+            return Ok(vec![path.clone()])
+        }
         let read_dir = fs::read_dir(path)?;
         let mut files = read_dir
             .into_iter()
             .filter(|r| r.is_ok())
             .map(|r| r.unwrap().path())
-            .filter(|r| {
-                r.is_file() && 
-                ["webm", "mkv", "vob", "ogg", "gif", "avi", "mov", "wmv", "mp4", "m4v", "3gp"]
-                    .into_iter()
-                    .any(|ext| {
-                        r.extension()
-                            .unwrap_or_default()
-                            .to_string_lossy()
-                            .contains(ext)
-                    })
-            })
+            .filter(|r| is_video_file(r))
             .map(|path| path)
             .collect::<Vec<_>>();
         files.sort();
         Ok(files)
     }
 
-    pub fn guess_shows_title(&self, path: &str) -> Result<String, std::io::Error> {
+    pub fn guess_shows_title(&self, path: &PathBuf) -> Result<String, std::io::Error> {
         Ok(AnimeList::<T>::remove_after_last_dash(
-            &AnimeList::<T>::get_video_file_paths(&path)?
+            &AnimeList::<T>::get_video_file_paths(path)?
                 .iter()
                 .map(|dir| {
                     let filename = dir.file_stem().unwrap_or_default();
@@ -200,7 +193,7 @@ impl<T: Service> AnimeList<T> {
         ))
     }
 
-    pub fn count_video_files(&self, path: &str) -> Result<usize, std::io::Error> {
+    pub fn count_video_files(&self, path: &PathBuf) -> Result<usize, std::io::Error> {
         Ok(AnimeList::<T>::get_video_file_paths(path)?.len())
     }
 
@@ -241,6 +234,18 @@ impl<T: Service> AnimeList<T> {
             .map_err(|e| e.to_string())?;
         Ok(())
     }
+}
+
+fn is_video_file(r: &PathBuf) -> bool {
+    r.is_file() &&
+    ["webm", "mkv", "vob", "ogg", "gif", "avi", "mov", "wmv", "mp4", "m4v", "3gp"]
+        .into_iter()
+        .any(|ext| {
+            r.extension()
+                .unwrap_or_default()
+                .to_string_lossy()
+                .contains(ext)
+        })
 }
 
 pub struct Show {

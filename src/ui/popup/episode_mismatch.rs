@@ -1,4 +1,5 @@
 use std::collections::BTreeSet;
+use std::path::PathBuf;
 use ratatui::backend::Backend;
 use ratatui::layout::{Alignment, Margin, Layout, Direction, Constraint};
 use ratatui::style::{Modifier, Style};
@@ -23,7 +24,7 @@ impl MismatchPopup {
             owned_episodes: String::new(),
         }
     }
-    pub(crate) fn save<T: Service>(&self, path: &str) -> Vec<Episode> {
+    pub(crate) fn save<T: Service>(&self, path: &PathBuf) -> Vec<Episode> {
         let episodes = self.parse_owned();
         let mut episodes_iter = episodes.into_iter();
         AnimeList::<T>::get_video_file_paths(path)
