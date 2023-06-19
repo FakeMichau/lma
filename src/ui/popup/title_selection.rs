@@ -1,4 +1,4 @@
-use lma::ServiceTitle;
+use lma::{ServiceTitle, Service};
 use ratatui::{
     backend::Backend,
     layout::Margin,
@@ -51,7 +51,7 @@ impl TitlesPopup {
 
 use super::centered_rect;
 
-pub(crate) fn build<B: Backend>(frame: &mut Frame<B>, app: &mut App) {
+pub(crate) fn build<B: Backend, T: Service>(frame: &mut Frame<B>, app: &mut App<T>) {
     let area = centered_rect(70, 70, frame.size());
     let list_area = area.inner(&Margin {
         vertical: 1,

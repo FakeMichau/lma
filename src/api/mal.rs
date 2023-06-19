@@ -153,11 +153,10 @@ impl Service for MAL {
     fn get_url(&self) -> &Option<String> {
         &self.url
     }
-}
 
-impl MAL {
+    // TEMP
     // remove lib_mal dep
-    pub async fn get_episodes(&mut self, id: u32) -> Result<Vec<EpisodeNode>, MALError>{
+    async fn get_episodes(&mut self, id: u32) -> Result<Vec<EpisodeNode>, MALError> {
         self.client
             .get_anime_episodes(id)
             .await
@@ -167,14 +166,16 @@ impl MAL {
     }
 
     // remove lib_mal dep
-    pub async fn get_user_entry_details(&mut self, id: u32) -> Option<ListStatus> {
+    async fn get_user_entry_details(&mut self, id: u32) -> Option<ListStatus> {
         self.client
             .get_anime_details(id, AnimeFields::MyListStatus)
             .await
             .expect("Anime details") // likely will fail
             .my_list_status
     }
+}
 
+impl MAL {
     // remove lib_mal dep
     async fn update_status(&mut self, id: u32, update: StatusUpdate) -> ListStatus {
         self.client

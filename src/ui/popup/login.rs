@@ -11,7 +11,7 @@ use ratatui::{
 
 use super::centered_rect;
 
-pub(crate) fn build<B: Backend>(frame: &mut Frame<'_, B>, app: &mut App) {
+pub(crate) fn build<B: Backend, T: Service>(frame: &mut Frame<B>, app: &mut App<T>) {
     let area = centered_rect(70, 70, frame.size());
     let text_area = area.inner(&Margin {
         vertical: 1,

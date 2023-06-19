@@ -4,14 +4,16 @@ use serde::{Serialize, Deserialize};
 use ratatui::style::Color as TermColor;
 
 pub(crate) struct Config {
+    service: String,
     data_dir: PathBuf,
-    colors: TermColors
+    colors: TermColors,
 }
 
 #[derive(Serialize, Deserialize, Clone)]
 struct ConfigFile {
+    service: Option<String>,
     data_dir: Option<PathBuf>,
-    colors: Option<Colors>
+    colors: Option<Colors>,
 }
 
 #[derive(Serialize, Deserialize, Clone)]
@@ -57,14 +59,15 @@ impl Into<TermColor> for Color {
 }
 
 impl Config {
-    pub(crate) fn new(config_dir: PathBuf, data_dir: PathBuf) -> Self {
+    pub(crate) fn new(config_dir: PathBuf, data_dir: PathBuf, service: &str) -> Self {
         fs::create_dir_all(&config_dir).expect("Config dir creation");
         fs::create_dir_all(&data_dir).expect("Data dir creation");
         let config_file = config_dir.join("Settings.toml");
 
         let default_config = ConfigFile {
             data_dir: Some(data_dir),
-            colors: Some(Colors::default())
+            colors: Some(Colors::default()),
+            service: Some(service.to_owned()),
         };
 
         let config = if config_file.exists() {
@@ -89,7 +92,8 @@ impl Config {
 
         Config {
             data_dir,
-            colors: term_colors
+            colors: term_colors,
+            service: service.to_owned(),
         }
     }
 
@@ -99,6 +103,10 @@ impl Config {
 
     pub(crate) fn colors(&self) -> &TermColors {
         &self.colors
+    }
+
+    pub(crate) fn service(&self) -> &String {
+        &self.service
     }
 }
 
@@ -110,12 +118,14 @@ impl Default for Config {
         return if cfg!(debug_assertions) {
             Config::new(
                 PathBuf::default(),
-                PathBuf::default()
+                PathBuf::default(),
+                "MAL",
             )
         } else {
             Config::new(
                 project_dirs.config_dir().to_path_buf(),
-                project_dirs.data_dir().to_path_buf()
+                project_dirs.data_dir().to_path_buf(),
+                "MAL",
             )
         };
     }

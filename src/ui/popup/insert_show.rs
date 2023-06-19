@@ -4,7 +4,7 @@ use crate::{
     ui::{FocusedWindow, SelectionDirection},
 };
 
-use lma::{Episode, AnimeList, MAL, Service};
+use lma::{Episode, AnimeList, Service};
 use std::collections::HashMap;
 use ratatui::{
     backend::Backend,
@@ -64,7 +64,7 @@ impl InsertPopup {
     }
 }
 
-pub(crate) fn build<B: Backend>(frame: &mut Frame<B>, app: &mut App, rt: &Runtime) {
+pub(crate) fn build<B: Backend, T: Service>(frame: &mut Frame<B>, app: &mut App<T>, rt: &Runtime) {
     let area = centered_rect(70, 70, frame.size());
     let text_area = area.inner(&Margin {
         vertical: 1,
@@ -115,7 +115,7 @@ pub(crate) fn build<B: Backend>(frame: &mut Frame<B>, app: &mut App, rt: &Runtim
     frame.render_widget(form, text_area)
 }
 
-fn handle_inputting_state(app: &mut App) {
+fn handle_inputting_state<T: Service>(app: &mut App<T>) {
     match app.insert_popup.current_line() {
         0 => app.insert_popup.path = app.insert_popup.data.clone(),
         1 => app.insert_popup.title = app.insert_popup.data.clone(),
@@ -125,7 +125,7 @@ fn handle_inputting_state(app: &mut App) {
     }
 }
 
-fn handle_next_state(app: &mut App, rt: &Runtime) {
+fn handle_next_state<T: Service>(app: &mut App<T>, rt: &Runtime) {
     match app.insert_popup.current_line() {
         // after going to the next line, when data in the previous one is present
         1 if !app.insert_popup.path.is_empty() && app.insert_popup.title.is_empty() => {
@@ -167,7 +167,7 @@ fn handle_next_state(app: &mut App, rt: &Runtime) {
 
             app.insert_popup.episode_count = episode_count.into();
             if episode_count == video_files_count {
-                app.insert_popup.episodes = AnimeList::get_video_file_paths(&app.insert_popup.path)
+                app.insert_popup.episodes = AnimeList::<T>::get_video_file_paths(&app.insert_popup.path)
                     .unwrap_or_default()
                     .into_iter()
                     .enumerate()
@@ -200,7 +200,7 @@ fn handle_next_state(app: &mut App, rt: &Runtime) {
     app.insert_popup.state = InsertState::Inputting;
 }
 
-fn handle_save_state(app: &mut App, rt: &Runtime) {
+fn handle_save_state<T: Service>(app: &mut App<T>, rt: &Runtime) {
     match app.anime_list.add_show(
         &app.insert_popup.title,
         app.insert_popup.service_id,
@@ -234,7 +234,7 @@ fn handle_save_state(app: &mut App, rt: &Runtime) {
     app.focused_window = FocusedWindow::MainMenu;
 }
 
-fn insert_episodes(rt: &Runtime, app: &mut App, local_id: i64) {
+fn insert_episodes<T: Service>(rt: &Runtime, app: &mut App<T>, local_id: i64) {
     // service_id is fine because hashmap can be empty here
     let episodes_details_hash = rt.block_on(
         get_episodes_info(&mut app.anime_list.service, app.insert_popup.service_id as u32)
@@ -255,7 +255,7 @@ fn insert_episodes(rt: &Runtime, app: &mut App, local_id: i64) {
     });
 }
 
-async fn get_episodes_info(service: &mut MAL, id: u32) -> HashMap<u32, (String, bool, bool)> {
+async fn get_episodes_info<T: Service>(service: &mut T, id: u32) -> HashMap<u32, (String, bool, bool)> {
     let episodes_details = service.get_episodes(id).await.unwrap_or(Vec::new());
     episodes_details
         .iter()

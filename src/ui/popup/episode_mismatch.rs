@@ -1,6 +1,6 @@
 use std::collections::BTreeSet;
 
-use lma::{AnimeList, Episode};
+use lma::{AnimeList, Episode, Service};
 use ratatui::{
     backend::Backend,
     layout::{Alignment, Margin, Layout, Direction, Constraint},
@@ -27,10 +27,10 @@ impl MismatchPopup {
             owned_episodes: String::new(),
         }
     }
-    pub(crate) fn save(&self, path: &str) -> Vec<Episode> {
+    pub(crate) fn save<T: Service>(&self, path: &str) -> Vec<Episode> {
         let episodes = self.parse_owned();
         let mut episodes_iter = episodes.into_iter();
-        AnimeList::get_video_file_paths(path)
+        AnimeList::<T>::get_video_file_paths(path)
             .unwrap_or_default()
             .into_iter()
             .map(|path| Episode {
@@ -84,7 +84,7 @@ impl MismatchPopup {
 
 use super::centered_rect;
 
-pub(crate) fn build<B: Backend>(frame: &mut Frame<B>, app: &mut App) {
+pub(crate) fn build<B: Backend, T: Service>(frame: &mut Frame<B>, app: &mut App<T>) {
     let area = centered_rect(70, 70, frame.size());
     let inner_area = area.inner(&Margin {
         vertical: 1,

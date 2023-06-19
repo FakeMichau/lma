@@ -7,12 +7,12 @@ use std::fs;
 use std::collections::HashMap;
 use std::path::PathBuf;
 
-pub struct AnimeList {
+pub struct AnimeList<T: Service> {
     db_connection: Connection,
-    pub service: MAL,
+    pub service: T,
 }
 
-impl AnimeList {
+impl<T: Service> AnimeList<T> {
     pub fn get_list(&self) -> Result<Vec<Show>> {
         let mut stmt = self.db_connection.prepare("
             SELECT Shows.id, Shows.title, Shows.sync_service_id, Shows.progress,
@@ -188,12 +188,12 @@ impl AnimeList {
     }
 
     pub fn guess_shows_title(&self, path: &str) -> Result<String, std::io::Error> {
-        Ok(AnimeList::remove_after_last_dash(
-            &AnimeList::get_video_file_paths(&path)?
+        Ok(AnimeList::<T>::remove_after_last_dash(
+            &AnimeList::<T>::get_video_file_paths(&path)?
                 .iter()
                 .map(|dir| {
                     let filename = dir.file_stem().unwrap_or_default();
-                    AnimeList::cleanup_title(filename)
+                    AnimeList::<T>::cleanup_title(filename)
                 })
                 .next()
                 .unwrap_or("".to_string()),
@@ -201,7 +201,7 @@ impl AnimeList {
     }
 
     pub fn count_video_files(&self, path: &str) -> Result<usize, std::io::Error> {
-        Ok(AnimeList::get_video_file_paths(path)?.len())
+        Ok(AnimeList::<T>::get_video_file_paths(path)?.len())
     }
 
     fn cleanup_title(input: &OsStr) -> String {
@@ -260,7 +260,7 @@ pub struct Episode {
     pub filler: bool,
 }
 
-pub fn create(service: MAL, data_path: &PathBuf) -> AnimeList {
+pub fn create<T: Service>(service: T, data_path: &PathBuf) -> AnimeList<T> {
     let path = data_path.join("database.db3");
     let db_connection = match Connection::open(path) {
         Ok(conn) => conn,

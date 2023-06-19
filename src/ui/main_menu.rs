@@ -22,7 +22,7 @@ pub(crate) struct StatefulList {
 }
 
 impl StatefulList {
-    pub(crate) fn new(shows: &AnimeList) -> StatefulList {
+    pub(crate) fn new<T: Service>(shows: &AnimeList<T>) -> StatefulList {
         let list_cache = shows.get_list().unwrap();
         StatefulList {
             shows_state: ListState::default(),
@@ -33,7 +33,7 @@ impl StatefulList {
         }
     }
 
-    pub(crate) fn delete(&mut self, shows: &AnimeList) -> Result<(), Box<dyn Error>> {
+    pub(crate) fn delete<T: Service>(&mut self, shows: &AnimeList<T>) -> Result<(), Box<dyn Error>> {
         if self.selecting_episode {
             // todo: delete just an episode
         } else {
@@ -44,7 +44,7 @@ impl StatefulList {
         Ok(())
     }
 
-    pub(crate) fn move_selection(&mut self, direction: SelectionDirection, shows: &AnimeList, ) {
+    pub(crate) fn move_selection<T: Service>(&mut self, direction: SelectionDirection, shows: &AnimeList<T>) {
         if self.selecting_episode {
             self.move_episode_selection(direction);
         } else {
@@ -68,7 +68,7 @@ impl StatefulList {
             .get(self.shows_state.selected().unwrap_or_default())
     }
 
-    pub(crate) fn move_progress(&mut self, direction: SelectionDirection, shows: &mut AnimeList, rt: &Runtime) {
+    pub(crate) fn move_progress<T: Service>(&mut self, direction: SelectionDirection, shows: &mut AnimeList<T>, rt: &Runtime) {
         let selected_show = if let Some(selected_show) = self.selected_show() {
             selected_show
         } else {
@@ -177,12 +177,12 @@ impl StatefulList {
         }
     }
 
-    pub(crate) fn update_cache(&mut self, shows: &AnimeList) {
+    pub(crate) fn update_cache<T: Service>(&mut self, shows: &AnimeList<T>) {
         self.list_cache = shows.get_list().unwrap();
     }
 }
 
-pub(crate) fn build<B: Backend>(frame: &mut Frame<'_, B>, app: &mut App) {
+pub(crate) fn build<B: Backend, T: Service>(frame: &mut Frame<'_, B>, app: &mut App<T>) {
     let chunks = Layout::default()
         .direction(Direction::Vertical)
         .constraints([Constraint::Min(1), Constraint::Max(1)].as_ref())

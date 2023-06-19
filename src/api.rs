@@ -1,6 +1,7 @@
 mod mal;
 use std::path::PathBuf;
 
+use lib_mal::{prelude::{EpisodeNode, ListStatus}, MALError};
 pub use mal::*;
 use async_trait::async_trait;
 
@@ -21,4 +22,8 @@ pub trait Service {
     async fn set_progress(&mut self, id: u32, progress: u32);
     fn get_url(&self) -> &Option<String>;
     fn is_logged_in(&self) -> bool;
+
+    // TEMP
+    async fn get_episodes(&mut self, id: u32) -> Result<Vec<EpisodeNode>, MALError>;
+    async fn get_user_entry_details(&mut self, id: u32) -> Option<ListStatus>;
 }

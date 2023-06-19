@@ -1,10 +1,12 @@
 mod app;
 mod ui;
 mod config;
+use config::Config;
 use crossterm::{
     execute,
     terminal::{disable_raw_mode, enable_raw_mode, EnterAlternateScreen, LeaveAlternateScreen},
 };
+use lma::MAL;
 use ratatui::{backend::CrosstermBackend, Terminal};
 use std::{
     error::Error,
@@ -24,11 +26,20 @@ fn main() -> Result<(), Box<dyn Error>> {
         .build()
         .unwrap();
     
-    let app = app::App::build(&rt).unwrap_or_else(|why| {
-        eprintln!("App couldn't be build: {why}");
-        process::exit(1)
-    });
-    let run_result = app::run(&mut terminal, app, tick_rate, rt);
+    let config = Config::default();
+    let run_result = if config.service().to_ascii_lowercase() == "mal" {
+        let app = app::App::<MAL>::build(&rt, config).unwrap_or_else(|why| {
+            eprintln!("App couldn't be build: {why}");
+            process::exit(1)
+        });
+        app::run(&mut terminal, app, tick_rate, rt)
+    } else {
+        let app = app::App::<MAL>::build(&rt, config).unwrap_or_else(|why| {
+            eprintln!("App couldn't be build: {why}");
+            process::exit(1)
+        });
+        app::run(&mut terminal, app, tick_rate, rt)
+    };
 
     restore_terminal(&mut terminal)?;
 
