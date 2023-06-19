@@ -150,8 +150,8 @@ impl Service for MAL {
     fn is_logged_in(&self) -> bool {
         !self.client.need_auth
     }
-    fn get_url(&self) -> &Option<String> {
-        &self.url
+    fn get_url(&self) -> Option<String> {
+        self.url.clone()
     }
 
     // TEMP

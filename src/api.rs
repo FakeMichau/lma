@@ -1,8 +1,8 @@
-mod mal;
+pub mod mal;
+pub mod local;
 use std::path::PathBuf;
 
 use lib_mal::{prelude::{EpisodeNode, ListStatus}, MALError};
-pub use mal::*;
 use async_trait::async_trait;
 
 pub struct ServiceTitle {
@@ -20,7 +20,7 @@ pub trait Service {
     async fn get_title(&mut self, id: u32) -> String;
     async fn get_episode_count(&mut self, id: u32) -> Option<u32>;
     async fn set_progress(&mut self, id: u32, progress: u32);
-    fn get_url(&self) -> &Option<String>;
+    fn get_url(&self) -> Option<String>;
     fn is_logged_in(&self) -> bool;
 
     // TEMP

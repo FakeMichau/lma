@@ -6,7 +6,7 @@ use crossterm::{
     execute,
     terminal::{disable_raw_mode, enable_raw_mode, EnterAlternateScreen, LeaveAlternateScreen},
 };
-use lma::MAL;
+use lma::{mal::MAL, local::Local};
 use ratatui::{backend::CrosstermBackend, Terminal};
 use std::{
     error::Error,
@@ -34,7 +34,7 @@ fn main() -> Result<(), Box<dyn Error>> {
         });
         app::run(&mut terminal, app, tick_rate, rt)
     } else {
-        let app = app::App::<MAL>::build(&rt, config).unwrap_or_else(|why| {
+        let app = app::App::<Local>::build(&rt, config).unwrap_or_else(|why| {
             eprintln!("App couldn't be build: {why}");
             process::exit(1)
         });

@@ -119,7 +119,7 @@ impl Default for Config {
             Config::new(
                 PathBuf::default(),
                 PathBuf::default(),
-                "MAL",
+                "Local",
             )
         } else {
             Config::new(
