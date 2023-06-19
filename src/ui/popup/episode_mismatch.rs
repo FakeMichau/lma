@@ -41,7 +41,9 @@ impl MismatchPopup {
                     .into(),
                 path: path.clone(),
                 title: String::new(),
-                file_deleted: !path.exists()
+                file_deleted: !path.exists(),
+                recap: false,
+                filler: false,
             })
             .collect()
     }

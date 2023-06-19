@@ -1,4 +1,4 @@
-use std::{path::PathBuf, collections::HashMap};
+use std::path::PathBuf;
 use time::OffsetDateTime;
 
 use lib_mal::{
@@ -83,7 +83,7 @@ impl MAL {
             .title
     }
 
-    async fn get_episodes(&mut self, id: u32) -> Result<Vec<EpisodeNode>, MALError>{
+    pub async fn get_episodes(&mut self, id: u32) -> Result<Vec<EpisodeNode>, MALError>{
         self.client
             .get_anime_episodes(id)
             .await
@@ -91,16 +91,6 @@ impl MAL {
                 episodes.data
             })
     }
-
-    pub async fn get_episodes_titles(&mut self, id: u32) -> HashMap<u32, String> {
-        let episodes_details = self.get_episodes(id).await.unwrap_or(Vec::new());
-        episodes_details.iter()
-            .map(|episode| {
-                (episode.mal_id.unwrap_or_default(), episode.title.clone().unwrap_or_default())
-            })
-            .collect()
-    }
-
 
     pub async fn search_title(&mut self, potential_title: &str) -> Vec<ServiceTitle> {
         // what does it do when it returns 0 results?

@@ -235,10 +235,16 @@ pub(crate) fn build<B: Backend>(frame: &mut Frame<'_, B>, app: &mut App) {
                 } else {
                     episode.title.clone()
                 };
-                let recap_status = episode.number%3 == 0;
-                let filler_status = episode.number%6 == 0;
                 let mut new_episode = ListItem::new(format!("{} {}", episode.number, episode_display_name)).style(style);
-                append_extra_info(&mut new_episode, main_chunks[1].width, episode, recap_status, filler_status, episode_display_name, style);
+                append_extra_info(
+                    &mut new_episode,
+                    main_chunks[1].width,
+                    episode,
+                    episode.recap,
+                    episode.filler,
+                    episode_display_name,
+                    style,
+                );
                 temp.push(new_episode);
             }
             temp
@@ -274,22 +280,22 @@ fn append_extra_info(
     new_episode: &mut ListItem<'_>,
     space: u16,
     episode: &Episode,
-    recap_status: bool,
-    filler_status: bool,
+    recap: bool,
+    filler: bool,
     episode_display_name: String,
     style: Style,
 ) {
-    if !recap_status && !filler_status {
+    if !recap && !filler {
         return
     }
-    let recap = "RECAP";
-    let filler = "FILLER";
-    let text = if recap_status && filler_status {
-        format!("{}/{}", recap, filler)
-    } else if recap_status {
-        recap.to_string()
+    let recap_text = "RECAP";
+    let filler_text = "FILLER";
+    let text = if recap && filler {
+        format!("{}/{}", recap_text, filler_text)
+    } else if recap {
+        recap_text.to_string()
     } else {
-        filler.to_string()
+        filler_text.to_string()
     };
     let trunc_symbol = "... ";
     let episode_width = new_episode.width();

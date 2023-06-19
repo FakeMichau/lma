@@ -4,7 +4,8 @@ use crate::{
     ui::{FocusedWindow, SelectionDirection},
 };
 
-use lma::{Episode, AnimeList};
+use lma::{Episode, AnimeList, MAL};
+use std::collections::HashMap;
 use ratatui::{
     backend::Backend,
     layout::Margin,
@@ -174,7 +175,9 @@ fn handle_next_state(app: &mut App, rt: &Runtime) {
                         number: k as i64 + 1,
                         path: path.clone(),
                         title: String::new(),
-                        file_deleted: !path.exists()
+                        file_deleted: !path.exists(),
+                        recap: false,
+                        filler: false,
                     })
                     .collect();
             } else if episode_count > video_files_count {
@@ -234,22 +237,50 @@ fn handle_save_state(app: &mut App, rt: &Runtime) {
 fn insert_episodes(rt: &Runtime, app: &mut App, local_id: i64) {
     // service_id is fine because hashmap can be empty here
     let episodes_details_hash = rt.block_on(
-        app.anime_list
-            .service
-            .get_episodes_titles(app.insert_popup.service_id as u32)
+        get_episodes_info(&mut app.anime_list.service, app.insert_popup.service_id as u32)
     );
     app.insert_popup.episodes.iter().for_each(|episode| {
         let potential_title = episodes_details_hash.get(&(episode.number as u32));
-        let title = potential_title.unwrap_or(&String::new()).clone();
+        let (title, recap, filler) = potential_title.unwrap_or(&(String::new(), false, false)).clone();
+
         if let Err(why) = app.anime_list.add_episode(
             local_id,
             episode.number,
             &episode.path.to_string_lossy().to_string(),
             &title,
+            generate_extra_info(recap, filler)
         ) {
             eprintln!("{}", why);
         }
     });
+}
+
+async fn get_episodes_info(service: &mut MAL, id: u32) -> HashMap<u32, (String, bool, bool)> {
+    let episodes_details = service.get_episodes(id).await.unwrap_or(Vec::new());
+    episodes_details
+        .iter()
+        .map(|episode| {
+            (
+                episode.mal_id.unwrap_or_default(),
+                (
+                    episode.title.clone().unwrap_or_default(),
+                    episode.recap.clone().unwrap_or_default(),
+                    episode.filler.clone().unwrap_or_default(),
+                ),
+            )
+        })
+        .collect()
+}
+
+fn generate_extra_info(recap: bool, filler: bool) -> i64 {
+    let mut extra_info: i64 = 0;
+    if recap {
+        extra_info |= 1 << 0;
+    }
+    if filler {
+        extra_info |= 1 << 1;
+    }
+    extra_info
 }
 
 fn parse_number(str: &mut String) -> i64 {
