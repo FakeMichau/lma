@@ -1,22 +1,17 @@
+use std::error::Error;
+use std::io;
+use std::time::{Duration, Instant};
+use crossterm::event::{self, Event, KeyCode};
+use ratatui::{backend::Backend, Terminal};
+use tokio::runtime::Runtime;
+use lma::{AnimeList,Service};
 use crate::app;
 use crate::config::Config;
+use crate::ui::*;
+use crate::ui::main_menu::StatefulList;
 use crate::ui::popup::episode_mismatch::MismatchPopup;
 use crate::ui::popup::title_selection::TitlesPopup;
-use crate::ui::{
-    self,
-    main_menu::StatefulList,
-    popup::insert_show::{InsertPopup, InsertState},
-    FocusedWindow, SelectionDirection,
-};
-use crossterm::event::{self, Event, KeyCode};
-use lma::{AnimeList,Service};
-use ratatui::{backend::Backend, Terminal};
-use std::error::Error;
-use std::{
-    io,
-    time::{Duration, Instant},
-};
-use tokio::runtime::Runtime;
+use crate::ui::popup::insert_show::{InsertPopup, InsertState};
 
 pub(crate) struct App<T: Service> {
     pub(crate) focused_window: FocusedWindow,
@@ -50,11 +45,11 @@ impl<T: Service> App<T> {
     ) -> io::Result<()> {
         self.anime_list.service.auth().await;
         self.focused_window = FocusedWindow::Login;
-        terminal.draw(|f| ui::ui(f, self, rt))?;
+        terminal.draw(|f| ui(f, self, rt))?;
         if !self.anime_list.service.is_logged_in() {
             self.anime_list.service.login().await; // freezes the app as it waits
             self.focused_window = FocusedWindow::MainMenu;
-            terminal.draw(|f| ui::ui(f, self, rt)).unwrap();
+            terminal.draw(|f| ui(f, self, rt)).unwrap();
             self.focused_window = FocusedWindow::Login;
         }
         Ok(())
@@ -85,7 +80,7 @@ pub(crate) fn run<B: Backend, T: Service>(
 ) -> Result<(), Box<dyn Error>> {
     let mut last_tick = Instant::now();
     loop {
-        terminal.draw(|f| ui::ui(f, &mut app, &rt))?;
+        terminal.draw(|f| ui(f, &mut app, &rt))?;
 
         let timeout = tick_rate
             .checked_sub(last_tick.elapsed())

@@ -1,19 +1,14 @@
-use super::{centered_rect, title_selection::TitlesPopup, episode_mismatch::MismatchPopup};
-use crate::{
-    app::App,
-    ui::{FocusedWindow, SelectionDirection},
-};
-
-use lma::{Episode, AnimeList, Service, ServiceType};
 use std::collections::HashMap;
-use ratatui::{
-    backend::Backend,
-    layout::Margin,
-    text::{Line, Span},
-    widgets::{Block, Borders, Clear, Paragraph},
-    Frame,
-};
+use ratatui::backend::Backend;
+use ratatui::layout::Margin;
+use ratatui::text::{Line, Span};
+use ratatui::widgets::{Block, Borders, Clear, Paragraph};
+use ratatui::Frame;
 use tokio::runtime::Runtime;
+use lma::{Episode, AnimeList, Service, ServiceType};
+use super::{centered_rect, title_selection::TitlesPopup, episode_mismatch::MismatchPopup};
+use crate::app::App;
+use crate::ui::{FocusedWindow, SelectionDirection};
 
 #[derive(Default)]
 pub(crate) struct InsertPopup {

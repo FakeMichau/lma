@@ -1,11 +1,7 @@
 use std::path::PathBuf;
 use async_trait::async_trait;
-
-use lib_mal::{
-    prelude::{EpisodeNode, ListStatus},
-    MALError,
-};
-
+use lib_mal::prelude::{EpisodeNode, ListStatus};
+use lib_mal::MALError;
 use crate::{ServiceTitle, Service, ServiceType};
 
 pub struct Local {

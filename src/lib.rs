@@ -1,11 +1,11 @@
-pub mod api;
 pub use api::*;
-use rusqlite::{params, Connection, Result};
-use tokio::runtime::Runtime;
+pub mod api;
 use std::ffi::OsStr;
 use std::fs;
 use std::collections::HashMap;
 use std::path::PathBuf;
+use rusqlite::{params, Connection, Result};
+use tokio::runtime::Runtime;
 
 pub struct AnimeList<T: Service> {
     db_connection: Connection,

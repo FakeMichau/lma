@@ -1,11 +1,9 @@
+use ratatui::backend::Backend;
+use ratatui::layout::Margin;
+use ratatui::style::{Color, Modifier, Style};
+use ratatui::widgets::{Block, Borders, Clear, List, ListItem, ListState};
+use ratatui::Frame;
 use lma::{ServiceTitle, Service};
-use ratatui::{
-    backend::Backend,
-    layout::Margin,
-    widgets::{ListState, ListItem, List, Block, Borders, Clear},
-    Frame, style::{Style, Modifier, Color},
-};
-
 use crate::{ui::SelectionDirection, app::App};
 
 #[derive(Default)]

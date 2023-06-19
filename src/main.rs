@@ -1,21 +1,16 @@
 mod app;
-mod ui;
 mod config;
+mod ui;
 use config::Config;
-use crossterm::{
-    execute,
-    terminal::{disable_raw_mode, enable_raw_mode, EnterAlternateScreen, LeaveAlternateScreen},
-};
-use lma::{mal::MAL, local::Local};
+use crossterm::execute;
+use crossterm::terminal::{disable_raw_mode, enable_raw_mode, EnterAlternateScreen, LeaveAlternateScreen};
 use ratatui::{backend::CrosstermBackend, Terminal};
-use std::{
-    error::Error,
-    io::{self, Stdout},
-    process,
-    time::Duration,
-};
-
+use std::error::Error;
+use std::io::{self, Stdout};
+use std::process;
+use std::time::Duration;
 use tokio;
+use lma::{local::Local, mal::MAL};
 
 fn main() -> Result<(), Box<dyn Error>> {
     let mut terminal = setup_terminal()?;
@@ -27,18 +22,21 @@ fn main() -> Result<(), Box<dyn Error>> {
         .unwrap();
     
     let config = Config::default();
-    let run_result = if config.service().to_ascii_lowercase() == "mal" {
-        let app = app::App::<MAL>::build(&rt, config).unwrap_or_else(|why| {
-            eprintln!("App couldn't be build: {why}");
-            process::exit(1)
-        });
-        app::run(&mut terminal, app, tick_rate, rt)
-    } else {
-        let app = app::App::<Local>::build(&rt, config).unwrap_or_else(|why| {
-            eprintln!("App couldn't be build: {why}");
-            process::exit(1)
-        });
-        app::run(&mut terminal, app, tick_rate, rt)
+    let run_result = match config.service().to_ascii_lowercase().as_str() {
+        "mal" => {
+            let app = app::App::<MAL>::build(&rt, config).unwrap_or_else(|why| {
+                eprintln!("App couldn't be build: {why}");
+                process::exit(1)
+            });
+            app::run(&mut terminal, app, tick_rate, rt)
+        }
+        _ => {
+            let app = app::App::<Local>::build(&rt, config).unwrap_or_else(|why| {
+                eprintln!("App couldn't be build: {why}");
+                process::exit(1)
+            });
+            app::run(&mut terminal, app, tick_rate, rt)
+        }
     };
 
     restore_terminal(&mut terminal)?;

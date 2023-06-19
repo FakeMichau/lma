@@ -1,8 +1,7 @@
 pub mod mal;
 pub mod local;
-use std::path::PathBuf;
-
 use lib_mal::{prelude::{EpisodeNode, ListStatus}, MALError};
+use std::path::PathBuf;
 use async_trait::async_trait;
 
 #[derive(PartialEq)]

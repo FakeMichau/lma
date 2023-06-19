@@ -1,17 +1,14 @@
-use std::{process::{Command, Stdio}, error::Error, path::PathBuf};
-
-use lma::{AnimeList, Show, Episode, Service};
-use ratatui::{
-    backend::Backend,
-    layout::{Constraint, Direction, Layout},
-    style::{Color, Modifier, Style},
-    widgets::{Block, Borders, List, ListItem, ListState, Paragraph},
-    Frame, text::{Span, Line},
-};
+use std::{error::Error, path::PathBuf};
+use std::process::{Command, Stdio};
+use ratatui::backend::Backend;
+use ratatui::layout::{Constraint, Direction, Layout};
+use ratatui::style::{Color, Modifier, Style};
+use ratatui::widgets::{Block, Borders, List, ListItem, ListState, Paragraph};
+use ratatui::{Frame, text::{Span, Line}};
 use tokio::runtime::Runtime;
-
-use super::{SelectionDirection, FocusedWindow, popup::insert_show::InsertState};
+use lma::{AnimeList, Show, Episode, Service};
 use crate::app::App;
+use super::{SelectionDirection, FocusedWindow, popup::insert_show::InsertState};
 
 pub(crate) struct StatefulList {
     shows_state: ListState,

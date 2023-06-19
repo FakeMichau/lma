@@ -1,16 +1,10 @@
 use std::path::PathBuf;
 use async_trait::async_trait;
 use time::OffsetDateTime;
-
-use lib_mal::{
-    prelude::{
-        fields::AnimeFields,
-        options::{Status, StatusUpdate},
-        ListStatus, EpisodeNode,
-    },
-    ClientBuilder, MALClient, MALError,
-};
-
+use lib_mal::prelude::fields::AnimeFields;
+use lib_mal::prelude::options::{Status, StatusUpdate};
+use lib_mal::prelude::{ListStatus, EpisodeNode};
+use lib_mal::{ClientBuilder, MALClient, MALError};
 use crate::{ServiceTitle, Service, ServiceType};
 
 pub struct MAL {

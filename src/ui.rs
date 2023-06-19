@@ -1,8 +1,8 @@
+pub(crate) mod main_menu;
+pub(crate) mod popup;
 use lma::Service;
 use ratatui::{backend::Backend, Frame};
 use tokio::runtime::Runtime;
-pub(crate) mod main_menu;
-pub(crate) mod popup;
 use crate::app;
 
 #[derive(PartialEq)]

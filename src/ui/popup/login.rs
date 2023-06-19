@@ -1,14 +1,11 @@
-use crate::app::App;
+use ratatui::backend::Backend;
+use ratatui::layout::{Margin, Alignment};
+use ratatui::style::{Modifier, Style, Color};
+use ratatui::text::{Line, Span};
+use ratatui::widgets::{Block, Borders, Clear, Paragraph, Wrap};
+use ratatui::Frame;
 use lma::Service;
-use ratatui::{
-    backend::Backend,
-    layout::{Margin, Alignment},
-    style::{Modifier, Style, Color},
-    text::{Line, Span},
-    widgets::{Block, Borders, Clear, Paragraph, Wrap},
-    Frame,
-};
-
+use crate::app::App;
 use super::centered_rect;
 
 pub(crate) fn build<B: Backend, T: Service>(frame: &mut Frame<B>, app: &mut App<T>) {

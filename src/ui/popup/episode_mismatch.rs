@@ -1,15 +1,11 @@
 use std::collections::BTreeSet;
-
+use ratatui::backend::Backend;
+use ratatui::layout::{Alignment, Margin, Layout, Direction, Constraint};
+use ratatui::style::{Modifier, Style};
+use ratatui::text::{Line, Span};
+use ratatui::widgets::{Block, Borders, Clear, Paragraph};
+use ratatui::Frame;
 use lma::{AnimeList, Episode, Service};
-use ratatui::{
-    backend::Backend,
-    layout::{Alignment, Margin, Layout, Direction, Constraint},
-    style::{Modifier, Style},
-    text::{Line, Span},
-    widgets::{Block, Borders, Clear, Paragraph},
-    Frame,
-};
-
 use crate::app::App;
 
 #[derive(Default)]
