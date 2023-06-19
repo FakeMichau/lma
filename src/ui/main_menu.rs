@@ -1,6 +1,6 @@
 use std::{process::{Command, Stdio}, error::Error};
 
-use lma::{AnimeList, Show, Episode};
+use lma::{AnimeList, Show, Episode, Service};
 use ratatui::{
     backend::Backend,
     layout::{Constraint, Direction, Layout},

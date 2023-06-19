@@ -16,3 +16,4 @@ lib-mal = { git = "https://github.com/FakeMichau/lib-mal.git" }
 directories = "5.0"
 serde = "1.0"
 toml = "0.7"
+async-trait = "0.1.68"

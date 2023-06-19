@@ -4,7 +4,7 @@ use crate::{
     ui::{FocusedWindow, SelectionDirection},
 };
 
-use lma::{Episode, AnimeList, MAL};
+use lma::{Episode, AnimeList, MAL, Service};
 use std::collections::HashMap;
 use ratatui::{
     backend::Backend,

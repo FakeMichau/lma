@@ -1,16 +1,17 @@
 use std::path::PathBuf;
+use async_trait::async_trait;
 use time::OffsetDateTime;
 
 use lib_mal::{
     prelude::{
         fields::AnimeFields,
         options::{Status, StatusUpdate},
-        ListNode, ListStatus, EpisodeNode,
+        ListStatus, EpisodeNode,
     },
     ClientBuilder, MALClient, MALError,
 };
 
-use crate::ServiceTitle;
+use crate::{ServiceTitle, Service};
 
 pub struct MAL {
     client: MALClient,
@@ -19,8 +20,9 @@ pub struct MAL {
     url: Option<String>,
 }
 
-impl MAL {
-    pub async fn new(cache_dir: PathBuf) -> Self {
+#[async_trait]
+impl Service for MAL {
+    async fn new(cache_dir: PathBuf) -> Self {
         let token = "8f7bd7e31dcf4f931949fc0b418c76d8".to_string();
         let client = ClientBuilder::new()
             .secret(token)
@@ -37,26 +39,7 @@ impl MAL {
             url: Some(String::new()),
         }
     }
-
-    pub async fn auth(&mut self) {
-        self.url = if self.client.need_auth {
-            let url;
-            (url, self.challenge, self.state) = self.client.get_auth_parts();
-            Some(url)
-        } else {
-            None
-        }
-    }
-
-    pub fn get_url(&self) -> &Option<String> {
-        &self.url
-    }
-
-    pub fn is_logged_in(&self) -> bool {
-        !self.client.need_auth
-    }
-
-    pub async fn login(&mut self) {
+    async fn login(&mut self) {
         let redirect_uri = "localhost:2525";
         self.client
             .auth(&redirect_uri, &self.challenge, &self.state)
@@ -65,34 +48,30 @@ impl MAL {
         self.client.need_auth = false; // should be in the library
         self.url = None;
     }
-
-    pub async fn get_episode_count(&mut self, id: u32) -> Option<u32> {
-        self.client
-            .get_anime_details(id, AnimeFields::NumEpisodes)
-            .await
-            .expect("Anime episode count") // likely will fail
-            .num_episodes
+    async fn auth(&mut self) {
+        self.url = if self.client.need_auth {
+            let url;
+            (url, self.challenge, self.state) = self.client.get_auth_parts();
+            Some(url)
+        } else {
+            None
+        }
     }
-
-    pub async fn get_title(&mut self, id: u32) -> String {
-        self.client
-            .get_anime_details(id, AnimeFields::Title)
-            .await
-            .expect("Anime title") // likely will fail
-            .show
-            .title
+    async fn init_show(&mut self, id: u32) {
+        match self.get_user_entry_details(id).await {
+            Some(_existing_show) => { /* leave as is */ }
+            None => {
+                // add to plan to watch
+                let mut update = StatusUpdate::new();
+                update.status(Status::PlanToWatch);
+                self.client
+                    .update_user_anime_status(id, update)
+                    .await
+                    .expect("Update user's list"); // likely will fail
+            }
+        }
     }
-
-    pub async fn get_episodes(&mut self, id: u32) -> Result<Vec<EpisodeNode>, MALError>{
-        self.client
-            .get_anime_episodes(id)
-            .await
-            .map(|episodes| {
-                episodes.data
-            })
-    }
-
-    pub async fn search_title(&mut self, potential_title: &str) -> Vec<ServiceTitle> {
+    async fn search_title(&mut self, potential_title: &str) -> Vec<ServiceTitle> {
         // what does it do when it returns 0 results?
         // pad titles below 3 characters to avoid errors
         let mut padded_title = String::from(potential_title);
@@ -111,40 +90,22 @@ impl MAL {
             })
             .collect()
     }
-
-    /// Returns only 4 values, REWORK NEEDED!
-    pub async fn get_user_list(&mut self) -> Vec<ListNode> {
+    async fn get_title(&mut self, id: u32) -> String {
         self.client
-            .get_user_anime_list()
+            .get_anime_details(id, AnimeFields::Title)
             .await
-            .expect("User's anime list") // likely will fail
-            .data
+            .expect("Anime title") // likely will fail
+            .show
+            .title
     }
-
-    pub async fn get_user_entry_details(&mut self, id: u32) -> Option<ListStatus> {
+    async fn get_episode_count(&mut self, id: u32) -> Option<u32> {
         self.client
-            .get_anime_details(id, AnimeFields::MyListStatus)
+            .get_anime_details(id, AnimeFields::NumEpisodes)
             .await
-            .expect("Anime details") // likely will fail
-            .my_list_status
+            .expect("Anime episode count") // likely will fail
+            .num_episodes
     }
-
-    pub async fn init_show(&mut self, id: u32) {
-        match self.get_user_entry_details(id).await {
-            Some(_existing_show) => { /* leave as is */ }
-            None => {
-                // add to plan to watch
-                let mut update = StatusUpdate::new();
-                update.status(Status::PlanToWatch);
-                self.client
-                    .update_user_anime_status(id, update)
-                    .await
-                    .expect("Update user's list"); // likely will fail
-            }
-        }
-    }
-
-    pub async fn set_progress(&mut self, id: u32, progress: u32) {
+    async fn set_progress(&mut self, id: u32, progress: u32) {
         let mut update = StatusUpdate::new();
         update.num_watched_episodes(progress);
         if progress == 0 {
@@ -186,7 +147,35 @@ impl MAL {
             // ask user for a score?
         }
     }
+    fn is_logged_in(&self) -> bool {
+        !self.client.need_auth
+    }
+    fn get_url(&self) -> &Option<String> {
+        &self.url
+    }
+}
 
+impl MAL {
+    // remove lib_mal dep
+    pub async fn get_episodes(&mut self, id: u32) -> Result<Vec<EpisodeNode>, MALError>{
+        self.client
+            .get_anime_episodes(id)
+            .await
+            .map(|episodes| {
+                episodes.data
+            })
+    }
+
+    // remove lib_mal dep
+    pub async fn get_user_entry_details(&mut self, id: u32) -> Option<ListStatus> {
+        self.client
+            .get_anime_details(id, AnimeFields::MyListStatus)
+            .await
+            .expect("Anime details") // likely will fail
+            .my_list_status
+    }
+
+    // remove lib_mal dep
     async fn update_status(&mut self, id: u32, update: StatusUpdate) -> ListStatus {
         self.client
             .update_user_anime_status(id, update)

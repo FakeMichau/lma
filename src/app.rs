@@ -9,7 +9,7 @@ use crate::ui::{
     FocusedWindow, SelectionDirection,
 };
 use crossterm::event::{self, Event, KeyCode};
-use lma::AnimeList;
+use lma::{AnimeList,Service};
 use ratatui::{backend::Backend, Terminal};
 use std::error::Error;
 use std::{

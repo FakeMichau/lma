@@ -1,4 +1,5 @@
 use crate::app::App;
+use lma::Service;
 use ratatui::{
     backend::Backend,
     layout::{Margin, Alignment},
