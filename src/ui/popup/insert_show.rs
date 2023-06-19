@@ -4,7 +4,7 @@ use crate::{
     ui::{FocusedWindow, SelectionDirection},
 };
 
-use lma::{Episode, AnimeList, Service};
+use lma::{Episode, AnimeList, Service, ServiceType};
 use std::collections::HashMap;
 use ratatui::{
     backend::Backend,
@@ -135,7 +135,9 @@ fn handle_next_state<T: Service>(app: &mut App<T>, rt: &Runtime) {
                 .guess_shows_title(&app.insert_popup.path)
                 .unwrap_or_default();
         }
-        2 if !app.insert_popup.title.is_empty() && app.insert_popup.service_id == 0 => {
+        2 if !app.insert_popup.title.is_empty() 
+            && app.insert_popup.service_id == 0 
+            && app.anime_list.service.get_service_type() != ServiceType::Local => {
             // create a popup to select the exact show from a sync service
             let items: Vec<_> = rt.block_on(async { 
                 app.anime_list
@@ -147,12 +149,15 @@ fn handle_next_state<T: Service>(app: &mut App<T>, rt: &Runtime) {
             app.titles_popup.state.select(Some(0));
             app.focused_window = FocusedWindow::TitleSelection
         }
-        3 if app.insert_popup.service_id != 0
+        3 if ((app.anime_list.service.get_service_type() == ServiceType::MAL && app.insert_popup.service_id != 0) || 
+            app.anime_list.service.get_service_type() == ServiceType::Local)
             && app.insert_popup.episode_count == 0
             && !app.insert_popup.path.is_empty() =>
         {
             let title = rt.block_on(app.anime_list.service.get_title(app.insert_popup.service_id as u32));
-            app.insert_popup.title = title; // make it a config?
+            if app.anime_list.service.get_service_type() != ServiceType::Local {
+                app.insert_popup.title = title; // make it a config?
+            }
             // compare number of video files with the retrieved number of episodes
             let episode_count = rt.block_on(
                 app.anime_list
@@ -166,7 +171,7 @@ fn handle_next_state<T: Service>(app: &mut App<T>, rt: &Runtime) {
                 .unwrap_or_default() as u32;
 
             app.insert_popup.episode_count = episode_count.into();
-            if episode_count == video_files_count {
+            if episode_count == video_files_count || app.anime_list.service.get_service_type() == ServiceType::Local {
                 app.insert_popup.episodes = AnimeList::<T>::get_video_file_paths(&app.insert_popup.path)
                     .unwrap_or_default()
                     .into_iter()
@@ -232,6 +237,8 @@ fn handle_save_state<T: Service>(app: &mut App<T>, rt: &Runtime) {
     app.insert_popup = InsertPopup::default();
     app.list_state.update_cache(&app.anime_list);
     app.focused_window = FocusedWindow::MainMenu;
+    // to update episodes list
+    app.list_state.move_selection(SelectionDirection::Next, &app.anime_list);
 }
 
 fn insert_episodes<T: Service>(rt: &Runtime, app: &mut App<T>, local_id: i64) {
@@ -239,13 +246,29 @@ fn insert_episodes<T: Service>(rt: &Runtime, app: &mut App<T>, local_id: i64) {
     let episodes_details_hash = rt.block_on(
         get_episodes_info(&mut app.anime_list.service, app.insert_popup.service_id as u32)
     );
+    // surely I can be smarter about it
+    let episode_offset = if app.anime_list.service.get_service_type() == ServiceType::Local {
+        app.anime_list.get_list().map(|shows| {
+            shows.iter()
+                .filter(|show| {
+                    show.local_id == local_id
+                })
+                .next()
+                .map(|show| {
+                    show.episodes.len()
+                })
+                .unwrap_or_default()
+        }).unwrap_or_default() as i64
+    } else {
+        0
+    };
     app.insert_popup.episodes.iter().for_each(|episode| {
         let potential_title = episodes_details_hash.get(&(episode.number as u32));
         let (title, recap, filler) = potential_title.unwrap_or(&(String::new(), false, false)).clone();
 
         if let Err(why) = app.anime_list.add_episode(
             local_id,
-            episode.number,
+            episode.number + episode_offset,
             &episode.path.to_string_lossy().to_string(),
             &title,
             generate_extra_info(recap, filler)

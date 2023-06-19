@@ -1,4 +1,4 @@
-use std::{process::{Command, Stdio}, error::Error};
+use std::{process::{Command, Stdio}, error::Error, path::PathBuf};
 
 use lma::{AnimeList, Show, Episode, Service};
 use ratatui::{
@@ -113,18 +113,21 @@ impl StatefulList {
                 .selected()
                 .unwrap_or_default();
 
-            let path = &self
+            let path = if let Some(show) = &self
                 .list_cache
                 .iter()
                 .filter(|show| show.local_id == self.selected_local_id)
-                .next()
-                .unwrap()
-                .episodes
-                .get(selected_episode)
-                .map(|episode| {
-                    episode.path.clone()
-                })
-                .unwrap_or_default();
+                .next() {
+                    show
+                    .episodes
+                    .get(selected_episode)
+                    .map(|episode| {
+                        episode.path.clone()
+                    })
+                    .unwrap_or_default()
+            } else {
+                PathBuf::new()
+            };
             
             if path.exists() {
                 if cfg!(target_os = "linux") {

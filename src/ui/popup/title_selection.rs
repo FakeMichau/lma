@@ -27,10 +27,13 @@ impl TitlesPopup {
         self.state.select(Some(i))
     }
 
-    pub(crate) fn selected_show(&self) -> &ServiceTitle {
+    pub(crate) fn selected_show(&self) -> ServiceTitle {
         self.service_titles
             .get(self.state.selected().unwrap_or_default())
-            .unwrap()
+            .map_or(ServiceTitle {
+                service_id: 0,
+                title: String::new(),
+            }, |s| s.clone())
     }
 
     fn select_element(
@@ -39,6 +42,9 @@ impl TitlesPopup {
         selected_element: Option<usize>,
         direction: SelectionDirection,
     ) -> usize {
+        if list_length == 0 {
+            return 0
+        }
         match selected_element {
             Some(i) => match direction {
                 SelectionDirection::Next => (i + 1) % list_length,

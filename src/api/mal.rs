@@ -11,7 +11,7 @@ use lib_mal::{
     ClientBuilder, MALClient, MALError,
 };
 
-use crate::{ServiceTitle, Service};
+use crate::{ServiceTitle, Service, ServiceType};
 
 pub struct MAL {
     client: MALClient,
@@ -146,6 +146,9 @@ impl Service for MAL {
             self.update_status(id, update).await;
             // ask user for a score?
         }
+    }
+    fn get_service_type(&self) -> ServiceType {
+        ServiceType::MAL
     }
     fn is_logged_in(&self) -> bool {
         !self.client.need_auth

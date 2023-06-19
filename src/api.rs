@@ -5,6 +5,13 @@ use std::path::PathBuf;
 use lib_mal::{prelude::{EpisodeNode, ListStatus}, MALError};
 use async_trait::async_trait;
 
+#[derive(PartialEq)]
+pub enum ServiceType {
+    MAL,
+    Local
+}
+
+#[derive(Clone)]
 pub struct ServiceTitle {
     pub service_id: u32,
     pub title: String,
@@ -20,6 +27,7 @@ pub trait Service {
     async fn get_title(&mut self, id: u32) -> String;
     async fn get_episode_count(&mut self, id: u32) -> Option<u32>;
     async fn set_progress(&mut self, id: u32, progress: u32);
+    fn get_service_type(&self) -> ServiceType;
     fn get_url(&self) -> Option<String>;
     fn is_logged_in(&self) -> bool;
 

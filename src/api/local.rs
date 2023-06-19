@@ -6,7 +6,7 @@ use lib_mal::{
     MALError,
 };
 
-use crate::{ServiceTitle, Service};
+use crate::{ServiceTitle, Service, ServiceType};
 
 pub struct Local {
 }
@@ -32,6 +32,9 @@ impl Service for Local {
         None
     }
     async fn set_progress(&mut self, _id: u32, _progress: u32) {
+    }
+    fn get_service_type(&self) -> ServiceType {
+        ServiceType::Local
     }
     fn is_logged_in(&self) -> bool {
         true
