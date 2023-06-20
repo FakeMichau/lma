@@ -1,9 +1,10 @@
 pub mod mal;
 pub mod local;
 use std::path::PathBuf;
+use serde::{Serialize, Deserialize};
 use async_trait::async_trait;
 
-#[derive(PartialEq, Eq)]
+#[derive(Serialize, Deserialize, PartialEq, Eq, Clone)]
 pub enum ServiceType {
     MAL,
     Local

@@ -1,17 +1,18 @@
 use std::{path::PathBuf, fs};
 use directories::ProjectDirs;
+use lma::ServiceType;
 use serde::{Serialize, Deserialize};
 use ratatui::style::Color as TermColor;
 
 pub struct Config {
-    service: String,
+    service: ServiceType,
     data_dir: PathBuf,
     colors: TermColors,
 }
 
 #[derive(Serialize, Deserialize, Clone)]
 struct ConfigFile {
-    service: Option<String>,
+    service: Option<ServiceType>,
     data_dir: Option<PathBuf>,
     colors: Option<Colors>,
 }
@@ -64,7 +65,7 @@ impl Config {
         fs::create_dir_all(data_dir).expect("Data dir creation");
         let config_file = config_dir.join("Settings.toml");
 
-        let default_service = String::from(if cfg!(debug_assertions) {"Local"} else {"MAL"});
+        let default_service = if cfg!(debug_assertions) { ServiceType::Local } else { ServiceType::MAL };
         let default_colors = Colors::default();
         let default_config = ConfigFile {
             data_dir: Some(data_dir.clone()),
@@ -121,7 +122,7 @@ impl Config {
         &self.colors
     }
 
-    pub(crate) const fn service(&self) -> &String {
+    pub(crate) const fn service(&self) -> &ServiceType {
         &self.service
     }
 }
