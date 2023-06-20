@@ -39,7 +39,7 @@ impl InsertPopup {
         self.selected_line
     }
     // return true on return to the beginning
-    pub(crate) fn move_line_selection(&mut self, direction: SelectionDirection) -> bool {
+    pub(crate) fn move_line_selection(&mut self, direction: &SelectionDirection) -> bool {
         if self.state != InsertState::Inputting {
             return false;
         }
@@ -66,7 +66,7 @@ pub(crate) fn build<B: Backend, T: Service>(frame: &mut Frame<B>, app: &mut App<
         InsertState::Inputting => handle_inputting_state(app),
         InsertState::Next => handle_next_state(app, rt),
         InsertState::Save => handle_save_state(app, rt),
-        _ => {}
+        InsertState::None => {},
     }
 
     let input_form = vec![
@@ -90,11 +90,12 @@ pub(crate) fn build<B: Backend, T: Service>(frame: &mut Frame<B>, app: &mut App<
     if app.insert_popup.state == InsertState::Inputting {
         frame.set_cursor(
             text_area.x
-                + input_form
+                + u16::try_from(input_form
                     .get(app.insert_popup.current_line())
                     .unwrap()
-                    .width() as u16,
-            text_area.y + app.insert_popup.current_line() as u16,
+                    .width())
+                    .unwrap(),
+            text_area.y + u16::try_from(app.insert_popup.current_line()).unwrap(),
         );
     }
 
@@ -103,7 +104,7 @@ pub(crate) fn build<B: Backend, T: Service>(frame: &mut Frame<B>, app: &mut App<
     let form = Paragraph::new(input_form);
     frame.render_widget(Clear, area);
     frame.render_widget(block, area);
-    frame.render_widget(form, text_area)
+    frame.render_widget(form, text_area);
 }
 
 fn handle_inputting_state<T: Service>(app: &mut App<T>) {
@@ -138,14 +139,14 @@ fn handle_next_state<T: Service>(app: &mut App<T>, rt: &Runtime) {
             });
             app.titles_popup = TitlesPopup::new(items);
             app.titles_popup.state.select(Some(0));
-            app.focused_window = FocusedWindow::TitleSelection
+            app.focused_window = FocusedWindow::TitleSelection;
         }
         3 if ((app.anime_list.service.get_service_type() == ServiceType::MAL && app.insert_popup.service_id != 0) || 
             app.anime_list.service.get_service_type() == ServiceType::Local)
             && app.insert_popup.episode_count == 0
             && !app.insert_popup.path.to_string_lossy().is_empty() =>
         {
-            let title = rt.block_on(app.anime_list.service.get_title(app.insert_popup.service_id as u32));
+            let title = rt.block_on(app.anime_list.service.get_title(u32::try_from(app.insert_popup.service_id).unwrap()));
             if app.anime_list.service.get_service_type() != ServiceType::Local {
                 app.insert_popup.title = title; // make it a config?
             }
@@ -153,13 +154,14 @@ fn handle_next_state<T: Service>(app: &mut App<T>, rt: &Runtime) {
             let episode_count = rt.block_on(
                 app.anime_list
                     .service
-                    .get_episode_count(app.insert_popup.service_id as u32)
+                    .get_episode_count(u32::try_from(app.insert_popup.service_id).unwrap())
                 )
                 .unwrap_or_default();
-            let video_files_count = app
+            let video_files_count = u32::try_from(app
                 .anime_list
                 .count_video_files(&app.insert_popup.path)
-                .unwrap_or_default() as u32;
+                .unwrap_or_default())
+                .unwrap();
 
             app.insert_popup.episode_count = episode_count.into();
             if episode_count == video_files_count || app.anime_list.service.get_service_type() == ServiceType::Local {
@@ -207,8 +209,8 @@ fn handle_save_state<T: Service>(app: &mut App<T>, rt: &Runtime) {
             rt.block_on(async {
                 app.anime_list
                     .service
-                    .init_show(app.insert_popup.service_id as u32)
-                    .await
+                    .init_show(u32::try_from(app.insert_popup.service_id).unwrap())
+                    .await;
             });
         },
         Err(why) => {
@@ -220,7 +222,7 @@ fn handle_save_state<T: Service>(app: &mut App<T>, rt: &Runtime) {
                 }
                 // don't do anything more if can't get the id by title
             } else {
-                eprintln!("{}", why);
+                eprintln!("{why}");
             }
         },
     }
@@ -229,13 +231,13 @@ fn handle_save_state<T: Service>(app: &mut App<T>, rt: &Runtime) {
     app.list_state.update_cache(&app.anime_list);
     app.focused_window = FocusedWindow::MainMenu;
     // to update episodes list
-    app.list_state.move_selection(SelectionDirection::Next, &app.anime_list);
+    app.list_state.move_selection(&SelectionDirection::Next, &app.anime_list);
 }
 
 fn insert_episodes<T: Service>(rt: &Runtime, app: &mut App<T>, local_id: i64) {
     // service_id is fine because hashmap can be empty here
     let episodes_details_hash = rt.block_on(
-        get_episodes_info(&mut app.anime_list.service, app.insert_popup.service_id as u32)
+        get_episodes_info(&mut app.anime_list.service, u32::try_from(app.insert_popup.service_id).unwrap())
     );
     // surely I can be smarter about it
     let episode_offset = if app.anime_list.service.get_service_type() == ServiceType::Local {
@@ -253,7 +255,7 @@ fn insert_episodes<T: Service>(rt: &Runtime, app: &mut App<T>, local_id: i64) {
         0
     };
     app.insert_popup.episodes.iter().for_each(|episode| {
-        let potential_title = episodes_details_hash.get(&(episode.number as u32));
+        let potential_title = episodes_details_hash.get(&u32::try_from(episode.number).unwrap());
         let (title, recap, filler) = potential_title.unwrap_or(&(String::new(), false, false)).clone();
 
         if let Err(why) = app.anime_list.add_episode(
@@ -263,7 +265,7 @@ fn insert_episodes<T: Service>(rt: &Runtime, app: &mut App<T>, local_id: i64) {
             &title,
             generate_extra_info(recap, filler)
         ) {
-            eprintln!("{}", why);
+            eprintln!("{why}");
         }
     });
 }

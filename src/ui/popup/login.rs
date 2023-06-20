@@ -35,5 +35,5 @@ pub(crate) fn build<B: Backend, T: Service>(frame: &mut Frame<B>, app: &mut App<
         .alignment(Alignment::Center);
     frame.render_widget(Clear, area);
     frame.render_widget(block, area);
-    frame.render_widget(form, text_area)
+    frame.render_widget(form, text_area);
 }

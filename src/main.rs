@@ -7,7 +7,6 @@ use crossterm::terminal::{disable_raw_mode, enable_raw_mode, EnterAlternateScree
 use ratatui::{backend::CrosstermBackend, Terminal};
 use std::error::Error;
 use std::io::{self, Stdout};
-use std::process;
 use std::time::Duration;
 use lma::{local::Local, mal::MAL};
 
@@ -23,25 +22,20 @@ fn main() -> Result<(), Box<dyn Error>> {
     let config = Config::default();
     let run_result = match config.service().to_ascii_lowercase().as_str() {
         "mal" => {
-            let app = app::App::<MAL>::build(&rt, config).unwrap_or_else(|why| {
-                eprintln!("App couldn't be build: {why}");
-                process::exit(1)
-            });
-            app::run(&mut terminal, app, tick_rate, rt)
+            let app = app::App::<MAL>::build(&rt, config);
+            app::run(&mut terminal, app, tick_rate, &rt)
         }
-        _ => {
-            let app = app::App::<Local>::build(&rt, config).unwrap_or_else(|why| {
-                eprintln!("App couldn't be build: {why}");
-                process::exit(1)
-            });
-            app::run(&mut terminal, app, tick_rate, rt)
+        "local" => {
+            let app = app::App::<Local>::build(&rt, config);
+            app::run(&mut terminal, app, tick_rate, &rt)
         }
+        _ => {Ok(())}
     };
 
     restore_terminal(&mut terminal)?;
 
     if let Err(why) = run_result {
-        eprintln!("{:?}", why)
+        eprintln!("{why:?}");
     }
 
     Ok(())

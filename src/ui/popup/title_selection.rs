@@ -20,9 +20,9 @@ impl TitlesPopup {
         }
     }
 
-    pub(crate) fn move_selection(&mut self, direction: SelectionDirection) {
-        let i = self.select_element(self.service_titles.len(), self.state.selected(), direction);
-        self.state.select(Some(i))
+    pub(crate) fn move_selection(&mut self, direction: &SelectionDirection) {
+        let i = TitlesPopup::select_element(self.service_titles.len(), self.state.selected(), direction);
+        self.state.select(Some(i));
     }
 
     pub(crate) fn selected_show(&self) -> ServiceTitle {
@@ -31,14 +31,13 @@ impl TitlesPopup {
             .map_or(ServiceTitle {
                 service_id: 0,
                 title: String::new(),
-            }, |s| s.clone())
+            }, std::clone::Clone::clone)
     }
 
     fn select_element(
-        &mut self,
         list_length: usize,
         selected_element: Option<usize>,
-        direction: SelectionDirection,
+        direction: &SelectionDirection,
     ) -> usize {
         if list_length == 0 {
             return 0

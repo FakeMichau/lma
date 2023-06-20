@@ -59,15 +59,15 @@ impl From<Color> for TermColor {
 }
 
 impl Config {
-    pub(crate) fn new(config_dir: PathBuf, data_dir: PathBuf) -> Self {
-        fs::create_dir_all(&config_dir).expect("Config dir creation");
-        fs::create_dir_all(&data_dir).expect("Data dir creation");
+    pub(crate) fn new(config_dir: &PathBuf, data_dir: &PathBuf) -> Self {
+        fs::create_dir_all(config_dir).expect("Config dir creation");
+        fs::create_dir_all(data_dir).expect("Data dir creation");
         let config_file = config_dir.join("Settings.toml");
 
         let default_service = String::from(if cfg!(debug_assertions) {"Local"} else {"MAL"});
         let default_colors = Colors::default();
         let default_config = ConfigFile {
-            data_dir: Some(data_dir),
+            data_dir: Some(data_dir.clone()),
             colors: Some(default_colors.clone()),
             service: Some(default_service.clone()),
         };
@@ -133,13 +133,13 @@ impl Default for Config {
         
         return if cfg!(debug_assertions) {
             Config::new(
-                PathBuf::default(),
-                PathBuf::default(),
+                &PathBuf::default(),
+                &PathBuf::default(),
             )
         } else {
             Config::new(
-                project_dirs.config_dir().to_path_buf(),
-                project_dirs.data_dir().to_path_buf(),
+                &project_dirs.config_dir().to_path_buf(),
+                &project_dirs.data_dir().to_path_buf(),
             )
         };
     }

@@ -56,9 +56,9 @@ impl<T: Service> AnimeList<T> {
         }
         let mut shows: Vec<Show> = shows.into_values().collect();
         shows.sort_by_key(|show| show.local_id);
-        shows.iter_mut().for_each(|show| {
+        for show in &mut shows {
             show.episodes.sort_by_key(|episode| episode.number);
-        });
+        }
         Ok(shows)
     }
 
@@ -152,18 +152,18 @@ impl<T: Service> AnimeList<T> {
                     .unwrap_or_default()
                     .unwrap_or_default();
 
-                let local_progress_current = show.progress as u32;
+                let local_progress_current = u32::try_from(show.progress).unwrap();
                 // progress different between local and service
                 match user_service_progress_current.cmp(&local_progress_current) {
                     Ordering::Greater => self
-                        .set_progress(show.local_id, user_service_progress_current as i64)
+                        .set_progress(show.local_id, i64::from(user_service_progress_current))
                         .expect("Set local progress"),
                     Ordering::Less => rt.block_on(
-                        self.service.set_progress(show.service_id as u32, local_progress_current)
+                        self.service.set_progress(u32::try_from(show.service_id).unwrap(), local_progress_current)
                     ),
                     Ordering::Equal => {},
                 }
-            })
+            });
     }
 
     pub fn get_video_file_paths(path: &PathBuf) -> Result<Vec<PathBuf>, std::io::Error> {
@@ -173,7 +173,7 @@ impl<T: Service> AnimeList<T> {
         let read_dir = fs::read_dir(path)?;
         let mut files = read_dir
             .into_iter()
-            .filter(|r| r.is_ok())
+            .filter(std::result::Result::is_ok)
             .map(|r| r.unwrap().path())
             .filter(|p| is_video_file(p))
             .collect::<Vec<_>>();
@@ -190,7 +190,7 @@ impl<T: Service> AnimeList<T> {
                     AnimeList::<T>::cleanup_title(filename)
                 })
                 .next()
-                .unwrap_or("".to_string()),
+                .unwrap_or(String::new()),
         ))
     }
 
@@ -221,7 +221,7 @@ impl<T: Service> AnimeList<T> {
     fn remove_after_last_dash(input: &str) -> String {
         if let Some(index) = input.rfind('-') {
             let trimmed = &input[..index].trim();
-            return trimmed.to_string();
+            return (*trimmed).to_string();
         }
         input.to_string()
     }
@@ -270,7 +270,7 @@ pub fn create<T: Service>(service: T, data_path: &Path) -> AnimeList<T> {
     let path = data_path.join("database.db3");
     let db_connection = match Connection::open(path) {
         Ok(conn) => conn,
-        Err(why) => panic!("Cry - {}", why),
+        Err(why) => panic!("Cry - {why}"),
     };
     if db_connection
         .is_readonly(rusqlite::DatabaseName::Main)
@@ -289,7 +289,7 @@ pub fn create<T: Service>(service: T, data_path: &Path) -> AnimeList<T> {
                 if why.to_string().contains("already exists") {
                     println!("Table creation failed: tables already exist");
                 } else {
-                    eprintln!("Table creation failed: {}", why);
+                    eprintln!("Table creation failed: {why}");
                 }
             }
     };

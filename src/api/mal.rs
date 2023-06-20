@@ -52,17 +52,14 @@ impl Service for MAL {
         }
     }
     async fn init_show(&mut self, id: u32) {
-        match self.get_user_entry_details(id).await {
-            Some(_existing_show) => { /* leave as is */ }
-            None => {
-                // add to plan to watch
-                let mut update = StatusUpdate::new();
-                update.status(Status::PlanToWatch);
-                self.client
-                    .update_user_anime_status(id, update)
-                    .await
-                    .expect("Update user's list"); // likely will fail
-            }
+        if self.get_user_entry_details(id).await.is_none() {
+            // add to plan to watch
+            let mut update = StatusUpdate::new();
+            update.status(Status::PlanToWatch);
+            self.client
+                .update_user_anime_status(id, update)
+                .await
+                .expect("Update user's list"); // likely will fail
         }
     }
     async fn search_title(&mut self, potential_title: &str) -> Vec<ServiceTitle> {
@@ -156,7 +153,7 @@ impl Service for MAL {
         let local_date = OffsetDateTime::now_utc().date();
         if updated_status.start_date.is_none() && progress == 1 {
             let mut update = StatusUpdate::new();
-            update.start_date(&format!("{}", local_date));
+            update.start_date(&format!("{local_date}"));
             self.update_status(id, update).await;
         }
         let episode_count = self.client
@@ -164,19 +161,18 @@ impl Service for MAL {
             .await
             .expect("Anime details") // likely will fail
             .num_episodes
-            .map(|count| {
+            .map_or(u32::MAX, |count| {
                 if count == 0 {
                     u32::MAX
                 } else {
                     count
                 }
-            })
-            .unwrap_or(u32::MAX);
+            });
         if updated_status.num_episodes_watched.unwrap_or_default() >= episode_count {
             let mut update = StatusUpdate::new();
             update.status(Status::Completed);
             if updated_status.finish_date.is_none() {
-                update.finish_date(&format!("{}", local_date));
+                update.finish_date(&format!("{local_date}"));
             }
             self.update_status(id, update).await;
             // ask user for a score?

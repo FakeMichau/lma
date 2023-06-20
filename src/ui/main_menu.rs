@@ -41,12 +41,12 @@ impl StatefulList {
         Ok(())
     }
 
-    pub(crate) fn move_selection<T: Service>(&mut self, direction: SelectionDirection, shows: &AnimeList<T>) {
+    pub(crate) fn move_selection<T: Service>(&mut self, direction: &SelectionDirection, shows: &AnimeList<T>) {
         if self.selecting_episode {
             self.move_episode_selection(direction);
         } else {
             self.update_cache(shows);
-            let i = self.select_element(self.list_cache.len(), self.shows_state.selected(), direction);
+            let i = StatefulList::select_element(self.list_cache.len(), self.shows_state.selected(), direction);
             self.shows_state.select(Some(i));
             self.update_selected_id(i);
         }
@@ -65,10 +65,8 @@ impl StatefulList {
             .get(self.shows_state.selected().unwrap_or_default())
     }
 
-    pub(crate) fn move_progress<T: Service>(&mut self, direction: SelectionDirection, shows: &mut AnimeList<T>, rt: &Runtime) {
-        let selected_show = if let Some(selected_show) = self.selected_show() {
-            selected_show
-        } else {
+    pub(crate) fn move_progress<T: Service>(&mut self, direction: &SelectionDirection, shows: &mut AnimeList<T>, rt: &Runtime) {
+        let Some(selected_show) = self.selected_show() else {
             return
         };
         let offset = match direction {
@@ -80,21 +78,19 @@ impl StatefulList {
             .expect("Set local progress");
         rt.block_on(
             shows.service.set_progress(
-                selected_show.service_id as u32, 
-                progress as u32
+                u32::try_from(selected_show.service_id).unwrap(), 
+                u32::try_from(progress).unwrap()
             )
         );
         self.update_cache(shows);
     }
 
-    fn move_episode_selection(&mut self, direction: SelectionDirection) {
-        let selected_show = if let Some(selected_show) = self.selected_show() {
-            selected_show
-        } else {
+    fn move_episode_selection(&mut self, direction: &SelectionDirection) {
+        let Some(selected_show) = self.selected_show() else {
             return
         };
         let episodes_len = selected_show.episodes.len();
-        let i = self.select_element(
+        let i = StatefulList::select_element(
             episodes_len,
             self.episodes_state.selected(),
             direction,
@@ -139,8 +135,7 @@ impl StatefulList {
                         .episodes
                         .iter()
                         .position(|episode| episode.number == show.progress)
-                        .map(|pos| (pos + 1) % show.episodes.len())
-                        .unwrap_or(0);
+                        .map_or(0, |pos| (pos + 1) % show.episodes.len());
         
                     self.episodes_state.select(Some(index));
                     self.selecting_episode = true;
@@ -154,10 +149,9 @@ impl StatefulList {
     }
 
     fn select_element(
-        &mut self,
         list_length: usize,
         selected_element: Option<usize>,
-        direction: SelectionDirection,
+        direction: &SelectionDirection,
     ) -> usize {
         if list_length == 0 {
             return 0;
@@ -218,10 +212,10 @@ pub(crate) fn build<B: Backend, T: Service>(frame: &mut Frame<'_, B>, app: &mut 
             for episode in &show.episodes {
                 let mut style = Style::default();
                 if episode.number <= show.progress { 
-                    style = style.fg(app.config.colors().text_watched)
+                    style = style.fg(app.config.colors().text_watched);
                 }
                 if episode.file_deleted {
-                    style = style.fg(app.config.colors().text_deleted)
+                    style = style.fg(app.config.colors().text_deleted);
                 }
                 // maybe make a config for that in the future
                 let episode_display_name = if episode.title.is_empty() {
@@ -257,7 +251,7 @@ pub(crate) fn build<B: Backend, T: Service>(frame: &mut Frame<'_, B>, app: &mut 
     let help = build_help(
         &app.focused_window,
         &app.insert_popup.state,
-        &app.config.colors().highlight_dark,
+        app.config.colors().highlight_dark,
     );
 
     // We can now render the item list
@@ -285,18 +279,19 @@ fn append_extra_info(
     let recap_text = "RECAP";
     let filler_text = "FILLER";
     let text = if recap && filler {
-        format!("{}/{}", recap_text, filler_text)
+        format!("{recap_text}/{filler_text}")
     } else if recap {
         recap_text.to_string()
     } else {
         filler_text.to_string()
     };
     let trunc_symbol = "... ";
+    let trunc_symbol_len = u16::try_from(trunc_symbol.len()).unwrap();
     let episode_width = new_episode.width();
-    let offset = text.len() as u16 + (episode.number.checked_ilog10().unwrap_or(0) + 1) as u16 + 3;
-    if episode_width > (space - offset - trunc_symbol.len() as u16 + 3).into() {
+    let offset = u16::try_from(text.len()).unwrap() + u16::try_from(episode.number.checked_ilog10().unwrap_or(0) + 1).unwrap() + 3;
+    if episode_width > (space - offset - trunc_symbol_len + 3).into() {
         let mut trunc_episode_display_name = episode_display_name;
-        trunc_episode_display_name.truncate((space - offset - trunc_symbol.len() as u16).into());
+        trunc_episode_display_name.truncate((space - offset - trunc_symbol_len).into());
         trunc_episode_display_name += trunc_symbol;
         trunc_episode_display_name += text.as_str();
         *new_episode = ListItem::new(format!("{} {}", episode.number, trunc_episode_display_name))
@@ -318,8 +313,8 @@ struct HelpItem {
 }
 
 impl HelpItem {
-    fn new(text: &'static str, key: &'static str, highlight_color: &Color) -> Self {
-        let text_style = Style::default().bg(*highlight_color);
+    fn new(text: &'static str, key: &'static str, highlight_color: Color) -> Self {
+        let text_style = Style::default().bg(highlight_color);
         let key_style = text_style.add_modifier(Modifier::BOLD);
         HelpItem {
             text,
@@ -338,7 +333,7 @@ impl HelpItem {
     }
 }
 
-fn build_help<'a>(focused_window: &FocusedWindow, insert_state: &InsertState, highlight_color: &Color) -> Paragraph<'a> {
+fn build_help<'a>(focused_window: &FocusedWindow, insert_state: &InsertState, highlight_color: Color) -> Paragraph<'a> {
     // Create help text at the bottom
     let navigation = HelpItem::new("Navigation", "ARROWS", highlight_color);
     let insert = HelpItem::new("Insert new show", "N", highlight_color);

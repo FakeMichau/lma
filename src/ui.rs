@@ -28,6 +28,6 @@ pub(crate) fn ui<B: Backend, T: Service>(frame: &mut Frame<B>, app: &mut app::Ap
         FocusedWindow::Login => popup::login::build(frame, app),
         FocusedWindow::TitleSelection => popup::title_selection::build(frame, app),
         FocusedWindow::EpisodeMismatch => popup::episode_mismatch::build(frame, app),
-        _ => {}
+        FocusedWindow::MainMenu => {} // main menu is always drawn
     }
 }

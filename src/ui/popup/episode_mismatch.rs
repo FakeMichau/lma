@@ -64,7 +64,7 @@ impl MismatchPopup {
                         .trim()
                         .parse::<u32>()
                         .expect("Value from range must be a number");
-                    (min..=max).for_each(|value| episodes_from_slice.push(value))
+                    (min..=max).for_each(|value| episodes_from_slice.push(value));
                 } else {
                     let episode = slice.trim();
                     if !episode.is_empty() {
@@ -117,7 +117,7 @@ pub(crate) fn build<B: Backend, T: Service>(frame: &mut Frame<B>, app: &mut App<
     );
 
     frame.set_cursor(
-        main_chunks[1].x + user_input.width() as u16,
+        main_chunks[1].x + u16::try_from(user_input.width()).unwrap(),
         main_chunks[1].y,
     );
 
