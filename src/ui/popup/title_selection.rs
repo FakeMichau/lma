@@ -8,24 +8,24 @@ use crate::{ui::SelectionDirection, app::App};
 
 #[derive(Default)]
 pub struct TitlesPopup {
-    pub(crate) state: ListState,
+    pub state: ListState,
     service_titles: Vec<ServiceTitle>,
 }
 
 impl TitlesPopup {
-    pub(crate) fn new(titles: Vec<ServiceTitle>) -> Self {
+    pub fn new(titles: Vec<ServiceTitle>) -> Self {
         Self {
             state: ListState::default(),
             service_titles: titles,
         }
     }
 
-    pub(crate) fn move_selection(&mut self, direction: &SelectionDirection) {
+    pub fn move_selection(&mut self, direction: &SelectionDirection) {
         let i = Self::select_element(self.service_titles.len(), self.state.selected(), direction);
         self.state.select(Some(i));
     }
 
-    pub(crate) fn selected_show(&self) -> ServiceTitle {
+    pub fn selected_show(&self) -> ServiceTitle {
         self.service_titles
             .get(self.state.selected().unwrap_or_default())
             .map_or(ServiceTitle {

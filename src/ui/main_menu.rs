@@ -19,7 +19,7 @@ pub struct StatefulList {
 }
 
 impl StatefulList {
-    pub(crate) fn new<T: Service>(shows: &AnimeList<T>) -> Self {
+    pub fn new<T: Service>(shows: &AnimeList<T>) -> Self {
         let list_cache = shows.get_list().unwrap();
         Self {
             shows_state: ListState::default(),
@@ -30,7 +30,7 @@ impl StatefulList {
         }
     }
 
-    pub(crate) fn delete<T: Service>(&mut self, shows: &AnimeList<T>) -> Result<(), Box<dyn Error>> {
+    pub fn delete<T: Service>(&mut self, shows: &AnimeList<T>) -> Result<(), Box<dyn Error>> {
         if self.selecting_episode {
             // todo: delete just an episode
         } else {
@@ -41,7 +41,7 @@ impl StatefulList {
         Ok(())
     }
 
-    pub(crate) fn move_selection<T: Service>(&mut self, direction: &SelectionDirection, shows: &AnimeList<T>) {
+    pub fn move_selection<T: Service>(&mut self, direction: &SelectionDirection, shows: &AnimeList<T>) {
         if self.selecting_episode {
             self.move_episode_selection(direction);
         } else {
@@ -56,12 +56,12 @@ impl StatefulList {
         self.selected_local_id = self.list_cache.get(index).map_or(0, |show| show.local_id);
     }
 
-    pub(crate) fn selected_show(&self) -> Option<&Show> {
+    pub fn selected_show(&self) -> Option<&Show> {
         self.list_cache
             .get(self.shows_state.selected().unwrap_or_default())
     }
 
-    pub(crate) fn move_progress<T: Service>(&mut self, direction: &SelectionDirection, shows: &mut AnimeList<T>, rt: &Runtime) {
+    pub fn move_progress<T: Service>(&mut self, direction: &SelectionDirection, shows: &mut AnimeList<T>, rt: &Runtime) {
         let Some(selected_show) = self.selected_show() else {
             return
         };
@@ -94,7 +94,7 @@ impl StatefulList {
         self.episodes_state.select(Some(i));
     }
 
-    pub(crate) fn select(&mut self) {
+    pub fn select(&mut self) {
         if self.selecting_episode {
             // navigating inside the episodes tab
             let selected_episode = self
@@ -136,7 +136,7 @@ impl StatefulList {
             }
         }
     }
-    pub(crate) fn unselect(&mut self) {
+    pub fn unselect(&mut self) {
         self.episodes_state.select(None);
         self.selecting_episode = false;
     }
@@ -158,7 +158,7 @@ impl StatefulList {
         }
     }
 
-    pub(crate) fn update_cache<T: Service>(&mut self, shows: &AnimeList<T>) {
+    pub fn update_cache<T: Service>(&mut self, shows: &AnimeList<T>) {
         self.list_cache = shows.get_list().unwrap();
     }
 }

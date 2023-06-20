@@ -13,18 +13,18 @@ use crate::app::App;
 pub struct MismatchPopup {
     episodes_count: u32,
     video_files_count: u32,
-    pub(crate) owned_episodes: String,
+    pub owned_episodes: String,
 }
 
 impl MismatchPopup {
-    pub(crate) const fn new(episodes_count: u32, video_files_count: u32) -> Self {
+    pub const fn new(episodes_count: u32, video_files_count: u32) -> Self {
         Self {
             episodes_count,
             video_files_count,
             owned_episodes: String::new(),
         }
     }
-    pub(crate) fn save<T: Service>(&self, path: &PathBuf) -> Vec<Episode> {
+    pub fn save<T: Service>(&self, path: &PathBuf) -> Vec<Episode> {
         let episodes = self.parse_owned();
         let mut episodes_iter = episodes.into_iter();
         AnimeList::<T>::get_video_file_paths(path)

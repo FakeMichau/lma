@@ -13,17 +13,17 @@ use crate::ui::popup::title_selection::TitlesPopup;
 use crate::ui::popup::insert_show::{InsertPopup, InsertState};
 
 pub struct App<T: Service> {
-    pub(crate) focused_window: FocusedWindow,
-    pub(crate) insert_popup: InsertPopup,
-    pub(crate) titles_popup: TitlesPopup,
-    pub(crate) mismatch_popup: MismatchPopup,
-    pub(crate) list_state: StatefulList,
-    pub(crate) anime_list: AnimeList<T>,
-    pub(crate) config: Config,
+    pub focused_window: FocusedWindow,
+    pub insert_popup: InsertPopup,
+    pub titles_popup: TitlesPopup,
+    pub mismatch_popup: MismatchPopup,
+    pub list_state: StatefulList,
+    pub anime_list: AnimeList<T>,
+    pub config: Config,
 }
 
 impl<T: Service + Send> App<T> {
-    pub(crate) fn build(rt: &Runtime, config: Config) -> Self {
+    pub fn build(rt: &Runtime, config: Config) -> Self {
         let service = rt.block_on(lma::Service::new(config.data_dir().clone()));
         let anime_list = lma::create(service, config.data_dir());
         Self {

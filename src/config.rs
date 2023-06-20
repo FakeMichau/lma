@@ -46,11 +46,11 @@ impl Default for Colors {
 }
 
 pub struct TermColors {
-    pub(crate) text: TermColor,
-    pub(crate) text_watched: TermColor,
-    pub(crate) text_deleted: TermColor,
-    pub(crate) highlight: TermColor,
-    pub(crate) highlight_dark: TermColor,
+    pub text: TermColor,
+    pub text_watched: TermColor,
+    pub text_deleted: TermColor,
+    pub highlight: TermColor,
+    pub highlight_dark: TermColor,
 }
 
 impl From<Color> for TermColor {
@@ -60,7 +60,7 @@ impl From<Color> for TermColor {
 }
 
 impl Config {
-    pub(crate) fn new(config_dir: &PathBuf, data_dir: &PathBuf) -> Self {
+    pub fn new(config_dir: &PathBuf, data_dir: &PathBuf) -> Self {
         fs::create_dir_all(config_dir).expect("Config dir creation");
         fs::create_dir_all(data_dir).expect("Data dir creation");
         let config_file = config_dir.join("Settings.toml");
@@ -114,15 +114,15 @@ impl Config {
         }
     }
 
-    pub(crate) const fn data_dir(&self) -> &PathBuf {
+    pub const fn data_dir(&self) -> &PathBuf {
         &self.data_dir
     }
 
-    pub(crate) const fn colors(&self) -> &TermColors {
+    pub const fn colors(&self) -> &TermColors {
         &self.colors
     }
 
-    pub(crate) const fn service(&self) -> &ServiceType {
+    pub const fn service(&self) -> &ServiceType {
         &self.service
     }
 }

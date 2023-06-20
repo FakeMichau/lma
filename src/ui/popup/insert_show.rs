@@ -13,13 +13,13 @@ use crate::ui::{FocusedWindow, SelectionDirection};
 
 #[derive(Default)]
 pub struct InsertPopup {
-    pub(crate) path: PathBuf,
+    pub path: PathBuf,
     title: String,
-    pub(crate) service_id: i64,
+    pub service_id: i64,
     episode_count: i64,
-    pub(crate) state: InsertState,
-    pub(crate) data: String,
-    pub(crate) episodes: Vec<Episode>,
+    pub state: InsertState,
+    pub data: String,
+    pub episodes: Vec<Episode>,
     selected_line: usize,
 }
 
@@ -35,11 +35,11 @@ pub enum InsertState {
 // path, title, sync_service_id, episode_count
 const ENTRY_COUNT: usize = 4;
 impl InsertPopup {
-    pub(crate) const fn current_line(&self) -> usize {
+    pub const fn current_line(&self) -> usize {
         self.selected_line
     }
     // return true on return to the beginning
-    pub(crate) fn move_line_selection(&mut self, direction: &SelectionDirection) -> bool {
+    pub fn move_line_selection(&mut self, direction: &SelectionDirection) -> bool {
         if self.state != InsertState::Inputting {
             return false;
         }
