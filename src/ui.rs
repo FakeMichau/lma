@@ -20,14 +20,14 @@ pub(crate) enum SelectionDirection {
     Previous,
 }
 
-pub(crate) fn ui<B: Backend, T: Service>(frame: &mut Frame<B>, mut app: &mut app::App<T>, rt: &Runtime) {
-    main_menu::build(frame, &mut app);
+pub(crate) fn ui<B: Backend, T: Service>(frame: &mut Frame<B>, app: &mut app::App<T>, rt: &Runtime) {
+    main_menu::build(frame, app);
 
     match app.focused_window {
-        FocusedWindow::InsertPopup => popup::insert_show::build(frame, &mut app, &rt),
-        FocusedWindow::Login => popup::login::build(frame, &mut app),
-        FocusedWindow::TitleSelection => popup::title_selection::build(frame, &mut app),
-        FocusedWindow::EpisodeMismatch => popup::episode_mismatch::build(frame, &mut app),
+        FocusedWindow::InsertPopup => popup::insert_show::build(frame, app, rt),
+        FocusedWindow::Login => popup::login::build(frame, app),
+        FocusedWindow::TitleSelection => popup::title_selection::build(frame, app),
+        FocusedWindow::EpisodeMismatch => popup::episode_mismatch::build(frame, app),
         _ => {}
     }
 }

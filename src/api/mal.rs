@@ -36,7 +36,7 @@ impl Service for MAL {
     async fn login(&mut self) {
         let redirect_uri = "localhost:2525";
         self.client
-            .auth(&redirect_uri, &self.challenge, &self.state)
+            .auth(redirect_uri, &self.challenge, &self.state)
             .await
             .expect("Unable to log in");
         self.client.need_auth = false; // should be in the library
@@ -154,12 +154,10 @@ impl Service for MAL {
         let updated_status = self.update_status(id, update).await;
 
         let local_date = OffsetDateTime::now_utc().date();
-        if let None = updated_status.start_date {
-            if progress == 1 {
-                let mut update = StatusUpdate::new();
-                update.start_date(&format!("{}", local_date));
-                self.update_status(id, update).await;
-            }
+        if updated_status.start_date.is_none() && progress == 1 {
+            let mut update = StatusUpdate::new();
+            update.start_date(&format!("{}", local_date));
+            self.update_status(id, update).await;
         }
         let episode_count = self.client
             .get_anime_details(id, AnimeFields::NumEpisodes)
@@ -177,7 +175,7 @@ impl Service for MAL {
         if updated_status.num_episodes_watched.unwrap_or_default() >= episode_count {
             let mut update = StatusUpdate::new();
             update.status(Status::Completed);
-            if let None = updated_status.finish_date {
+            if updated_status.finish_date.is_none() {
                 update.finish_date(&format!("{}", local_date));
             }
             self.update_status(id, update).await;

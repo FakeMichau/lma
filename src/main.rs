@@ -9,7 +9,6 @@ use std::error::Error;
 use std::io::{self, Stdout};
 use std::process;
 use std::time::Duration;
-use tokio;
 use lma::{local::Local, mal::MAL};
 
 fn main() -> Result<(), Box<dyn Error>> {

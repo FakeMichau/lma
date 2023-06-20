@@ -52,9 +52,9 @@ pub(crate) struct TermColors {
     pub(crate) highlight_dark: TermColor,
 }
 
-impl Into<TermColor> for Color {
-    fn into(self) -> TermColor {
-        TermColor::Rgb(self.r, self.g, self.b)
+impl From<Color> for TermColor {
+    fn from(val: Color) -> Self {
+        TermColor::Rgb(val.r, val.g, val.b)
     }
 }
 

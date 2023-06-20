@@ -23,18 +23,13 @@ pub(crate) struct InsertPopup {
     selected_line: usize,
 }
 
-#[derive(PartialEq)]
+#[derive(Default, PartialEq)]
 pub(crate) enum InsertState {
+    #[default]
     None,
     Inputting,
     Next,
     Save,
-}
-
-impl Default for InsertState {
-    fn default() -> Self {
-        InsertState::None
-    }
 }
 
 // path, title, sync_service_id, episode_count
@@ -246,10 +241,9 @@ fn insert_episodes<T: Service>(rt: &Runtime, app: &mut App<T>, local_id: i64) {
     let episode_offset = if app.anime_list.service.get_service_type() == ServiceType::Local {
         app.anime_list.get_list().map(|shows| {
             shows.iter()
-                .filter(|show| {
+                .find(|show| {
                     show.local_id == local_id
                 })
-                .next()
                 .map(|show| {
                     show.episodes.len()
                 })
@@ -265,7 +259,7 @@ fn insert_episodes<T: Service>(rt: &Runtime, app: &mut App<T>, local_id: i64) {
         if let Err(why) = app.anime_list.add_episode(
             local_id,
             episode.number + episode_offset,
-            &episode.path.to_string_lossy().to_string(),
+            &episode.path.to_string_lossy(),
             &title,
             generate_extra_info(recap, filler)
         ) {
@@ -283,8 +277,8 @@ async fn get_episodes_info<T: Service>(service: &mut T, id: u32) -> HashMap<u32,
                 episode.number.unwrap_or_default(),
                 (
                     episode.title.clone().unwrap_or_default(),
-                    episode.recap.clone().unwrap_or_default(),
-                    episode.filler.clone().unwrap_or_default(),
+                    episode.recap.unwrap_or_default(),
+                    episode.filler.unwrap_or_default(),
                 ),
             )
         })

@@ -3,7 +3,8 @@ pub mod api;
 use std::ffi::OsStr;
 use std::fs;
 use std::collections::HashMap;
-use std::path::PathBuf;
+use std::path::{PathBuf, Path};
+use std::cmp::Ordering;
 use rusqlite::{params, Connection, Result};
 use tokio::runtime::Runtime;
 
@@ -53,7 +54,7 @@ impl<T: Service> AnimeList<T> {
                 });
             }
         }
-        let mut shows: Vec<Show> = shows.into_iter().map(|(_, show)| show).collect();
+        let mut shows: Vec<Show> = shows.into_values().collect();
         shows.sort_by_key(|show| show.local_id);
         shows.iter_mut().for_each(|show| {
             show.episodes.sort_by_key(|episode| episode.number);
@@ -153,19 +154,20 @@ impl<T: Service> AnimeList<T> {
 
                 let local_progress_current = show.progress as u32;
                 // progress different between local and service
-                if user_service_progress_current > local_progress_current {
-                    self.set_progress(show.local_id, user_service_progress_current as i64)
-                        .expect("Set local progress");
-                } else if user_service_progress_current < local_progress_current {
-                    rt.block_on(
+                match user_service_progress_current.cmp(&local_progress_current) {
+                    Ordering::Greater => self
+                        .set_progress(show.local_id, user_service_progress_current as i64)
+                        .expect("Set local progress"),
+                    Ordering::Less => rt.block_on(
                         self.service.set_progress(show.service_id as u32, local_progress_current)
-                    );
+                    ),
+                    Ordering::Equal => {},
                 }
             })
     }
 
     pub fn get_video_file_paths(path: &PathBuf) -> Result<Vec<PathBuf>, std::io::Error> {
-        if is_video_file(&path) {
+        if is_video_file(path) {
             return Ok(vec![path.clone()])
         }
         let read_dir = fs::read_dir(path)?;
@@ -173,8 +175,7 @@ impl<T: Service> AnimeList<T> {
             .into_iter()
             .filter(|r| r.is_ok())
             .map(|r| r.unwrap().path())
-            .filter(|r| is_video_file(r))
-            .map(|path| path)
+            .filter(|p| is_video_file(p))
             .collect::<Vec<_>>();
         files.sort();
         Ok(files)
@@ -236,7 +237,7 @@ impl<T: Service> AnimeList<T> {
     }
 }
 
-fn is_video_file(r: &PathBuf) -> bool {
+fn is_video_file(r: &Path) -> bool {
     r.is_file() &&
     ["webm", "mkv", "vob", "ogg", "gif", "avi", "mov", "wmv", "mp4", "m4v", "3gp"]
         .into_iter()
@@ -265,7 +266,7 @@ pub struct Episode {
     pub filler: bool,
 }
 
-pub fn create<T: Service>(service: T, data_path: &PathBuf) -> AnimeList<T> {
+pub fn create<T: Service>(service: T, data_path: &Path) -> AnimeList<T> {
     let path = data_path.join("database.db3");
     let db_connection = match Connection::open(path) {
         Ok(conn) => conn,
@@ -288,7 +289,7 @@ pub fn create<T: Service>(service: T, data_path: &PathBuf) -> AnimeList<T> {
                 if why.to_string().contains("already exists") {
                     println!("Table creation failed: tables already exist");
                 } else {
-                    eprintln!("Table creation failed: {}", why.to_string());
+                    eprintln!("Table creation failed: {}", why);
                 }
             }
     };

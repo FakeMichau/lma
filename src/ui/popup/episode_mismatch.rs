@@ -34,7 +34,6 @@ impl MismatchPopup {
                 number: episodes_iter
                     .next()
                     .expect("Number of episodes doesn't line up")
-                    .clone()
                     .into(),
                 path: path.clone(),
                 title: String::new(),
@@ -119,7 +118,7 @@ pub(crate) fn build<B: Backend, T: Service>(frame: &mut Frame<B>, app: &mut App<
 
     frame.set_cursor(
         main_chunks[1].x + user_input.width() as u16,
-        main_chunks[1].y as u16,
+        main_chunks[1].y,
     );
 
     let block = Block::default()

@@ -113,8 +113,7 @@ impl StatefulList {
             let path = if let Some(show) = &self
                 .list_cache
                 .iter()
-                .filter(|show| show.local_id == self.selected_local_id)
-                .next() {
+                .find(|show| show.local_id == self.selected_local_id) {
                     show
                     .episodes
                     .get(selected_episode)
@@ -126,32 +125,27 @@ impl StatefulList {
                 PathBuf::new()
             };
             
-            if path.exists() {
-                if cfg!(target_os = "linux") {
-                    _ = Command::new("xdg-open")
-                        .arg(path)
-                        .stderr(Stdio::null())
-                        .stdout(Stdio::null())
-                        .spawn();
+            if path.exists() && cfg!(target_os = "linux") {
+                _ = Command::new("xdg-open")
+                    .arg(path)
+                    .stderr(Stdio::null())
+                    .stdout(Stdio::null())
+                    .spawn();
+            }
+        } else if let Some(selected_id) = self.shows_state.selected() {
+            if let Some(show) = self.list_cache.get(selected_id) {
+                if !show.episodes.is_empty() {
+                    let index = show
+                        .episodes
+                        .iter()
+                        .position(|episode| episode.number == show.progress)
+                        .map(|pos| (pos + 1) % show.episodes.len())
+                        .unwrap_or(0);
+        
+                    self.episodes_state.select(Some(index));
+                    self.selecting_episode = true;
                 }
             }
-        } else {
-            if let Some(selected_id) = self.shows_state.selected() {
-                if let Some(show) = self.list_cache.get(selected_id) {
-                    if !show.episodes.is_empty() {
-                        let index = show
-                            .episodes
-                            .iter()
-                            .position(|episode| episode.number == show.progress)
-                            .map(|pos| (pos + 1) % show.episodes.len())
-                            .unwrap_or(0);
-            
-                        self.episodes_state.select(Some(index));
-                        self.selecting_episode = true;
-                    }
-                }
-            }
-            
         }
     }
     pub(crate) fn unselect(&mut self) {
@@ -199,7 +193,7 @@ pub(crate) fn build<B: Backend, T: Service>(frame: &mut Frame<'_, B>, app: &mut 
         .list_cache
         .iter()
         .map(|show| {
-            ListItem::new(format!("{}", show.title))
+            ListItem::new(show.title.clone())
                 .style(Style::default().fg(app.config.colors().text))
         })
         .collect();
@@ -301,7 +295,7 @@ fn append_extra_info(
     let episode_width = new_episode.width();
     let offset = text.len() as u16 + (episode.number.checked_ilog10().unwrap_or(0) + 1) as u16 + 3;
     if episode_width > (space - offset - trunc_symbol.len() as u16 + 3).into() {
-        let mut trunc_episode_display_name = episode_display_name.clone();
+        let mut trunc_episode_display_name = episode_display_name;
         trunc_episode_display_name.truncate((space - offset - trunc_symbol.len() as u16).into());
         trunc_episode_display_name += trunc_symbol;
         trunc_episode_display_name += text.as_str();
@@ -325,7 +319,7 @@ struct HelpItem {
 
 impl HelpItem {
     fn new(text: &'static str, key: &'static str, highlight_color: &Color) -> Self {
-        let text_style = Style::default().bg(highlight_color.clone());
+        let text_style = Style::default().bg(*highlight_color);
         let key_style = text_style.add_modifier(Modifier::BOLD);
         HelpItem {
             text,
@@ -335,7 +329,7 @@ impl HelpItem {
         }
     }
 
-    fn to_span<'a>(self) -> Vec<Span<'a>> {
+    fn to_span<'a>(&self) -> Vec<Span<'a>> {
         vec![
             Span::styled(format!("{} ", self.text), self.text_style),
             Span::styled(format!("[{}]", self.key), self.key_style),

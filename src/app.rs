@@ -131,9 +131,10 @@ fn handle_main_menu_key<B: Backend, T: Service>(
         }
         _ => {}
     }
-    return Ok(Some(true));
+    Ok(Some(true))
 }
 
+#[allow(clippy::single_match)]
 fn handle_login_key<T: Service>(key: event::KeyEvent, app: &mut App<T>) {
     match key.code {
         KeyCode::Esc => {

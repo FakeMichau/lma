@@ -67,7 +67,7 @@ pub(crate) fn build<B: Backend, T: Service>(frame: &mut Frame<B>, app: &mut App<
         .service_titles
         .iter()
         .map(|service_title| {
-            ListItem::new(format!("{}", service_title.title)).style(Style::default())
+            ListItem::new(service_title.title.clone()).style(Style::default())
         })
         .collect();
 
