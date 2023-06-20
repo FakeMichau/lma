@@ -108,7 +108,7 @@ impl Service for MAL {
                     progress: episode_status.num_episodes_watched,
                     score: episode_status.score,
                     is_rewatching: episode_status.is_rewatching,
-                    rewatch_count: Some(0), // to be added
+                    rewatch_count: episode_status.num_times_rewatched,
                     updated_at: episode_status.updated_at,
                     start_date: episode_status.start_date,
                     finish_date: episode_status.finish_date,
