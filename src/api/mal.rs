@@ -3,9 +3,9 @@ use async_trait::async_trait;
 use time::OffsetDateTime;
 use lib_mal::prelude::fields::AnimeFields;
 use lib_mal::prelude::options::{Status, StatusUpdate};
-use lib_mal::prelude::{ListStatus, EpisodeNode};
-use lib_mal::{ClientBuilder, MALClient, MALError};
-use crate::{ServiceTitle, Service, ServiceType};
+use lib_mal::prelude::ListStatus;
+use lib_mal::{ClientBuilder, MALClient};
+use crate::{ServiceTitle, Service, ServiceType, ServiceEpisodeUser, EpisodeStatus, ServiceEpisodeDetails};
 
 pub struct MAL {
     client: MALClient,
@@ -99,6 +99,49 @@ impl Service for MAL {
             .expect("Anime episode count") // likely will fail
             .num_episodes
     }
+    async fn get_user_entry_details(&mut self, id: u32) -> Option<ServiceEpisodeUser> {
+        self.client
+            .get_anime_details(id, AnimeFields::MyListStatus)
+            .await
+            .expect("Anime details") // likely will fail
+            .my_list_status
+            .map(|episode_status| {
+                ServiceEpisodeUser {
+                    status: to_episode_status(episode_status.status),
+                    progress: episode_status.num_episodes_watched,
+                    score: episode_status.score,
+                    is_rewatching: episode_status.is_rewatching,
+                    rewatch_count: Some(0), // to be added
+                    updated_at: episode_status.updated_at,
+                    start_date: episode_status.start_date,
+                    finish_date: episode_status.finish_date,
+                    comments: episode_status.comments,
+                }
+            })
+    }
+    async fn get_episodes(&mut self, id: u32) -> Vec<ServiceEpisodeDetails> {
+        self.client
+            .get_anime_episodes(id)
+            .await
+            .map(|episodes| episodes.data)
+            .map(|vec| {
+                vec.into_iter()
+                .map(|episode| {
+                    ServiceEpisodeDetails {
+                        number: episode.mal_id,
+                        title: episode.title,
+                        title_japanese: episode.title_japanese,
+                        title_romanji: episode.title_romanji,
+                        duration: episode.duration,
+                        aired: episode.aired,
+                        filler: episode.filler,
+                        recap: episode.recap,
+                    }
+                })
+                .collect::<Vec<_>>()
+            })
+            .unwrap_or_default()
+    }
     async fn set_progress(&mut self, id: u32, progress: u32) {
         let mut update = StatusUpdate::new();
         update.num_watched_episodes(progress);
@@ -150,34 +193,26 @@ impl Service for MAL {
     fn get_url(&self) -> Option<String> {
         self.url.clone()
     }
-
-    // TEMP
-    // remove lib_mal dep
-    async fn get_episodes(&mut self, id: u32) -> Result<Vec<EpisodeNode>, MALError> {
-        self.client
-            .get_anime_episodes(id)
-            .await
-            .map(|episodes| {
-                episodes.data
-            })
-    }
-
-    // remove lib_mal dep
-    async fn get_user_entry_details(&mut self, id: u32) -> Option<ListStatus> {
-        self.client
-            .get_anime_details(id, AnimeFields::MyListStatus)
-            .await
-            .expect("Anime details") // likely will fail
-            .my_list_status
-    }
 }
 
 impl MAL {
-    // remove lib_mal dep
     async fn update_status(&mut self, id: u32, update: StatusUpdate) -> ListStatus {
         self.client
             .update_user_anime_status(id, update)
             .await
             .expect("Update user's list") // likely will fail
     }
+}
+
+fn to_episode_status(status: Option<String>) -> Option<EpisodeStatus> {
+    status.map(|status_str| {
+        match status_str.as_str() {
+            "watching" => EpisodeStatus::Watching,
+            "completed" => EpisodeStatus::Completed,
+            "on_hold" => EpisodeStatus::OnHold,
+            "dropped" => EpisodeStatus::Dropped,
+            "plan_to_watch" => EpisodeStatus::PlanToWatch,
+            _ => EpisodeStatus::None,
+        }
+    })
 }

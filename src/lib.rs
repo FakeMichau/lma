@@ -147,7 +147,7 @@ impl<T: Service> AnimeList<T> {
                     .get_user_entry_details(show.service_id.try_into().unwrap())
                 );
                 let user_service_progress_current = user_entry_details
-                    .map(|details| details.num_episodes_watched)
+                    .map(|details| details.progress)
                     .unwrap_or_default()
                     .unwrap_or_default();
 

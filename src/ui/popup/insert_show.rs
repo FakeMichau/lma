@@ -275,12 +275,12 @@ fn insert_episodes<T: Service>(rt: &Runtime, app: &mut App<T>, local_id: i64) {
 }
 
 async fn get_episodes_info<T: Service>(service: &mut T, id: u32) -> HashMap<u32, (String, bool, bool)> {
-    let episodes_details = service.get_episodes(id).await.unwrap_or(Vec::new());
+    let episodes_details = service.get_episodes(id).await;
     episodes_details
         .iter()
         .map(|episode| {
             (
-                episode.mal_id.unwrap_or_default(),
+                episode.number.unwrap_or_default(),
                 (
                     episode.title.clone().unwrap_or_default(),
                     episode.recap.clone().unwrap_or_default(),
