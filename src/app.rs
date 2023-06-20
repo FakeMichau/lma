@@ -22,7 +22,7 @@ pub struct App<T: Service> {
     pub(crate) config: Config,
 }
 
-impl<T: Service> App<T> {
+impl<T: Service + Send> App<T> {
     pub(crate) fn build(rt: &Runtime, config: Config) -> Self {
         let service = rt.block_on(lma::Service::new(config.data_dir().clone()));
         let anime_list = lma::create(service, config.data_dir());
@@ -62,7 +62,7 @@ impl<T: Service> App<T> {
     }
 }
 
-pub fn run<B: Backend, T: Service>(
+pub fn run<B: Backend, T: Service + Send>(
     terminal: &mut Terminal<B>,
     mut app: app::App<T>,
     tick_rate: Duration,
@@ -96,7 +96,7 @@ pub fn run<B: Backend, T: Service>(
     }
 }
 
-fn handle_main_menu_key<B: Backend, T: Service>(
+fn handle_main_menu_key<B: Backend, T: Service + Send>(
     key: event::KeyEvent,
     app: &mut App<T>,
     rt: &Runtime,
@@ -172,7 +172,7 @@ fn handle_insert_popup_key<T: Service>(app: &mut App<T>, key: event::KeyEvent) {
     }
 }
 
-fn handle_title_selection_key<T: Service>(key: event::KeyEvent, app: &mut App<T>) {
+fn handle_title_selection_key<T: Service + Send>(key: event::KeyEvent, app: &mut App<T>) {
     match key.code {
         KeyCode::Down => app.titles_popup.move_selection(&SelectionDirection::Next),
         KeyCode::Up => app
@@ -184,7 +184,7 @@ fn handle_title_selection_key<T: Service>(key: event::KeyEvent, app: &mut App<T>
     }
 }
 
-fn handle_mismatch_popup_key<T: Service>(key: event::KeyEvent, app: &mut App<T>) {
+fn handle_mismatch_popup_key<T: Service + Send>(key: event::KeyEvent, app: &mut App<T>) {
     match key.code {
         KeyCode::Char(c) => app.mismatch_popup.owned_episodes.push(c),
         KeyCode::Backspace => _ = app.mismatch_popup.owned_episodes.pop(),

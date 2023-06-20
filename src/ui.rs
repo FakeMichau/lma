@@ -20,7 +20,7 @@ pub enum SelectionDirection {
     Previous,
 }
 
-pub fn ui<B: Backend, T: Service>(frame: &mut Frame<B>, app: &mut app::App<T>, rt: &Runtime) {
+pub fn ui<B: Backend, T: Service + Send>(frame: &mut Frame<B>, app: &mut app::App<T>, rt: &Runtime) {
     main_menu::build(frame, app);
 
     match app.focused_window {

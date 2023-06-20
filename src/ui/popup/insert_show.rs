@@ -55,7 +55,7 @@ impl InsertPopup {
     }
 }
 
-pub fn build<B: Backend, T: Service>(frame: &mut Frame<B>, app: &mut App<T>, rt: &Runtime) {
+pub fn build<B: Backend, T: Service + Send>(frame: &mut Frame<B>, app: &mut App<T>, rt: &Runtime) {
     let area = centered_rect(70, 70, frame.size());
     let text_area = area.inner(&Margin {
         vertical: 1,
@@ -198,7 +198,7 @@ fn handle_next_state<T: Service>(app: &mut App<T>, rt: &Runtime) {
     app.insert_popup.state = InsertState::Inputting;
 }
 
-fn handle_save_state<T: Service>(app: &mut App<T>, rt: &Runtime) {
+fn handle_save_state<T: Service + Send>(app: &mut App<T>, rt: &Runtime) {
     match app.anime_list.add_show(
         &app.insert_popup.title,
         app.insert_popup.service_id,
@@ -234,7 +234,7 @@ fn handle_save_state<T: Service>(app: &mut App<T>, rt: &Runtime) {
     app.list_state.move_selection(&SelectionDirection::Next, &app.anime_list);
 }
 
-fn insert_episodes<T: Service>(rt: &Runtime, app: &mut App<T>, local_id: i64) {
+fn insert_episodes<T: Service + Send>(rt: &Runtime, app: &mut App<T>, local_id: i64) {
     // service_id is fine because hashmap can be empty here
     let episodes_details_hash = rt.block_on(
         get_episodes_info(&mut app.anime_list.service, u32::try_from(app.insert_popup.service_id).unwrap())
@@ -270,7 +270,7 @@ fn insert_episodes<T: Service>(rt: &Runtime, app: &mut App<T>, local_id: i64) {
     });
 }
 
-async fn get_episodes_info<T: Service>(service: &mut T, id: u32) -> HashMap<u32, (String, bool, bool)> {
+async fn get_episodes_info<T: Service + Send>(service: &mut T, id: u32) -> HashMap<u32, (String, bool, bool)> {
     let episodes_details = service.get_episodes(id).await;
     episodes_details
         .iter()
