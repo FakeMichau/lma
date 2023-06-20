@@ -85,25 +85,25 @@ impl Config {
         };
 
         let service = config.service.unwrap_or(default_service);
-        let data_dir = config.data_dir.unwrap_or(default_config.data_dir.unwrap());
-        let colors = config.colors.unwrap_or(default_colors.clone());
+        let data_dir = config.data_dir.unwrap_or_else(|| default_config.data_dir.unwrap());
+        let colors = config.colors.unwrap_or_else(|| default_colors.clone());
         let term_colors = TermColors {
-            text: colors.text.unwrap_or(default_colors.text.unwrap()).into(),
+            text: colors.text.unwrap_or_else(|| default_colors.text.unwrap()).into(),
             text_watched: colors
                 .text_watched
-                .unwrap_or(default_colors.text_watched.unwrap())
+                .unwrap_or_else(|| default_colors.text_watched.unwrap())
                 .into(),
             text_deleted: colors
                 .text_deleted
-                .unwrap_or(default_colors.text_deleted.unwrap())
+                .unwrap_or_else(|| default_colors.text_deleted.unwrap())
                 .into(),
             highlight: colors
                 .highlight
-                .unwrap_or(default_colors.highlight.unwrap())
+                .unwrap_or_else(|| default_colors.highlight.unwrap())
                 .into(),
             highlight_dark: colors
                 .highlight_dark
-                .unwrap_or(default_colors.highlight_dark.unwrap())
+                .unwrap_or_else(|| default_colors.highlight_dark.unwrap())
                 .into(),
         };
 
