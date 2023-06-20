@@ -10,15 +10,15 @@ use lma::{AnimeList, Episode, Service};
 use crate::app::App;
 
 #[derive(Default)]
-pub(crate) struct MismatchPopup {
+pub struct MismatchPopup {
     episodes_count: u32,
     video_files_count: u32,
     pub(crate) owned_episodes: String,
 }
 
 impl MismatchPopup {
-    pub(crate) fn new(episodes_count: u32, video_files_count: u32) -> MismatchPopup {
-        MismatchPopup {
+    pub(crate) const fn new(episodes_count: u32, video_files_count: u32) -> Self {
+        Self {
             episodes_count,
             video_files_count,
             owned_episodes: String::new(),
@@ -80,7 +80,7 @@ impl MismatchPopup {
 
 use super::centered_rect;
 
-pub(crate) fn build<B: Backend, T: Service>(frame: &mut Frame<B>, app: &mut App<T>) {
+pub fn build<B: Backend, T: Service>(frame: &mut Frame<B>, app: &mut App<T>) {
     let area = centered_rect(70, 70, frame.size());
     let inner_area = area.inner(&Margin {
         vertical: 1,

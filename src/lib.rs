@@ -182,15 +182,15 @@ impl<T: Service> AnimeList<T> {
     }
 
     pub fn guess_shows_title(&self, path: &PathBuf) -> Result<String, std::io::Error> {
-        Ok(AnimeList::<T>::remove_after_last_dash(
-            &AnimeList::<T>::get_video_file_paths(path)?
+        Ok(Self::remove_after_last_dash(
+            &Self::get_video_file_paths(path)?
                 .iter()
                 .map(|dir| {
                     let filename = dir.file_stem().unwrap_or_default();
-                    AnimeList::<T>::cleanup_title(filename)
+                    Self::cleanup_title(filename)
                 })
                 .next()
-                .unwrap_or(String::new()),
+                .unwrap_or_default(),
         ))
     }
 

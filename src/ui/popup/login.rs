@@ -8,27 +8,30 @@ use lma::Service;
 use crate::app::App;
 use super::centered_rect;
 
-pub(crate) fn build<B: Backend, T: Service>(frame: &mut Frame<B>, app: &mut App<T>) {
+pub fn build<B: Backend, T: Service>(frame: &mut Frame<B>, app: &mut App<T>) {
     let area = centered_rect(70, 70, frame.size());
     let text_area = area.inner(&Margin {
         vertical: 1,
         horizontal: 1,
     });
 
-    let login_info = if let Some(url) = app.anime_list.service.get_url() {
-        vec![
-            Line::from(Span::raw("Login using the link below")),
-            Line::from(Span::styled(
-                url,
-                Style::default().add_modifier(Modifier::BOLD),
-            )),
-        ]
-    } else {
-        vec![Line::from(Span::styled(
-            "You are already logged in",
-            Style::default().fg(Color::Green)
-        ))]
-    };
+    let login_info = app.anime_list.service.get_url().map_or_else(
+        || {
+            vec![Line::from(Span::styled(
+                "You are already logged in",
+                Style::default().fg(Color::Green),
+            ))]
+        },
+        |url| {
+            vec![
+                Line::from(Span::raw("Login using the link below")),
+                Line::from(Span::styled(
+                    url,
+                    Style::default().add_modifier(Modifier::BOLD),
+                )),
+            ]
+        },
+    );
     let block = Block::default().title("Login").borders(Borders::ALL);
     let form = Paragraph::new(login_info)
         .wrap(Wrap { trim: true })

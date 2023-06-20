@@ -10,7 +10,7 @@ use lma::{AnimeList, Show, Episode, Service};
 use crate::app::App;
 use super::{SelectionDirection, FocusedWindow, popup::insert_show::InsertState};
 
-pub(crate) struct StatefulList {
+pub struct StatefulList {
     shows_state: ListState,
     episodes_state: ListState,
     selecting_episode: bool,
@@ -19,9 +19,9 @@ pub(crate) struct StatefulList {
 }
 
 impl StatefulList {
-    pub(crate) fn new<T: Service>(shows: &AnimeList<T>) -> StatefulList {
+    pub(crate) fn new<T: Service>(shows: &AnimeList<T>) -> Self {
         let list_cache = shows.get_list().unwrap();
-        StatefulList {
+        Self {
             shows_state: ListState::default(),
             selecting_episode: false,
             episodes_state: ListState::default(),
@@ -46,18 +46,14 @@ impl StatefulList {
             self.move_episode_selection(direction);
         } else {
             self.update_cache(shows);
-            let i = StatefulList::select_element(self.list_cache.len(), self.shows_state.selected(), direction);
+            let i = Self::select_element(self.list_cache.len(), self.shows_state.selected(), direction);
             self.shows_state.select(Some(i));
             self.update_selected_id(i);
         }
     }
 
     fn update_selected_id(&mut self, index: usize) {
-        self.selected_local_id = if let Some(show) = self.list_cache.get(index) {
-            show.local_id
-        } else {
-            0
-        };
+        self.selected_local_id = self.list_cache.get(index).map_or(0, |show| show.local_id);
     }
 
     pub(crate) fn selected_show(&self) -> Option<&Show> {
@@ -90,7 +86,7 @@ impl StatefulList {
             return
         };
         let episodes_len = selected_show.episodes.len();
-        let i = StatefulList::select_element(
+        let i = Self::select_element(
             episodes_len,
             self.episodes_state.selected(),
             direction,
@@ -106,20 +102,17 @@ impl StatefulList {
                 .selected()
                 .unwrap_or_default();
 
-            let path = if let Some(show) = &self
+            let path = self
                 .list_cache
                 .iter()
-                .find(|show| show.local_id == self.selected_local_id) {
-                    show
-                    .episodes
-                    .get(selected_episode)
-                    .map(|episode| {
-                        episode.path.clone()
-                    })
-                    .unwrap_or_default()
-            } else {
-                PathBuf::new()
-            };
+                .find(|show| show.local_id == self.selected_local_id)
+                .as_ref()
+                .map_or_else(PathBuf::new, |show| {
+                    show.episodes
+                        .get(selected_episode)
+                        .map(|episode| episode.path.clone())
+                        .unwrap_or_default()
+                });
             
             if path.exists() && cfg!(target_os = "linux") {
                 _ = Command::new("xdg-open")
@@ -148,7 +141,7 @@ impl StatefulList {
         self.selecting_episode = false;
     }
 
-    fn select_element(
+    const fn select_element(
         list_length: usize,
         selected_element: Option<usize>,
         direction: &SelectionDirection,
@@ -170,7 +163,7 @@ impl StatefulList {
     }
 }
 
-pub(crate) fn build<B: Backend, T: Service>(frame: &mut Frame<'_, B>, app: &mut App<T>) {
+pub fn build<B: Backend, T: Service>(frame: &mut Frame<'_, B>, app: &mut App<T>) {
     let chunks = Layout::default()
         .direction(Direction::Vertical)
         .constraints([Constraint::Min(1), Constraint::Max(1)].as_ref())
@@ -316,7 +309,7 @@ impl HelpItem {
     fn new(text: &'static str, key: &'static str, highlight_color: Color) -> Self {
         let text_style = Style::default().bg(highlight_color);
         let key_style = text_style.add_modifier(Modifier::BOLD);
-        HelpItem {
+        Self {
             text,
             key,
             text_style,

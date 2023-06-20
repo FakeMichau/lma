@@ -13,7 +13,7 @@ use crate::ui::popup::episode_mismatch::MismatchPopup;
 use crate::ui::popup::title_selection::TitlesPopup;
 use crate::ui::popup::insert_show::{InsertPopup, InsertState};
 
-pub(crate) struct App<T: Service> {
+pub struct App<T: Service> {
     pub(crate) focused_window: FocusedWindow,
     pub(crate) insert_popup: InsertPopup,
     pub(crate) titles_popup: TitlesPopup,
@@ -24,10 +24,10 @@ pub(crate) struct App<T: Service> {
 }
 
 impl<T: Service> App<T> {
-    pub(crate) fn build(rt: &Runtime, config: Config) -> App<T> {
+    pub(crate) fn build(rt: &Runtime, config: Config) -> Self {
         let service = rt.block_on(lma::Service::new(config.data_dir().clone()));
         let anime_list = lma::create(service, config.data_dir());
-        App {
+        Self {
             list_state: StatefulList::new(&anime_list),
             focused_window: FocusedWindow::MainMenu,
             insert_popup: InsertPopup::default(),
@@ -72,7 +72,7 @@ impl<T: Service> App<T> {
     }
 }
 
-pub(crate) fn run<B: Backend, T: Service>(
+pub fn run<B: Backend, T: Service>(
     terminal: &mut Terminal<B>,
     mut app: app::App<T>,
     tick_rate: Duration,

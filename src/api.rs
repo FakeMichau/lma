@@ -3,7 +3,7 @@ pub mod local;
 use std::path::PathBuf;
 use async_trait::async_trait;
 
-#[derive(PartialEq)]
+#[derive(PartialEq, Eq)]
 pub enum ServiceType {
     MAL,
     Local

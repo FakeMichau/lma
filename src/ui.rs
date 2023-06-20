@@ -5,8 +5,8 @@ use ratatui::{backend::Backend, Frame};
 use tokio::runtime::Runtime;
 use crate::app;
 
-#[derive(PartialEq)]
-pub(crate) enum FocusedWindow {
+#[derive(PartialEq, Eq)]
+pub enum FocusedWindow {
     MainMenu,
     InsertPopup,
     Login,
@@ -14,13 +14,13 @@ pub(crate) enum FocusedWindow {
     EpisodeMismatch,
 }
 
-#[derive(PartialEq)]
-pub(crate) enum SelectionDirection {
+#[derive(PartialEq, Eq)]
+pub enum SelectionDirection {
     Next,
     Previous,
 }
 
-pub(crate) fn ui<B: Backend, T: Service>(frame: &mut Frame<B>, app: &mut app::App<T>, rt: &Runtime) {
+pub fn ui<B: Backend, T: Service>(frame: &mut Frame<B>, app: &mut app::App<T>, rt: &Runtime) {
     main_menu::build(frame, app);
 
     match app.focused_window {

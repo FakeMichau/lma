@@ -12,7 +12,7 @@ use crate::app::App;
 use crate::ui::{FocusedWindow, SelectionDirection};
 
 #[derive(Default)]
-pub(crate) struct InsertPopup {
+pub struct InsertPopup {
     pub(crate) path: PathBuf,
     title: String,
     pub(crate) service_id: i64,
@@ -23,8 +23,8 @@ pub(crate) struct InsertPopup {
     selected_line: usize,
 }
 
-#[derive(Default, PartialEq)]
-pub(crate) enum InsertState {
+#[derive(Default, PartialEq, Eq)]
+pub enum InsertState {
     #[default]
     None,
     Inputting,
@@ -35,7 +35,7 @@ pub(crate) enum InsertState {
 // path, title, sync_service_id, episode_count
 const ENTRY_COUNT: usize = 4;
 impl InsertPopup {
-    pub(crate) fn current_line(&self) -> usize {
+    pub(crate) const fn current_line(&self) -> usize {
         self.selected_line
     }
     // return true on return to the beginning
@@ -55,7 +55,7 @@ impl InsertPopup {
     }
 }
 
-pub(crate) fn build<B: Backend, T: Service>(frame: &mut Frame<B>, app: &mut App<T>, rt: &Runtime) {
+pub fn build<B: Backend, T: Service>(frame: &mut Frame<B>, app: &mut App<T>, rt: &Runtime) {
     let area = centered_rect(70, 70, frame.size());
     let text_area = area.inner(&Margin {
         vertical: 1,
@@ -287,7 +287,7 @@ async fn get_episodes_info<T: Service>(service: &mut T, id: u32) -> HashMap<u32,
         .collect()
 }
 
-fn generate_extra_info(recap: bool, filler: bool) -> i64 {
+const fn generate_extra_info(recap: bool, filler: bool) -> i64 {
     let mut extra_info: i64 = 0;
     if recap {
         extra_info |= 1 << 0;
@@ -299,10 +299,11 @@ fn generate_extra_info(recap: bool, filler: bool) -> i64 {
 }
 
 fn parse_number(str: &mut String) -> i64 {
-    if let Ok(number) = str.trim().parse() {
-        number
-    } else {
-        *str = String::new();
-        0
-    }
+    str.trim().parse().map_or_else(
+        |_| {
+            *str = String::new();
+            0
+        },
+        |number| number,
+    )
 }

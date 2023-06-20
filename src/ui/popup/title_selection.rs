@@ -7,21 +7,21 @@ use lma::{ServiceTitle, Service};
 use crate::{ui::SelectionDirection, app::App};
 
 #[derive(Default)]
-pub(crate) struct TitlesPopup {
+pub struct TitlesPopup {
     pub(crate) state: ListState,
     service_titles: Vec<ServiceTitle>,
 }
 
 impl TitlesPopup {
-    pub(crate) fn new(titles: Vec<ServiceTitle>) -> TitlesPopup {
-        TitlesPopup {
+    pub(crate) fn new(titles: Vec<ServiceTitle>) -> Self {
+        Self {
             state: ListState::default(),
             service_titles: titles,
         }
     }
 
     pub(crate) fn move_selection(&mut self, direction: &SelectionDirection) {
-        let i = TitlesPopup::select_element(self.service_titles.len(), self.state.selected(), direction);
+        let i = Self::select_element(self.service_titles.len(), self.state.selected(), direction);
         self.state.select(Some(i));
     }
 
@@ -34,7 +34,7 @@ impl TitlesPopup {
             }, std::clone::Clone::clone)
     }
 
-    fn select_element(
+    const fn select_element(
         list_length: usize,
         selected_element: Option<usize>,
         direction: &SelectionDirection,
@@ -54,7 +54,7 @@ impl TitlesPopup {
 
 use super::centered_rect;
 
-pub(crate) fn build<B: Backend, T: Service>(frame: &mut Frame<B>, app: &mut App<T>) {
+pub fn build<B: Backend, T: Service>(frame: &mut Frame<B>, app: &mut App<T>) {
     let area = centered_rect(70, 70, frame.size());
     let list_area = area.inner(&Margin {
         vertical: 1,

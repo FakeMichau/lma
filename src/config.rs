@@ -3,7 +3,7 @@ use directories::ProjectDirs;
 use serde::{Serialize, Deserialize};
 use ratatui::style::Color as TermColor;
 
-pub(crate) struct Config {
+pub struct Config {
     service: String,
     data_dir: PathBuf,
     colors: TermColors,
@@ -44,7 +44,7 @@ impl Default for Colors {
     }
 }
 
-pub(crate) struct TermColors {
+pub struct TermColors {
     pub(crate) text: TermColor,
     pub(crate) text_watched: TermColor,
     pub(crate) text_deleted: TermColor,
@@ -54,7 +54,7 @@ pub(crate) struct TermColors {
 
 impl From<Color> for TermColor {
     fn from(val: Color) -> Self {
-        TermColor::Rgb(val.r, val.g, val.b)
+        Self::Rgb(val.r, val.g, val.b)
     }
 }
 
@@ -106,22 +106,22 @@ impl Config {
                 .into(),
         };
 
-        Config {
+        Self {
             data_dir,
             colors: term_colors,
             service,
         }
     }
 
-    pub(crate) fn data_dir(&self) -> &PathBuf {
+    pub(crate) const fn data_dir(&self) -> &PathBuf {
         &self.data_dir
     }
 
-    pub(crate) fn colors(&self) -> &TermColors {
+    pub(crate) const fn colors(&self) -> &TermColors {
         &self.colors
     }
 
-    pub(crate) fn service(&self) -> &String {
+    pub(crate) const fn service(&self) -> &String {
         &self.service
     }
 }
@@ -132,12 +132,12 @@ impl Default for Config {
             ProjectDirs::from("", "FakeMichau", "lma").expect("Default project dirs");
         
         return if cfg!(debug_assertions) {
-            Config::new(
+            Self::new(
                 &PathBuf::default(),
                 &PathBuf::default(),
             )
         } else {
-            Config::new(
+            Self::new(
                 &project_dirs.config_dir().to_path_buf(),
                 &project_dirs.data_dir().to_path_buf(),
             )
