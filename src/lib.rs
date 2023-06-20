@@ -195,7 +195,7 @@ impl<T: Service> AnimeList<T> {
     }
 
     pub fn count_video_files(&self, path: &PathBuf) -> Result<usize, std::io::Error> {
-        Ok(AnimeList::<T>::get_video_file_paths(path)?.len())
+        Ok(Self::get_video_file_paths(path)?.len())
     }
 
     fn cleanup_title(input: &OsStr) -> String {

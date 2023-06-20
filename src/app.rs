@@ -1,5 +1,4 @@
 use std::error::Error;
-use std::io;
 use std::time::{Duration, Instant};
 use crossterm::event::{self, Event, KeyCode};
 use ratatui::{backend::Backend, Terminal};
@@ -38,29 +37,20 @@ impl<T: Service> App<T> {
         }
     }
 
-    async fn handle_login_popup_async<B: Backend>(
-        &mut self,
-        rt: &Runtime,
-        terminal: &mut Terminal<B>,
-    ) -> io::Result<()> {
-        self.anime_list.service.auth().await;
-        self.focused_window = FocusedWindow::Login;
-        terminal.draw(|f| ui(f, self, rt))?;
-        if !self.anime_list.service.is_logged_in() {
-            self.anime_list.service.login().await; // freezes the app as it waits
-            self.focused_window = FocusedWindow::MainMenu;
-            terminal.draw(|f| ui(f, self, rt)).unwrap();
-            self.focused_window = FocusedWindow::Login;
-        }
-        Ok(())
-    }
-
     fn handle_login_popup<B: Backend>(
         &mut self,
         rt: &Runtime,
         terminal: &mut Terminal<B>,
-    ) -> io::Result<()> {
-        rt.block_on(self.handle_login_popup_async(rt, terminal))?;
+    ) -> Result<(), Box<dyn Error>> {
+        rt.block_on(self.anime_list.service.auth());
+        self.focused_window = FocusedWindow::Login;
+        terminal.draw(|f| ui(f, self, rt))?;
+        if !self.anime_list.service.is_logged_in() {
+            rt.block_on(self.anime_list.service.login()); // freezes the app as it waits
+            self.focused_window = FocusedWindow::MainMenu;
+            terminal.draw(|f| ui(f, self, rt)).unwrap();
+            self.focused_window = FocusedWindow::Login;
+        }
         Ok(())
     }
 
