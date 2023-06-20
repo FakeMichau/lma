@@ -1,3 +1,5 @@
+#[allow(clippy::module_name_repetitions)]
+pub mod insert_episode;
 pub mod insert_show;
 pub mod login;
 pub mod title_selection;

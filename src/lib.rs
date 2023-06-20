@@ -237,7 +237,7 @@ impl<T: Service> AnimeList<T> {
     }
 }
 
-fn is_video_file(r: &Path) -> bool {
+pub fn is_video_file(r: &Path) -> bool {
     r.is_file() &&
     ["webm", "mkv", "vob", "ogg", "gif", "avi", "mov", "wmv", "mp4", "m4v", "3gp"]
         .into_iter()
@@ -257,6 +257,7 @@ pub struct Show {
     pub progress: i64,
 }
 
+#[derive(Default)]
 pub struct Episode {
     pub title: String,
     pub number: i64,

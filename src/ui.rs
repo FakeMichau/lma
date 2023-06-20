@@ -9,6 +9,7 @@ use crate::app;
 pub enum FocusedWindow {
     MainMenu,
     InsertPopup,
+    InsertEpisodePopup,
     Login,
     TitleSelection,
     EpisodeMismatch,
@@ -24,6 +25,7 @@ pub fn ui<B: Backend, T: Service + Send>(frame: &mut Frame<B>, app: &mut app::Ap
     main_menu::build(frame, app);
 
     match app.focused_window {
+        FocusedWindow::InsertEpisodePopup => popup::insert_episode::build(frame, app, rt),
         FocusedWindow::InsertPopup => popup::insert_show::build(frame, app, rt),
         FocusedWindow::Login => popup::login::build(frame, app),
         FocusedWindow::TitleSelection => popup::title_selection::build(frame, app),

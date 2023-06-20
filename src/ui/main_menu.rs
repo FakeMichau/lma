@@ -8,6 +8,7 @@ use ratatui::{Frame, text::{Span, Line}};
 use tokio::runtime::Runtime;
 use lma::{AnimeList, Show, Episode, Service};
 use crate::app::App;
+use super::popup::insert_episode::InsertEpisodeState;
 use super::{SelectionDirection, FocusedWindow, popup::insert_show::InsertState};
 
 pub struct StatefulList {
@@ -244,6 +245,7 @@ pub fn build<B: Backend, T: Service>(frame: &mut Frame<'_, B>, app: &mut App<T>)
     let help = build_help(
         &app.focused_window,
         &app.insert_popup.state,
+        &app.insert_episode_popup.state,
         app.config.colors().highlight_dark,
     );
 
@@ -326,7 +328,7 @@ impl HelpItem {
     }
 }
 
-fn build_help<'a>(focused_window: &FocusedWindow, insert_state: &InsertState, highlight_color: Color) -> Paragraph<'a> {
+fn build_help<'a>(focused_window: &FocusedWindow, insert_state: &InsertState, insert_episode_state: &InsertEpisodeState, highlight_color: Color) -> Paragraph<'a> {
     // Create help text at the bottom
     let navigation = HelpItem::new("Navigation", "ARROWS", highlight_color);
     let insert = HelpItem::new("Insert new show", "N", highlight_color);
@@ -336,7 +338,8 @@ fn build_help<'a>(focused_window: &FocusedWindow, insert_state: &InsertState, hi
     let start_inputting = HelpItem::new("Start inputting", "E", highlight_color);
     let confirm = HelpItem::new("Confirm", "ENTER", highlight_color);
     let login = HelpItem::new("Login to MAL", "L", highlight_color);
-    let progress = HelpItem::new("Progress", "< >", highlight_color);
+    let insert_episode = HelpItem::new("Progress", "< >", highlight_color);
+    let progress = HelpItem::new("Add episode manually", "E", highlight_color);
     let quit = HelpItem::new("Quit", "Q", highlight_color);
 
     let mut information = Vec::new();
@@ -346,6 +349,7 @@ fn build_help<'a>(focused_window: &FocusedWindow, insert_state: &InsertState, hi
             information.extend(insert.to_span());
             information.extend(delete.to_span());
             information.extend(login.to_span());
+            information.extend(insert_episode.to_span());
             information.extend(progress.to_span());
             information.extend(quit.to_span());
         }
@@ -353,6 +357,19 @@ fn build_help<'a>(focused_window: &FocusedWindow, insert_state: &InsertState, hi
             information.extend(navigation.to_span());
             match insert_state {
                 InsertState::Inputting | InsertState::Next => {
+                    information.extend(confirm.to_span());
+                    information.extend(exit_inputting.to_span());
+                }
+                _ => {
+                    information.extend(start_inputting.to_span());
+                    information.extend(close_window.to_span());
+                }
+            }
+        }
+        FocusedWindow::InsertEpisodePopup => {
+            information.extend(navigation.to_span());
+            match insert_episode_state {
+                InsertEpisodeState::Inputting => {
                     information.extend(confirm.to_span());
                     information.extend(exit_inputting.to_span());
                 }
