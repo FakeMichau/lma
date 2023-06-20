@@ -44,7 +44,6 @@ impl MismatchPopup {
             .collect()
     }
 
-
     fn parse_owned(&self) -> BTreeSet<u32> {
         self.owned_episodes
             .split(',')
@@ -78,10 +77,8 @@ impl MismatchPopup {
     }
 }
 
-use super::centered_rect;
-
 pub fn build<B: Backend, T: Service>(frame: &mut Frame<B>, app: &mut App<T>) {
-    let area = centered_rect(70, 70, frame.size());
+    let area = super::centered_rect(70, 70, frame.size());
     let inner_area = area.inner(&Margin {
         vertical: 1,
         horizontal: 1,
