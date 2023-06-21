@@ -22,13 +22,14 @@ pub struct App<T: Service> {
     pub list_state: StatefulList,
     pub anime_list: AnimeList<T>,
     pub config: Config,
+    error: String,
 }
 
 impl<T: Service + Send> App<T> {
-    pub fn build(rt: &Runtime, config: Config) -> Self {
+    pub fn build(rt: &Runtime, config: Config) -> Result<Self, String> {
         let service = rt.block_on(lma::Service::new(config.data_dir().clone()));
-        let anime_list = lma::create(service, config.data_dir());
-        Self {
+        let anime_list = lma::create(service, config.data_dir())?;
+        Ok(Self {
             list_state: StatefulList::new(&anime_list),
             focused_window: FocusedWindow::MainMenu,
             insert_popup: InsertPopup::default(),
@@ -37,7 +38,8 @@ impl<T: Service + Send> App<T> {
             mismatch_popup: MismatchPopup::default(),
             anime_list,
             config,
-        }
+            error: String::new(),
+        })
     }
 
     fn handle_login_popup<B: Backend>(
@@ -63,6 +65,14 @@ impl<T: Service + Send> App<T> {
         self.insert_popup.state = InsertState::Next;
         self.focused_window = FocusedWindow::InsertPopup;
     }
+
+    pub fn set_error(&mut self, error: String) {
+        self.error = error;
+    }
+
+    pub fn error(&self) -> &str {
+        self.error.as_ref()
+    }
 }
 
 pub fn run<B: Backend, T: Service + Send>(
@@ -80,17 +90,18 @@ pub fn run<B: Backend, T: Service + Send>(
             .unwrap_or_else(|| Duration::from_secs(0));
         if crossterm::event::poll(timeout)? {
             if let Event::Key(key) = event::read()? {
-                match app.focused_window {
-                    FocusedWindow::MainMenu => {
-                        if handle_main_menu_key(key, &mut app, rt, terminal)?.is_none() {
-                            return Ok(());
+                    match app.focused_window {
+                        FocusedWindow::MainMenu => {
+                            if handle_main_menu_key(key, &mut app, rt, terminal)?.is_none() {
+                                return Ok(());
+                            }
                         }
-                    }
-                    FocusedWindow::Login => handle_login_key(key, &mut app),
-                    FocusedWindow::InsertPopup => handle_insert_popup_key(&mut app, key),
-                    FocusedWindow::InsertEpisodePopup => handle_insert_episode_popup_key(&mut app, key),
-                    FocusedWindow::TitleSelection => handle_title_selection_key(key, &mut app),
-                    FocusedWindow::EpisodeMismatch => handle_mismatch_popup_key(key, &mut app),
+                        FocusedWindow::Login => handle_login_key(key, &mut app),
+                        FocusedWindow::InsertPopup => handle_insert_popup_key(&mut app, key),
+                        FocusedWindow::InsertEpisodePopup => handle_insert_episode_popup_key(&mut app, key),
+                        FocusedWindow::TitleSelection => handle_title_selection_key(key, &mut app),
+                        FocusedWindow::EpisodeMismatch => handle_mismatch_popup_key(key, &mut app),
+                        FocusedWindow::Error => handle_error_key(key, &mut app),
                 }
             }
         }
@@ -144,6 +155,17 @@ fn handle_login_key<T: Service>(key: event::KeyEvent, app: &mut App<T>) {
         _ => {}
     }
 }
+
+fn handle_error_key<T: Service>(key: event::KeyEvent, app: &mut App<T>) {
+    match key.code {
+        KeyCode::Esc | KeyCode::Enter => {
+            app.error = String::new();
+            app.focused_window = FocusedWindow::MainMenu;
+        },
+        _ => {}
+    }
+}
+
 
 fn handle_insert_popup_key<T: Service>(app: &mut App<T>, key: event::KeyEvent) {
     match app.insert_popup.state {

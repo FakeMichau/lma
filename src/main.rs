@@ -20,14 +20,14 @@ fn main() -> Result<(), Box<dyn Error>> {
         .build()
         .unwrap();
     
-    let config = Config::default();
+    let config = Config::default()?;
     let run_result = match config.service() {
         ServiceType::MAL => {
-            let app = app::App::<MAL>::build(&rt, config);
+            let app = app::App::<MAL>::build(&rt, config)?;
             app::run(&mut terminal, app, tick_rate, &rt)
         }
         ServiceType::Local => {
-            let app = app::App::<Local>::build(&rt, config);
+            let app = app::App::<Local>::build(&rt, config)?;
             app::run(&mut terminal, app, tick_rate, &rt)
         }
     };

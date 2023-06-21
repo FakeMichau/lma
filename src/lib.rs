@@ -267,15 +267,12 @@ pub struct Episode {
     pub filler: bool,
 }
 
-pub fn create<T: Service>(service: T, data_path: &Path) -> AnimeList<T> {
+pub fn create<T: Service>(service: T, data_path: &Path) -> Result<AnimeList<T>, String> {
     let path = data_path.join("database.db3");
-    let db_connection = match Connection::open(path) {
-        Ok(conn) => conn,
-        Err(why) => panic!("Cry - {why}"),
-    };
+    let db_connection = Connection::open(path).map_err(|err| format!("Can't create db connection {err}"))?;
     if db_connection
         .is_readonly(rusqlite::DatabaseName::Main)
-        .expect("shouldn't realistically return an error")
+        .map_err(|err| format!("Can't check if db is read only {err}"))?
     {
         panic!("Database is read-only");
     }
@@ -290,12 +287,12 @@ pub fn create<T: Service>(service: T, data_path: &Path) -> AnimeList<T> {
                 if why.to_string().contains("already exists") {
                     println!("Table creation failed: tables already exist");
                 } else {
-                    eprintln!("Table creation failed: {why}");
+                    Err::<AnimeList<T>, String>(format!("Table creation failed: {why}"))?;
                 }
             }
     };
-    AnimeList {
+    Ok(AnimeList {
         db_connection,
         service,
-    }
+    })
 }

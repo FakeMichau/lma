@@ -30,7 +30,7 @@ pub fn build<B: Backend, T: Service + Send>(frame: &mut Frame<B>, app: &mut App<
         InsertState::None => {},
         InsertState::Next => todo!(),
     }
-
+    
     let input_form = Line::from(vec![
         Span::raw("Path to the episode: "),
         Span::raw(app.insert_episode_popup.episode.path.to_string_lossy()),

@@ -385,7 +385,7 @@ fn build_help<'a>(focused_window: &FocusedWindow, insert_state: &InsertState, in
             information.extend(navigation.to_span());
             information.extend(close_window.to_span());
         }
-        FocusedWindow::EpisodeMismatch => {
+        FocusedWindow::EpisodeMismatch | FocusedWindow::Error => {
             information.extend(confirm.to_span());
             information.extend(close_window.to_span());
         },

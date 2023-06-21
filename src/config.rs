@@ -60,9 +60,9 @@ impl From<Color> for TermColor {
 }
 
 impl Config {
-    pub fn new(config_dir: &PathBuf, data_dir: &PathBuf) -> Self {
-        fs::create_dir_all(config_dir).expect("Config dir creation");
-        fs::create_dir_all(data_dir).expect("Data dir creation");
+    pub fn build(config_dir: &PathBuf, data_dir: &PathBuf) -> Result<Self, String> {
+        fs::create_dir_all(config_dir).map_err(|err| format!("Can't create config directory: {err}"))?;
+        fs::create_dir_all(data_dir).map_err(|err| format!("Can't create data directory: {err}"))?;
         let config_file = config_dir.join("Settings.toml");
 
         let default_service = if cfg!(debug_assertions) { ServiceType::Local } else { ServiceType::MAL };
@@ -74,13 +74,12 @@ impl Config {
         };
 
         let config = if config_file.exists() {
-            let data = fs::read_to_string(config_file).expect("Config can't be read");
+            let data = fs::read_to_string(config_file).map_err(|err| format!("Config can't be read: {err}"))?;
             toml::from_str(&data)
-                .map_err(|err| err.message().to_owned())
-                .expect("Can't parse the config")
+                .map_err(|err| format!("Can't parse the config: {}", err.message().to_owned()))?
         } else {
-            let default_config_str = toml::to_string(&default_config).expect("Config serialized");
-            fs::write(config_file, default_config_str).expect("Default config creation");
+            let default_config_str = toml::to_string(&default_config).map_err(|err| format!("Can't serialized the config: {err}"))?;
+            fs::write(config_file, default_config_str).map_err(|err| format!("Can't save default config: {err}"))?;
             default_config.clone()
         };
 
@@ -107,11 +106,28 @@ impl Config {
                 .into(),
         };
 
-        Self {
+        Ok(Self {
             data_dir,
             colors: term_colors,
             service,
-        }
+        })
+    }
+
+    pub fn default() -> Result<Self, String> {
+        let project_dirs = 
+            ProjectDirs::from("", "FakeMichau", "lma").unwrap_or_else(|| ProjectDirs::from_path(PathBuf::new()).unwrap());
+        
+        return if cfg!(debug_assertions) {
+            Self::build(
+                &PathBuf::default(),
+                &PathBuf::default(),
+            )
+        } else {
+            Self::build(
+                &project_dirs.config_dir().to_path_buf(),
+                &project_dirs.data_dir().to_path_buf(),
+            )
+        };
     }
 
     pub const fn data_dir(&self) -> &PathBuf {
@@ -124,24 +140,5 @@ impl Config {
 
     pub const fn service(&self) -> &ServiceType {
         &self.service
-    }
-}
-
-impl Default for Config {
-    fn default() -> Self {
-        let project_dirs = 
-            ProjectDirs::from("", "FakeMichau", "lma").expect("Default project dirs");
-        
-        return if cfg!(debug_assertions) {
-            Self::new(
-                &PathBuf::default(),
-                &PathBuf::default(),
-            )
-        } else {
-            Self::new(
-                &project_dirs.config_dir().to_path_buf(),
-                &project_dirs.data_dir().to_path_buf(),
-            )
-        };
     }
 }

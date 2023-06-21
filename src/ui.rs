@@ -4,6 +4,7 @@ use lma::Service;
 use ratatui::{backend::Backend, Frame};
 use tokio::runtime::Runtime;
 use crate::app;
+use self::popup::{insert_show::{InsertPopup, InsertState}, insert_episode::InsertEpisodePopup};
 
 #[derive(PartialEq, Eq)]
 pub enum FocusedWindow {
@@ -13,6 +14,7 @@ pub enum FocusedWindow {
     Login,
     TitleSelection,
     EpisodeMismatch,
+    Error,
 }
 
 #[derive(PartialEq, Eq)]
@@ -30,6 +32,16 @@ pub fn ui<B: Backend, T: Service + Send>(frame: &mut Frame<B>, app: &mut app::Ap
         FocusedWindow::Login => popup::login::build(frame, app),
         FocusedWindow::TitleSelection => popup::title_selection::build(frame, app),
         FocusedWindow::EpisodeMismatch => popup::episode_mismatch::build(frame, app),
-        FocusedWindow::MainMenu => {} // main menu is always drawn
+        // main menu is always drawn and error is drawn independently
+        FocusedWindow::MainMenu | FocusedWindow::Error => {}
+    }
+
+    if !app.error().is_empty() {
+        app.focused_window = FocusedWindow::Error;
+        app.insert_popup = InsertPopup::default();
+        app.insert_popup.state = InsertState::None;
+        app.insert_episode_popup = InsertEpisodePopup::default();
+        app.insert_episode_popup.state = InsertState::None;
+        popup::error::build(frame, app);
     }
 }
