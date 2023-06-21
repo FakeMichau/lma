@@ -50,7 +50,7 @@ pub struct ServiceEpisodeDetails {
 
 #[async_trait]
 pub trait Service {
-    async fn new(cache_dir: PathBuf) -> Self;
+    async fn new(cache_dir: PathBuf) -> Result<Self, String> where Self: Sized;
     async fn login(&mut self) -> Result<(), String>;
     async fn auth(&mut self);
     async fn init_show(&mut self, id: u32) -> Result<(), String>;

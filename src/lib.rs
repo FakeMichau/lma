@@ -139,7 +139,7 @@ impl<T: Service> AnimeList<T> {
 
     pub fn update_progress(&mut self, rt: &Runtime) -> Result<(), String> {
         if !self.service.is_logged_in() {
-            return Ok(()); // todo: make it an error
+            return Err(String::from("Can't progress, user not logged in"));
         }
         for show in self.get_list().map_err(|e| e.to_string())? {
             let service_id = u32::try_from(show.service_id)

@@ -27,7 +27,7 @@ pub struct App<T: Service> {
 
 impl<T: Service + Send> App<T> {
     pub fn build(rt: &Runtime, config: Config) -> Result<Self, String> {
-        let service = rt.block_on(lma::Service::new(config.data_dir().clone()));
+        let service = rt.block_on(lma::Service::new(config.data_dir().clone()))?;
         let anime_list = lma::create(service, config.data_dir())?;
         Ok(Self {
             list_state: StatefulList::new(&anime_list),

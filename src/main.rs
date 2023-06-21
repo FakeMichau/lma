@@ -17,8 +17,7 @@ fn main() -> Result<(), Box<dyn Error>> {
     let tick_rate = Duration::from_millis(250);
     let rt = tokio::runtime::Builder::new_multi_thread()
         .enable_all()
-        .build()
-        .unwrap();
+        .build()?;
 
     let config = Config::default()?;
     let run_result = match config.service() {

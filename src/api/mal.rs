@@ -16,7 +16,7 @@ pub struct MAL {
 
 #[async_trait]
 impl Service for MAL {
-    async fn new(cache_dir: PathBuf) -> Self {
+    async fn new(cache_dir: PathBuf) -> Result<Self, String> {
         let token = "8f7bd7e31dcf4f931949fc0b418c76d8".to_string();
         let client = ClientBuilder::new()
             .secret(token)
@@ -24,14 +24,14 @@ impl Service for MAL {
             .cache_dir(Some(cache_dir))
             .build_with_refresh()
             .await
-            .unwrap();
+            .map_err(|e| e.to_string())?;
 
-        Self {
+        Ok(Self {
             client,
             challenge: String::new(),
             state: String::new(),
             url: Some(String::new()),
-        }
+        })
     }
     async fn login(&mut self) -> Result<(), String> {
         let redirect_uri = "localhost:2525";

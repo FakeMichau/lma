@@ -7,8 +7,8 @@ pub struct Local {
 
 #[async_trait]
 impl Service for Local {
-    async fn new(_cache_dir: PathBuf) -> Self {
-        Self {}
+    async fn new(_cache_dir: PathBuf) -> Result<Self, String>  {
+        Ok(Self {})
     }
     async fn login(&mut self) -> Result<(), String> {
         Ok(())
