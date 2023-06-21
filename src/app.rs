@@ -6,7 +6,7 @@ use tokio::runtime::Runtime;
 use lma::{AnimeList,Service};
 use crate::app;
 use crate::config::Config;
-use crate::ui::popup::insert_episode::{InsertEpisodePopup, InsertEpisodeState};
+use crate::ui::popup::insert_episode::InsertEpisodePopup;
 use crate::ui::{FocusedWindow, SelectionDirection, ui};
 use crate::ui::main_menu::StatefulList;
 use crate::ui::popup::episode_mismatch::MismatchPopup;
@@ -122,7 +122,7 @@ fn handle_main_menu_key<B: Backend, T: Service + Send>(
         KeyCode::Char('e') => {
             if app.list_state.selected_show().is_some() {
                 app.focused_window = FocusedWindow::InsertEpisodePopup;
-                app.insert_episode_popup.state = InsertEpisodeState::Inputting;
+                app.insert_episode_popup.state = InsertState::Inputting;
             }
         }
         KeyCode::Char('l') => {
@@ -184,11 +184,11 @@ fn handle_insert_popup_key<T: Service>(app: &mut App<T>, key: event::KeyEvent) {
 
 fn handle_insert_episode_popup_key<T: Service>(app: &mut App<T>, key: event::KeyEvent) {
     match app.insert_episode_popup.state {
-        InsertEpisodeState::Inputting => match key.code {
+        InsertState::Inputting => match key.code {
             KeyCode::Char(c) => app.insert_episode_popup.data.push(c),
             KeyCode::Backspace => _ = app.insert_episode_popup.data.pop(),
-            KeyCode::Esc => app.insert_episode_popup.state = InsertEpisodeState::None,
-            KeyCode::Enter => app.insert_episode_popup.state = InsertEpisodeState::Save,
+            KeyCode::Esc => app.insert_episode_popup.state = InsertState::None,
+            KeyCode::Enter => app.insert_episode_popup.state = InsertState::Save,
             _ => {}
         },
         _ => match key.code {
@@ -196,8 +196,8 @@ fn handle_insert_episode_popup_key<T: Service>(app: &mut App<T>, key: event::Key
                 app.focused_window = FocusedWindow::MainMenu;
                 app.insert_episode_popup = InsertEpisodePopup::default();
             }
-            KeyCode::Char('e') => app.insert_episode_popup.state = InsertEpisodeState::Inputting,
-            KeyCode::Char('i') => app.insert_episode_popup.state = InsertEpisodeState::Save,
+            KeyCode::Char('e') => app.insert_episode_popup.state = InsertState::Inputting,
+            KeyCode::Char('i') => app.insert_episode_popup.state = InsertState::Save,
             _ => {}
         }
     }

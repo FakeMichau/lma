@@ -270,7 +270,7 @@ fn insert_episodes<T: Service + Send>(rt: &Runtime, app: &mut App<T>, local_id: 
     });
 }
 
-async fn get_episodes_info<T: Service + Send>(service: &mut T, id: u32) -> HashMap<u32, (String, bool, bool)> {
+pub async fn get_episodes_info<T: Service + Send>(service: &mut T, id: u32) -> HashMap<u32, (String, bool, bool)> {
     let episodes_details = service.get_episodes(id).await;
     episodes_details
         .iter()
@@ -287,7 +287,7 @@ async fn get_episodes_info<T: Service + Send>(service: &mut T, id: u32) -> HashM
         .collect()
 }
 
-const fn generate_extra_info(recap: bool, filler: bool) -> i64 {
+pub const fn generate_extra_info(recap: bool, filler: bool) -> i64 {
     let mut extra_info: i64 = 0;
     if recap {
         extra_info |= 1 << 0;

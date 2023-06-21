@@ -8,7 +8,6 @@ use ratatui::{Frame, text::{Span, Line}};
 use tokio::runtime::Runtime;
 use lma::{AnimeList, Show, Episode, Service};
 use crate::app::App;
-use super::popup::insert_episode::InsertEpisodeState;
 use super::{SelectionDirection, FocusedWindow, popup::insert_show::InsertState};
 
 pub struct StatefulList {
@@ -328,7 +327,7 @@ impl HelpItem {
     }
 }
 
-fn build_help<'a>(focused_window: &FocusedWindow, insert_state: &InsertState, insert_episode_state: &InsertEpisodeState, highlight_color: Color) -> Paragraph<'a> {
+fn build_help<'a>(focused_window: &FocusedWindow, insert_state: &InsertState, insert_episode_state: &InsertState, highlight_color: Color) -> Paragraph<'a> {
     // Create help text at the bottom
     let navigation = HelpItem::new("Navigation", "ARROWS", highlight_color);
     let insert = HelpItem::new("Insert new show", "N", highlight_color);
@@ -369,7 +368,7 @@ fn build_help<'a>(focused_window: &FocusedWindow, insert_state: &InsertState, in
         FocusedWindow::InsertEpisodePopup => {
             information.extend(navigation.to_span());
             match insert_episode_state {
-                InsertEpisodeState::Inputting => {
+                InsertState::Inputting | InsertState::Next => {
                     information.extend(confirm.to_span());
                     information.extend(exit_inputting.to_span());
                 }
