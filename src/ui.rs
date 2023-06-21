@@ -23,7 +23,11 @@ pub enum SelectionDirection {
     Previous,
 }
 
-pub fn ui<B: Backend, T: Service + Send>(frame: &mut Frame<B>, app: &mut app::App<T>, rt: &Runtime) {
+pub fn ui<B: Backend, T: Service + Send>(
+    frame: &mut Frame<B>,
+    app: &mut app::App<T>,
+    rt: &Runtime,
+) {
     let result: Result<(), String> = {
         // doesn't catch errors from main
         main_menu::build(frame, app);
@@ -34,17 +38,17 @@ pub fn ui<B: Backend, T: Service + Send>(frame: &mut Frame<B>, app: &mut app::Ap
             FocusedWindow::Login => {
                 popup::login::build(frame, app);
                 Ok(())
-            },
+            }
             FocusedWindow::TitleSelection => {
                 popup::title_selection::build(frame, app);
                 Ok(())
-            },
+            }
             FocusedWindow::EpisodeMismatch => {
                 popup::episode_mismatch::build(frame, app);
                 Ok(())
-            },
+            }
             // main menu is always drawn and error is drawn independently
-            FocusedWindow::MainMenu | FocusedWindow::Error => {Ok(())}
+            FocusedWindow::MainMenu | FocusedWindow::Error => Ok(()),
         }
     };
     app.set_error(result.err().unwrap_or_default());

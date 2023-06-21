@@ -14,7 +14,7 @@ pub struct AnimeList<T: Service> {
 }
 
 impl<T: Service> AnimeList<T> {
-    pub fn get_list(&self) -> Result<Vec<Show>> {
+    pub fn get_list(&self) -> Result<Vec<Show>, rusqlite::Error> {
         let mut stmt = self.db_connection.prepare("
             SELECT Shows.id, Shows.title, Shows.sync_service_id, Shows.progress,
             COALESCE(Episodes.episode_number, -1) AS episode_number, COALESCE(Episodes.path, '') AS path, COALESCE(Episodes.title, '') AS episode_title, COALESCE(Episodes.extra_info, 0) AS extra_info
@@ -139,34 +139,33 @@ impl<T: Service> AnimeList<T> {
 
     pub fn update_progress(&mut self, rt: &Runtime) -> Result<(), String> {
         if !self.service.is_logged_in() {
-            return Ok(()) // todo: make it an error
+            return Ok(()); // todo: make it an error
         }
-        for show in self.get_list()
-            .expect("List from the local database")
-        {
-            let service_id = u32::try_from(show.service_id).map_err(|e: std::num::TryFromIntError| e.to_string())?;
-            let user_entry_details = rt.block_on(self
-                .service
-                .get_user_entry_details(service_id)
-            )?;
+        for show in self.get_list().map_err(|e| e.to_string())? {
+            let service_id = u32::try_from(show.service_id)
+                .map_err(|e: std::num::TryFromIntError| e.to_string())?;
+            let user_entry_details =
+                rt.block_on(self.service.get_user_entry_details(service_id))?;
             let user_service_progress_current = user_entry_details
                 .map(|details| details.progress)
                 .unwrap_or_default()
                 .unwrap_or_default();
 
-            let local_progress_current = u32::try_from(show.progress).map_err(|e: std::num::TryFromIntError| e.to_string())?;
+            let local_progress_current = u32::try_from(show.progress)
+                .map_err(|e: std::num::TryFromIntError| e.to_string())?;
             match user_service_progress_current.cmp(&local_progress_current) {
                 Ordering::Greater => {
                     self.set_progress(show.local_id, i64::from(user_service_progress_current))
                         .map_err(|e| format!("Can't set progress: {e}"))?;
                     Ok(())
-                },
-                Ordering::Less => {
-                    rt.block_on(self.service.set_progress(service_id, local_progress_current))
-                },
-                Ordering::Equal => {Ok(())},
+                }
+                Ordering::Less => rt.block_on(
+                    self.service
+                        .set_progress(service_id, local_progress_current),
+                ),
+                Ordering::Equal => Ok(()),
             }?;
-        };
+        }
         Ok(())
     }
 

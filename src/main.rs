@@ -19,7 +19,7 @@ fn main() -> Result<(), Box<dyn Error>> {
         .enable_all()
         .build()
         .unwrap();
-    
+
     let config = Config::default()?;
     let run_result = match config.service() {
         ServiceType::MAL => {
