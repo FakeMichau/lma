@@ -17,7 +17,7 @@ pub struct InsertEpisodePopup {
     pub episode: Episode,
 }
 
-pub fn build<B: Backend, T: Service + Send>(frame: &mut Frame<B>, app: &mut App<T>, rt: &Runtime) {
+pub fn build<B: Backend, T: Service + Send>(frame: &mut Frame<B>, app: &mut App<T>, rt: &Runtime) -> Result<(), String> {
     let area = centered_rect(70, 70, frame.size());
     let text_area = area.inner(&Margin {
         vertical: 1,
@@ -26,7 +26,7 @@ pub fn build<B: Backend, T: Service + Send>(frame: &mut Frame<B>, app: &mut App<
 
     match app.insert_episode_popup.state {
         InsertState::Inputting => handle_inputting_state(app),
-        InsertState::Save => handle_save_state(app, rt),
+        InsertState::Save => handle_save_state(app, rt)?,
         InsertState::None => {},
         InsertState::Next => todo!(),
     }
@@ -51,19 +51,20 @@ pub fn build<B: Backend, T: Service + Send>(frame: &mut Frame<B>, app: &mut App<
     frame.render_widget(Clear, area);
     frame.render_widget(block, area);
     frame.render_widget(form, text_area);
+    Ok(())
 }
 
 fn handle_inputting_state<T: Service>(app: &mut App<T>) {
     app.insert_episode_popup.episode.path = app.insert_episode_popup.data.clone().into();
 }
 
-fn handle_save_state<T: Service + Send>(app: &mut App<T>, rt: &Runtime) {
+fn handle_save_state<T: Service + Send>(app: &mut App<T>, rt: &Runtime) -> Result<(), String> {
     if is_video_file(&app.insert_episode_popup.episode.path) {
         if let Some(show) = app.list_state.selected_show() {
             // always append episodes
             let last_episode_number = show.episodes.iter().last().map(|last_show| last_show.number).unwrap_or_default();
             app.insert_episode_popup.episode.number = last_episode_number + 1;
-            insert_episode(rt, app, show.local_id, show.service_id);
+            insert_episode(rt, app, show.local_id, show.service_id)?;
             app.insert_episode_popup.state = InsertState::None;
             app.insert_episode_popup = InsertEpisodePopup::default();
             app.list_state.update_cache(&app.anime_list);
@@ -78,6 +79,7 @@ fn handle_save_state<T: Service + Send>(app: &mut App<T>, rt: &Runtime) {
         // not a video file, give use a message?
         app.insert_episode_popup.state = InsertState::None;
     }
+    Ok(())
 }
 
 fn insert_episode<T: Service + Send>(rt: &Runtime, app: &mut App<T>, local_id: i64, service_id: i64) -> Result<(), String> {

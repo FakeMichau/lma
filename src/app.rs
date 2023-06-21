@@ -46,14 +46,14 @@ impl<T: Service + Send> App<T> {
         &mut self,
         rt: &Runtime,
         terminal: &mut Terminal<B>,
-    ) -> Result<(), Box<dyn Error>> {
+    ) -> Result<(), String> {
         rt.block_on(self.anime_list.service.auth());
         self.focused_window = FocusedWindow::Login;
-        terminal.draw(|f| ui(f, self, rt))?;
+        terminal.draw(|f| ui(f, self, rt)).map_err(|err| err.to_string())?;
         if !self.anime_list.service.is_logged_in() {
-            rt.block_on(self.anime_list.service.login()); // freezes the app as it waits
+            rt.block_on(self.anime_list.service.login())?; // freezes the app as it waits
             self.focused_window = FocusedWindow::MainMenu;
-            terminal.draw(|f| ui(f, self, rt)).unwrap();
+            terminal.draw(|f| ui(f, self, rt)).map_err(|err| err.to_string())?;
             self.focused_window = FocusedWindow::Login;
         }
         Ok(())
@@ -67,7 +67,9 @@ impl<T: Service + Send> App<T> {
     }
 
     pub fn set_error(&mut self, error: String) {
-        self.error = error;
+        if self.error.is_empty() {
+            self.error = error;
+        }
     }
 
     pub fn error(&self) -> &str {
@@ -116,13 +118,13 @@ fn handle_main_menu_key<B: Backend, T: Service + Send>(
     app: &mut App<T>,
     rt: &Runtime,
     terminal: &mut Terminal<B>,
-) -> Result<Option<bool>, Box<dyn Error>> {
+) -> Result<Option<bool>, String> {
     match key.code {
         KeyCode::Char('q') => return Ok(None),
         KeyCode::Down => app.list_state.move_selection(&SelectionDirection::Next, &app.anime_list),
         KeyCode::Up => app.list_state.move_selection(&SelectionDirection::Previous, &app.anime_list),
-        KeyCode::Char('.') => app.list_state.move_progress(&SelectionDirection::Next, &mut app.anime_list, rt),
-        KeyCode::Char(',') => app.list_state.move_progress(&SelectionDirection::Previous, &mut app.anime_list, rt),
+        KeyCode::Char('.') => app.list_state.move_progress(&SelectionDirection::Next, &mut app.anime_list, rt)?,
+        KeyCode::Char(',') => app.list_state.move_progress(&SelectionDirection::Previous, &mut app.anime_list, rt)?,
         KeyCode::Right | KeyCode::Enter => app.list_state.select(),
         KeyCode::Left => app.list_state.unselect(),
         KeyCode::Delete => app.list_state.delete(&app.anime_list)?,
@@ -138,7 +140,7 @@ fn handle_main_menu_key<B: Backend, T: Service + Send>(
         }
         KeyCode::Char('l') => {
             app.handle_login_popup(rt, terminal)?;
-            app.anime_list.update_progress(rt);
+            app.anime_list.update_progress(rt)?;
         }
         _ => {}
     }

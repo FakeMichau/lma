@@ -65,7 +65,7 @@ pub fn build<B: Backend, T: Service + Send>(frame: &mut Frame<B>, app: &mut App<
     match app.insert_popup.state {
         InsertState::Inputting => handle_inputting_state(app),
         InsertState::Next => handle_next_state(app, rt)?,
-        InsertState::Save => handle_save_state(app, rt),
+        InsertState::Save => handle_save_state(app, rt)?,
         InsertState::None => {},
     }
 
@@ -200,40 +200,42 @@ fn handle_next_state<T: Service>(app: &mut App<T>, rt: &Runtime) -> Result<(), S
     Ok(())
 }
 
-fn handle_save_state<T: Service + Send>(app: &mut App<T>, rt: &Runtime) {
+fn handle_save_state<T: Service + Send>(app: &mut App<T>, rt: &Runtime) -> Result<(), String> {
     match app.anime_list.add_show(
         &app.insert_popup.title,
         app.insert_popup.service_id,
         0,
     ) {
         Ok(local_id) => {
-            insert_episodes(rt, app, local_id);
+            insert_episodes(rt, app, local_id)?;
             rt.block_on(async {
                 app.anime_list
                     .service
                     .init_show(u32::try_from(app.insert_popup.service_id).unwrap())
-                    .await;
-            });
+                    .await
+            })
         },
         Err(why) => {
             if why.contains("constraint failed") {
                 // show with this sync_service_id or title already exists
                 // get local_id of the show with the same title
                 if let Ok(local_id) = app.anime_list.get_local_show_id(&app.insert_popup.title) {
-                    insert_episodes(rt, app, local_id);
+                    insert_episodes(rt, app, local_id)?;
                 }
                 // don't do anything more if can't get the id by title
             } else {
                 eprintln!("{why}");
             }
+            Ok(())
         },
-    }
+    }?;
     app.insert_popup.state = InsertState::None;
     app.insert_popup = InsertPopup::default();
     app.list_state.update_cache(&app.anime_list);
     app.focused_window = FocusedWindow::MainMenu;
     // to update episodes list
     app.list_state.move_selection(&SelectionDirection::Next, &app.anime_list);
+    Ok(())
 }
 
 fn insert_episodes<T: Service + Send>(rt: &Runtime, app: &mut App<T>, local_id: i64) -> Result<(), String> {

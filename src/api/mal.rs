@@ -158,7 +158,7 @@ impl Service for MAL {
         if updated_status.start_date.is_none() && progress == 1 {
             let mut update = StatusUpdate::new();
             update.start_date(&format!("{local_date}"));
-            self.update_status(id, update).await;
+            self.update_status(id, update).await?;
         }
         let episode_count = self.client
             .get_anime_details(id, AnimeFields::NumEpisodes)
@@ -178,7 +178,7 @@ impl Service for MAL {
             if updated_status.finish_date.is_none() {
                 update.finish_date(&format!("{local_date}"));
             }
-            self.update_status(id, update).await;
+            self.update_status(id, update).await?;
             // ask user for a score?
         }
         Ok(())

@@ -30,7 +30,7 @@ impl StatefulList {
         }
     }
 
-    pub fn delete<T: Service>(&mut self, shows: &AnimeList<T>) -> Result<(), Box<dyn Error>> {
+    pub fn delete<T: Service>(&mut self, shows: &AnimeList<T>) -> Result<(), String> {
         if self.selecting_episode {
             // todo: delete just an episode
         } else {
@@ -61,9 +61,9 @@ impl StatefulList {
             .get(self.shows_state.selected().unwrap_or_default())
     }
 
-    pub fn move_progress<T: Service>(&mut self, direction: &SelectionDirection, shows: &mut AnimeList<T>, rt: &Runtime) {
+    pub fn move_progress<T: Service>(&mut self, direction: &SelectionDirection, shows: &mut AnimeList<T>, rt: &Runtime) -> Result<(), String> {
         let Some(selected_show) = self.selected_show() else {
-            return
+            return Ok(())
         };
         let offset = match direction {
             SelectionDirection::Next => 1,
@@ -77,8 +77,9 @@ impl StatefulList {
                 u32::try_from(selected_show.service_id).unwrap(), 
                 u32::try_from(progress).unwrap()
             )
-        );
+        )?;
         self.update_cache(shows);
+        Ok(())
     }
 
     fn move_episode_selection(&mut self, direction: &SelectionDirection) {
