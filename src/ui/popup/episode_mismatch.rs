@@ -118,7 +118,7 @@ pub fn build<B: Backend, T: Service>(frame: &mut Frame<B>, app: &mut App<T>) {
     );
 
     frame.set_cursor(
-        main_chunks[1].x + u16::try_from(user_input.width()).unwrap(),
+        main_chunks[1].x + u16::try_from(user_input.width()).unwrap_or_default(),
         main_chunks[1].y,
     );
 

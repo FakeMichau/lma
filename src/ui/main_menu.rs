@@ -19,15 +19,15 @@ pub struct StatefulList {
 }
 
 impl StatefulList {
-    pub fn new<T: Service>(shows: &AnimeList<T>) -> Self {
-        let list_cache = shows.get_list().unwrap();
-        Self {
+    pub fn new<T: Service>(shows: &AnimeList<T>) -> Result<Self, String> {
+        let list_cache = shows.get_list().map_err(|e| e.to_string())?;
+        Ok(Self {
             shows_state: ListState::default(),
             selecting_episode: false,
             episodes_state: ListState::default(),
             selected_local_id: 0,
             list_cache,
-        }
+        })
     }
 
     pub fn delete<T: Service>(&mut self, shows: &AnimeList<T>) -> Result<(), String> {
@@ -35,21 +35,22 @@ impl StatefulList {
             // todo: delete just an episode
         } else {
             shows.remove_entry(self.selected_local_id)?;
-            self.update_cache(shows);
+            self.update_cache(shows)?;
             self.update_selected_id(self.shows_state.selected().unwrap_or_default());
         }
         Ok(())
     }
 
-    pub fn move_selection<T: Service>(&mut self, direction: &SelectionDirection, shows: &AnimeList<T>) {
+    pub fn move_selection<T: Service>(&mut self, direction: &SelectionDirection, shows: &AnimeList<T>) -> Result<(), String> {
         if self.selecting_episode {
             self.move_episode_selection(direction);
         } else {
-            self.update_cache(shows);
+            self.update_cache(shows)?;
             let i = Self::select_element(self.list_cache.len(), self.shows_state.selected(), direction);
             self.shows_state.select(Some(i));
             self.update_selected_id(i);
         }
+        Ok(())
     }
 
     fn update_selected_id(&mut self, index: usize) {
@@ -73,12 +74,11 @@ impl StatefulList {
         shows.set_progress(selected_show.local_id, progress)
             .expect("Set local progress");
         rt.block_on(
-            shows.service.set_progress(
-                u32::try_from(selected_show.service_id).unwrap(), 
-                u32::try_from(progress).unwrap()
-            )
-        )?;
-        self.update_cache(shows);
+        shows.service.set_progress(
+            u32::try_from(selected_show.service_id).map_err(|e| e.to_string())?, 
+            u32::try_from(progress).map_err(|e| e.to_string())?
+        ))?;
+        self.update_cache(shows)?;
         Ok(())
     }
 
@@ -159,8 +159,9 @@ impl StatefulList {
         }
     }
 
-    pub fn update_cache<T: Service>(&mut self, shows: &AnimeList<T>) {
-        self.list_cache = shows.get_list().unwrap();
+    pub fn update_cache<T: Service>(&mut self, shows: &AnimeList<T>) -> Result<(), String> {
+        self.list_cache = shows.get_list().map_err(|e| e.to_string())?;
+        Ok(())
     }
 }
 
@@ -281,9 +282,9 @@ fn append_extra_info(
         filler_text.to_string()
     };
     let trunc_symbol = "... ";
-    let trunc_symbol_len = u16::try_from(trunc_symbol.len()).unwrap();
+    let trunc_symbol_len = u16::try_from(trunc_symbol.len()).unwrap_or_default();
     let episode_width = new_episode.width();
-    let offset = u16::try_from(text.len()).unwrap() + u16::try_from(episode.number.checked_ilog10().unwrap_or(0) + 1).unwrap() + 3;
+    let offset = u16::try_from(text.len()).unwrap_or_default() + u16::try_from(episode.number.checked_ilog10().unwrap_or(0) + 1).unwrap_or_default() + 3;
     if episode_width > (space - offset - trunc_symbol_len + 3).into() {
         let mut trunc_episode_display_name = episode_display_name;
         trunc_episode_display_name.truncate((space - offset - trunc_symbol_len).into());

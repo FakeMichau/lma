@@ -84,25 +84,25 @@ impl Config {
         };
 
         let service = config.service.unwrap_or(default_service);
-        let data_dir = config.data_dir.unwrap_or_else(|| default_config.data_dir.unwrap());
+        let data_dir = config.data_dir.unwrap_or_else(|| default_config.data_dir.expect("Hardcoded value"));
         let colors = config.colors.unwrap_or_else(|| default_colors.clone());
         let term_colors = TermColors {
-            text: colors.text.unwrap_or_else(|| default_colors.text.unwrap()).into(),
+            text: colors.text.unwrap_or_else(|| default_colors.text.expect("Hardcoded value")).into(),
             text_watched: colors
                 .text_watched
-                .unwrap_or_else(|| default_colors.text_watched.unwrap())
+                .unwrap_or_else(|| default_colors.text_watched.expect("Hardcoded value"))
                 .into(),
             text_deleted: colors
                 .text_deleted
-                .unwrap_or_else(|| default_colors.text_deleted.unwrap())
+                .unwrap_or_else(|| default_colors.text_deleted.expect("Hardcoded value"))
                 .into(),
             highlight: colors
                 .highlight
-                .unwrap_or_else(|| default_colors.highlight.unwrap())
+                .unwrap_or_else(|| default_colors.highlight.expect("Hardcoded value"))
                 .into(),
             highlight_dark: colors
                 .highlight_dark
-                .unwrap_or_else(|| default_colors.highlight_dark.unwrap())
+                .unwrap_or_else(|| default_colors.highlight_dark.expect("Hardcoded value"))
                 .into(),
         };
 
@@ -114,8 +114,8 @@ impl Config {
     }
 
     pub fn default() -> Result<Self, String> {
-        let project_dirs = 
-            ProjectDirs::from("", "FakeMichau", "lma").unwrap_or_else(|| ProjectDirs::from_path(PathBuf::new()).unwrap());
+        let project_dirs = ProjectDirs::from("", "FakeMichau", "lma")
+            .unwrap_or_else(|| ProjectDirs::from_path(PathBuf::new()).expect("Backup default path"));
         
         return if cfg!(debug_assertions) {
             Self::build(

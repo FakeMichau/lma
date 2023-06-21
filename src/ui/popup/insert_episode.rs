@@ -40,8 +40,8 @@ pub fn build<B: Backend, T: Service + Send>(frame: &mut Frame<B>, app: &mut App<
             text_area.x
                 + u16::try_from(input_form
                     .width())
-                    .unwrap(),
-            text_area.y + u16::try_from(0).unwrap(),
+                    .unwrap_or_default(),
+            text_area.y + u16::try_from(0).unwrap_or_default(),
         );
     }
 
@@ -67,10 +67,10 @@ fn handle_save_state<T: Service + Send>(app: &mut App<T>, rt: &Runtime) -> Resul
             insert_episode(rt, app, show.local_id, show.service_id)?;
             app.insert_episode_popup.state = InsertState::None;
             app.insert_episode_popup = InsertEpisodePopup::default();
-            app.list_state.update_cache(&app.anime_list);
+            app.list_state.update_cache(&app.anime_list)?;
             app.focused_window = FocusedWindow::MainMenu;
             // to update episodes list
-            app.list_state.move_selection(&SelectionDirection::Next, &app.anime_list);
+            app.list_state.move_selection(&SelectionDirection::Next, &app.anime_list)?;
         } else {
             // show not selected, shouldn't be in this state anyway
             app.insert_episode_popup.state = InsertState::None;
@@ -85,10 +85,10 @@ fn handle_save_state<T: Service + Send>(app: &mut App<T>, rt: &Runtime) -> Resul
 fn insert_episode<T: Service + Send>(rt: &Runtime, app: &mut App<T>, local_id: i64, service_id: i64) -> Result<(), String> {
     // service_id is fine because hashmap can be empty here
     let episodes_details_hash = rt.block_on(
-        insert_show::get_episodes_info(&mut app.anime_list.service, u32::try_from(service_id).unwrap())
+        insert_show::get_episodes_info(&mut app.anime_list.service, u32::try_from(service_id).map_err(|e| e.to_string())?)
     )?;
     let episode = &app.insert_episode_popup.episode;
-    let potential_title = episodes_details_hash.get(&u32::try_from(episode.number).unwrap());
+    let potential_title = episodes_details_hash.get(&u32::try_from(episode.number).map_err(|e| e.to_string())?);
     let (title, recap, filler) = potential_title.unwrap_or(&(String::new(), false, false)).clone();
 
     if let Err(why) = app.anime_list.add_episode(

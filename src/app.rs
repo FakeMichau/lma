@@ -30,7 +30,7 @@ impl<T: Service + Send> App<T> {
         let service = rt.block_on(lma::Service::new(config.data_dir().clone()))?;
         let anime_list = lma::create(service, config.data_dir())?;
         Ok(Self {
-            list_state: StatefulList::new(&anime_list),
+            list_state: StatefulList::new(&anime_list)?,
             focused_window: FocusedWindow::MainMenu,
             insert_popup: InsertPopup::default(),
             insert_episode_popup: InsertEpisodePopup::default(),
@@ -121,8 +121,8 @@ fn handle_main_menu_key<B: Backend, T: Service + Send>(
 ) -> Result<Option<bool>, String> {
     match key.code {
         KeyCode::Char('q') => return Ok(None),
-        KeyCode::Down => app.list_state.move_selection(&SelectionDirection::Next, &app.anime_list),
-        KeyCode::Up => app.list_state.move_selection(&SelectionDirection::Previous, &app.anime_list),
+        KeyCode::Down => app.list_state.move_selection(&SelectionDirection::Next, &app.anime_list)?,
+        KeyCode::Up => app.list_state.move_selection(&SelectionDirection::Previous, &app.anime_list)?,
         KeyCode::Char('.') => app.list_state.move_progress(&SelectionDirection::Next, &mut app.anime_list, rt)?,
         KeyCode::Char(',') => app.list_state.move_progress(&SelectionDirection::Previous, &mut app.anime_list, rt)?,
         KeyCode::Right | KeyCode::Enter => app.list_state.select(),
@@ -148,11 +148,13 @@ fn handle_main_menu_key<B: Backend, T: Service + Send>(
 }
 
 #[allow(clippy::single_match)]
-fn handle_login_key<T: Service>(key: event::KeyEvent, app: &mut App<T>) {
+fn handle_login_key<T: Service + Send>(key: event::KeyEvent, app: &mut App<T>) {
     match key.code {
         KeyCode::Esc => {
             app.focused_window = FocusedWindow::MainMenu;
-            app.list_state.update_cache(&app.anime_list);
+            if let Err(err) = app.list_state.update_cache(&app.anime_list) {
+                app.set_error(err);
+            };
         },
         _ => {}
     }
