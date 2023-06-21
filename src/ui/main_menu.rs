@@ -1,4 +1,4 @@
-use std::{error::Error, path::PathBuf};
+use std::path::PathBuf;
 use std::process::{Command, Stdio};
 use ratatui::backend::Backend;
 use ratatui::layout::{Constraint, Direction, Layout};

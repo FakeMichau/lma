@@ -244,7 +244,10 @@ fn handle_mismatch_popup_key<T: Service + Send>(key: event::KeyEvent, app: &mut 
         KeyCode::Char(c) => app.mismatch_popup.owned_episodes.push(c),
         KeyCode::Backspace => _ = app.mismatch_popup.owned_episodes.pop(),
         KeyCode::Enter => {
-            app.insert_popup.episodes = app.mismatch_popup.save::<T>(&app.insert_popup.path);
+            match app.mismatch_popup.save::<T>(&app.insert_popup.path) {
+                Ok(episodes) => app.insert_popup.episodes = episodes,
+                Err(err) => app.set_error(err),
+            };
             app.focused_window = FocusedWindow::InsertPopup;
         },
         KeyCode::Esc => app.focused_window = FocusedWindow::InsertPopup,

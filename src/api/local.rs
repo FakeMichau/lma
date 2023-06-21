@@ -15,7 +15,7 @@ impl Service for Local {
     }
     async fn auth(&mut self) {
     }
-    async fn init_show(&mut self, id: u32) -> Result<(), String> {
+    async fn init_show(&mut self, _id: u32) -> Result<(), String> {
         Ok(())
     }
     async fn search_title(&mut self, _potential_title: &str) -> Result<Vec<ServiceTitle>, String> {

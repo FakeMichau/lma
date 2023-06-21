@@ -24,10 +24,10 @@ impl MismatchPopup {
             owned_episodes: String::new(),
         }
     }
-    pub fn save<T: Service>(&self, path: &PathBuf) -> Vec<Episode> {
-        let episodes = self.parse_owned();
+    pub fn save<T: Service>(&self, path: &PathBuf) -> Result<Vec<Episode>, String> {
+        let episodes = self.parse_owned()?;
         let mut episodes_iter = episodes.into_iter();
-        AnimeList::<T>::get_video_file_paths(path)
+        Ok(AnimeList::<T>::get_video_file_paths(path)
             .unwrap_or_default()
             .into_iter()
             .map(|path| Episode {
@@ -41,28 +41,28 @@ impl MismatchPopup {
                 recap: false,
                 filler: false,
             })
-            .collect()
+            .collect())
     }
 
-    fn parse_owned(&self) -> BTreeSet<u32> {
+    fn parse_owned(&self) -> Result<BTreeSet<u32>, String> {
         self.owned_episodes
             .split(',')
-            .flat_map(|slice| {
+            .map(|slice| {
                 let mut episodes_from_slice = Vec::new();
                 if slice.contains('-') {
                     let mut range = slice.split('-');
                     let min = range
                         .next()
-                        .expect("Minimum value from the range")
+                        .ok_or("Can't find minimum value from the range")?
                         .trim()
                         .parse::<u32>()
-                        .expect("Value from range must be a number");
+                        .map_err(|err| format!("Value from range must be a number: {err}"))?;
                     let max = range
                         .next()
-                        .expect("Maximum value from the range")
+                        .ok_or("Can't find maximum value from the range")?
                         .trim()
                         .parse::<u32>()
-                        .expect("Value from range must be a number");
+                        .map_err(|err| format!("Value from range must be a number {err}"))?;
                     (min..=max).for_each(|value| episodes_from_slice.push(value));
                 } else {
                     let episode = slice.trim();
@@ -71,9 +71,13 @@ impl MismatchPopup {
                             .push(episode.parse::<u32>().expect("Episode must be a number"));
                     }
                 }
-                episodes_from_slice
+                Ok(episodes_from_slice)
             })
-            .collect()
+            .flat_map(|vec| match vec {
+                Ok(vec) => vec.into_iter().map(Ok).collect(),
+                Err(er) => vec![Err(er)],
+            })
+            .collect::<Result<BTreeSet<u32>, String>>()
     }
 }
 
