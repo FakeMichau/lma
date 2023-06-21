@@ -135,35 +135,36 @@ impl<T: Service> AnimeList<T> {
             .map_err(|e| e.to_string())
     }
 
-    pub fn update_progress(&mut self, rt: &Runtime) {
+    pub fn update_progress(&mut self, rt: &Runtime) -> Result<(), String> {
         if !self.service.is_logged_in() {
-            return
+            return Ok(()) // todo: make it an error
         }
-        self.get_list()
+        for show in self.get_list()
             .expect("List from the local database")
-            .into_iter()
-            .for_each(|show| {
-                let user_entry_details = rt.block_on(self
-                    .service
-                    .get_user_entry_details(show.service_id.try_into().unwrap())
-                );
-                let user_service_progress_current = user_entry_details
-                    .map(|details| details.progress)
-                    .unwrap_or_default()
-                    .unwrap_or_default();
+        {
+            let user_entry_details = rt.block_on(self
+                .service
+                .get_user_entry_details(show.service_id.try_into().unwrap())
+            );
+            let user_service_progress_current = user_entry_details?
+                .map(|details| details.progress)
+                .unwrap_or_default()
+                .unwrap_or_default();
 
-                let local_progress_current = u32::try_from(show.progress).unwrap();
-                // progress different between local and service
-                match user_service_progress_current.cmp(&local_progress_current) {
-                    Ordering::Greater => self
-                        .set_progress(show.local_id, i64::from(user_service_progress_current))
-                        .expect("Set local progress"),
-                    Ordering::Less => rt.block_on(
-                        self.service.set_progress(u32::try_from(show.service_id).unwrap(), local_progress_current)
-                    ),
-                    Ordering::Equal => {},
-                }
-            });
+            let local_progress_current = u32::try_from(show.progress).unwrap();
+            match user_service_progress_current.cmp(&local_progress_current) {
+                Ordering::Greater => {
+                    self.set_progress(show.local_id, i64::from(user_service_progress_current))
+                        .expect("Set local progress");
+                    Ok(())
+                },
+                Ordering::Less => {
+                    rt.block_on(self.service.set_progress(u32::try_from(show.service_id).unwrap(), local_progress_current))
+                },
+                Ordering::Equal => {Ok(())},
+            }?;
+        };
+        Ok(())
     }
 
     pub fn get_video_file_paths(path: &PathBuf) -> Result<Vec<PathBuf>, std::io::Error> {

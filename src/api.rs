@@ -51,15 +51,15 @@ pub struct ServiceEpisodeDetails {
 #[async_trait]
 pub trait Service {
     async fn new(cache_dir: PathBuf) -> Self;
-    async fn login(&mut self);
+    async fn login(&mut self) -> Result<(), String>;
     async fn auth(&mut self);
-    async fn init_show(&mut self, id: u32);
-    async fn search_title(&mut self, potential_title: &str) -> Vec<ServiceTitle>;
-    async fn get_title(&mut self, id: u32) -> String;
-    async fn get_episodes(&mut self, id: u32) -> Vec<ServiceEpisodeDetails>;
-    async fn get_episode_count(&mut self, id: u32) -> Option<u32>;
-    async fn get_user_entry_details(&mut self, id: u32) -> Option<ServiceEpisodeUser>;
-    async fn set_progress(&mut self, id: u32, progress: u32);
+    async fn init_show(&mut self, id: u32) -> Result<(), String>;
+    async fn search_title(&mut self, potential_title: &str) -> Result<Vec<ServiceTitle>, String>;
+    async fn get_title(&mut self, id: u32) -> Result<String, String>;
+    async fn get_episodes(&mut self, id: u32) -> Result<Vec<ServiceEpisodeDetails>, String>;
+    async fn get_episode_count(&mut self, id: u32) -> Result<Option<u32>, String>;
+    async fn get_user_entry_details(&mut self, id: u32) -> Result<Option<ServiceEpisodeUser>, String>;
+    async fn set_progress(&mut self, id: u32, progress: u32) -> Result<(), String>;
     fn get_service_type(&self) -> ServiceType;
     fn get_url(&self) -> Option<String>;
     fn is_logged_in(&self) -> bool;

@@ -30,7 +30,7 @@ pub fn build<B: Backend, T: Service + Send>(frame: &mut Frame<B>, app: &mut App<
         InsertState::None => {},
         InsertState::Next => todo!(),
     }
-    
+
     let input_form = Line::from(vec![
         Span::raw("Path to the episode: "),
         Span::raw(app.insert_episode_popup.episode.path.to_string_lossy()),
@@ -80,11 +80,11 @@ fn handle_save_state<T: Service + Send>(app: &mut App<T>, rt: &Runtime) {
     }
 }
 
-fn insert_episode<T: Service + Send>(rt: &Runtime, app: &mut App<T>, local_id: i64, service_id: i64) {
+fn insert_episode<T: Service + Send>(rt: &Runtime, app: &mut App<T>, local_id: i64, service_id: i64) -> Result<(), String> {
     // service_id is fine because hashmap can be empty here
     let episodes_details_hash = rt.block_on(
         insert_show::get_episodes_info(&mut app.anime_list.service, u32::try_from(service_id).unwrap())
-    );
+    )?;
     let episode = &app.insert_episode_popup.episode;
     let potential_title = episodes_details_hash.get(&u32::try_from(episode.number).unwrap());
     let (title, recap, filler) = potential_title.unwrap_or(&(String::new(), false, false)).clone();
@@ -98,4 +98,5 @@ fn insert_episode<T: Service + Send>(rt: &Runtime, app: &mut App<T>, local_id: i
     ) {
         eprintln!("{why}");
     }
+    Ok(())
 }

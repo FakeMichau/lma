@@ -33,7 +33,7 @@ impl Service for MAL {
             url: Some(String::new()),
         }
     }
-    async fn login(&mut self) {
+    async fn login(&mut self) -> Result<(), String> {
         let redirect_uri = "localhost:2525";
         self.client
             .auth(redirect_uri, &self.challenge, &self.state)
@@ -41,6 +41,7 @@ impl Service for MAL {
             .expect("Unable to log in");
         self.client.need_auth = false; // should be in the library
         self.url = None;
+        Ok(())
     }
     async fn auth(&mut self) {
         self.url = if self.client.need_auth {
@@ -51,8 +52,8 @@ impl Service for MAL {
             None
         }
     }
-    async fn init_show(&mut self, id: u32) {
-        if self.get_user_entry_details(id).await.is_none() {
+    async fn init_show(&mut self, id: u32) -> Result<(), String> {
+        if self.get_user_entry_details(id).await?.is_none() {
             // add to plan to watch
             let mut update = StatusUpdate::new();
             update.status(Status::PlanToWatch);
@@ -61,15 +62,17 @@ impl Service for MAL {
                 .await
                 .expect("Update user's list"); // likely will fail
         }
+        Ok(())
     }
-    async fn search_title(&mut self, potential_title: &str) -> Vec<ServiceTitle> {
+    async fn search_title(&mut self, potential_title: &str) -> Result<Vec<ServiceTitle>, String> {
         // what does it do when it returns 0 results?
         // pad titles below 3 characters to avoid errors
         let mut padded_title = String::from(potential_title);
         while padded_title.len() < 3 {
             padded_title += r"\&nbsp";
         }
-        self.client
+        Ok(self
+            .client
             .get_anime_list(&padded_title, 20)
             .await
             .expect("MAL search result")
@@ -79,25 +82,26 @@ impl Service for MAL {
                 service_id: entry.node.id,
                 title: entry.node.title.to_string(),
             })
-            .collect()
+            .collect())
     }
-    async fn get_title(&mut self, id: u32) -> String {
-        self.client
+    async fn get_title(&mut self, id: u32) -> Result<String, String> {
+        Ok(self
+            .client
             .get_anime_details(id, AnimeFields::Title)
             .await
             .expect("Anime title") // likely will fail
             .show
-            .title
+            .title)
     }
-    async fn get_episode_count(&mut self, id: u32) -> Option<u32> {
-        self.client
+    async fn get_episode_count(&mut self, id: u32) -> Result<Option<u32>, String> {
+        Ok(self.client
             .get_anime_details(id, AnimeFields::NumEpisodes)
             .await
             .expect("Anime episode count") // likely will fail
-            .num_episodes
+            .num_episodes)
     }
-    async fn get_user_entry_details(&mut self, id: u32) -> Option<ServiceEpisodeUser> {
-        self.client
+    async fn get_user_entry_details(&mut self, id: u32) -> Result<Option<ServiceEpisodeUser>, String> {
+        Ok(self.client
             .get_anime_details(id, AnimeFields::MyListStatus)
             .await
             .expect("Anime details") // likely will fail
@@ -114,12 +118,12 @@ impl Service for MAL {
                     finish_date: episode_status.finish_date,
                     comments: episode_status.comments,
                 }
-            })
+            }))
     }
-    async fn get_episodes(&mut self, id: u32) -> Vec<ServiceEpisodeDetails> {
-        self.client
+    async fn get_episodes(&mut self, id: u32) -> Result<Vec<ServiceEpisodeDetails>, String> {
+        Ok(self.client
             .get_anime_episodes(id)
-            .await
+            .await // todo: extract mal error
             .map(|episodes| episodes.data)
             .map(|vec| {
                 vec.into_iter()
@@ -137,9 +141,9 @@ impl Service for MAL {
                 })
                 .collect::<Vec<_>>()
             })
-            .unwrap_or_default()
+            .unwrap_or_default())
     }
-    async fn set_progress(&mut self, id: u32, progress: u32) {
+    async fn set_progress(&mut self, id: u32, progress: u32) -> Result<(), String> {
         let mut update = StatusUpdate::new();
         update.num_watched_episodes(progress);
         if progress == 0 {
@@ -148,7 +152,7 @@ impl Service for MAL {
         } else {
             update.status(Status::Watching);
         }
-        let updated_status = self.update_status(id, update).await;
+        let updated_status = self.update_status(id, update).await?;
 
         let local_date = OffsetDateTime::now_utc().date();
         if updated_status.start_date.is_none() && progress == 1 {
@@ -177,6 +181,7 @@ impl Service for MAL {
             self.update_status(id, update).await;
             // ask user for a score?
         }
+        Ok(())
     }
     fn get_service_type(&self) -> ServiceType {
         ServiceType::MAL
@@ -190,11 +195,11 @@ impl Service for MAL {
 }
 
 impl MAL {
-    async fn update_status(&mut self, id: u32, update: StatusUpdate) -> ListStatus {
-        self.client
+    async fn update_status(&mut self, id: u32, update: StatusUpdate) -> Result<ListStatus, String> {
+        Ok(self.client
             .update_user_anime_status(id, update)
             .await
-            .expect("Update user's list") // likely will fail
+            .expect("Update user's list")) // likely will fail
     }
 }
 

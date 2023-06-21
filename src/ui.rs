@@ -24,17 +24,32 @@ pub enum SelectionDirection {
 }
 
 pub fn ui<B: Backend, T: Service + Send>(frame: &mut Frame<B>, app: &mut app::App<T>, rt: &Runtime) {
-    main_menu::build(frame, app);
+    let result: Result<(), String> = {
+        main_menu::build(frame, app);
 
-    match app.focused_window {
-        FocusedWindow::InsertEpisodePopup => popup::insert_episode::build(frame, app, rt),
-        FocusedWindow::InsertPopup => popup::insert_show::build(frame, app, rt),
-        FocusedWindow::Login => popup::login::build(frame, app),
-        FocusedWindow::TitleSelection => popup::title_selection::build(frame, app),
-        FocusedWindow::EpisodeMismatch => popup::episode_mismatch::build(frame, app),
-        // main menu is always drawn and error is drawn independently
-        FocusedWindow::MainMenu | FocusedWindow::Error => {}
-    }
+        match app.focused_window {
+            FocusedWindow::InsertEpisodePopup => {
+                popup::insert_episode::build(frame, app, rt);
+                Ok(())
+            },
+            FocusedWindow::InsertPopup => popup::insert_show::build(frame, app, rt),
+            FocusedWindow::Login => {
+                popup::login::build(frame, app);
+                Ok(())
+            },
+            FocusedWindow::TitleSelection => {
+                popup::title_selection::build(frame, app);
+                Ok(())
+            },
+            FocusedWindow::EpisodeMismatch => {
+                popup::episode_mismatch::build(frame, app);
+                Ok(())
+            },
+            // main menu is always drawn and error is drawn independently
+            FocusedWindow::MainMenu | FocusedWindow::Error => {Ok(())}
+        }
+    };
+    app.set_error(result.err().unwrap_or_default());
 
     if !app.error().is_empty() {
         app.focused_window = FocusedWindow::Error;
