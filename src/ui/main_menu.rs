@@ -1,4 +1,4 @@
-use std::{error::Error, path::PathBuf};
+use std::path::PathBuf;
 use std::process::{Command, Stdio};
 use ratatui::backend::Backend;
 use ratatui::layout::{Constraint, Direction, Layout};
@@ -8,7 +8,6 @@ use ratatui::{Frame, text::{Span, Line}};
 use tokio::runtime::Runtime;
 use lma::{AnimeList, Show, Episode, Service};
 use crate::app::App;
-use super::popup::insert_episode::InsertEpisodeState;
 use super::{SelectionDirection, FocusedWindow, popup::insert_show::InsertState};
 
 pub struct StatefulList {
@@ -31,7 +30,7 @@ impl StatefulList {
         }
     }
 
-    pub fn delete<T: Service>(&mut self, shows: &AnimeList<T>) -> Result<(), Box<dyn Error>> {
+    pub fn delete<T: Service>(&mut self, shows: &AnimeList<T>) -> Result<(), String> {
         if self.selecting_episode {
             // todo: delete just an episode
         } else {
@@ -62,9 +61,9 @@ impl StatefulList {
             .get(self.shows_state.selected().unwrap_or_default())
     }
 
-    pub fn move_progress<T: Service>(&mut self, direction: &SelectionDirection, shows: &mut AnimeList<T>, rt: &Runtime) {
+    pub fn move_progress<T: Service>(&mut self, direction: &SelectionDirection, shows: &mut AnimeList<T>, rt: &Runtime) -> Result<(), String> {
         let Some(selected_show) = self.selected_show() else {
-            return
+            return Ok(())
         };
         let offset = match direction {
             SelectionDirection::Next => 1,
@@ -78,8 +77,9 @@ impl StatefulList {
                 u32::try_from(selected_show.service_id).unwrap(), 
                 u32::try_from(progress).unwrap()
             )
-        );
+        )?;
         self.update_cache(shows);
+        Ok(())
     }
 
     fn move_episode_selection(&mut self, direction: &SelectionDirection) {
@@ -328,7 +328,7 @@ impl HelpItem {
     }
 }
 
-fn build_help<'a>(focused_window: &FocusedWindow, insert_state: &InsertState, insert_episode_state: &InsertEpisodeState, highlight_color: Color) -> Paragraph<'a> {
+fn build_help<'a>(focused_window: &FocusedWindow, insert_state: &InsertState, insert_episode_state: &InsertState, highlight_color: Color) -> Paragraph<'a> {
     // Create help text at the bottom
     let navigation = HelpItem::new("Navigation", "ARROWS", highlight_color);
     let insert = HelpItem::new("Insert new show", "N", highlight_color);
@@ -369,7 +369,7 @@ fn build_help<'a>(focused_window: &FocusedWindow, insert_state: &InsertState, in
         FocusedWindow::InsertEpisodePopup => {
             information.extend(navigation.to_span());
             match insert_episode_state {
-                InsertEpisodeState::Inputting => {
+                InsertState::Inputting | InsertState::Next => {
                     information.extend(confirm.to_span());
                     information.extend(exit_inputting.to_span());
                 }
@@ -386,7 +386,7 @@ fn build_help<'a>(focused_window: &FocusedWindow, insert_state: &InsertState, in
             information.extend(navigation.to_span());
             information.extend(close_window.to_span());
         }
-        FocusedWindow::EpisodeMismatch => {
+        FocusedWindow::EpisodeMismatch | FocusedWindow::Error => {
             information.extend(confirm.to_span());
             information.extend(close_window.to_span());
         },

@@ -14,7 +14,7 @@ pub struct AnimeList<T: Service> {
 }
 
 impl<T: Service> AnimeList<T> {
-    pub fn get_list(&self) -> Result<Vec<Show>> {
+    pub fn get_list(&self) -> Result<Vec<Show>, rusqlite::Error> {
         let mut stmt = self.db_connection.prepare("
             SELECT Shows.id, Shows.title, Shows.sync_service_id, Shows.progress,
             COALESCE(Episodes.episode_number, -1) AS episode_number, COALESCE(Episodes.path, '') AS path, COALESCE(Episodes.title, '') AS episode_title, COALESCE(Episodes.extra_info, 0) AS extra_info
@@ -77,7 +77,8 @@ impl<T: Service> AnimeList<T> {
             .query(params![title, sync_service_id, progress])
             .map_err(|e| e.to_string())?;
 
-        let local_id: i64 = rows.next().map_err(|e| e.to_string())?.unwrap().get(0).unwrap();
+        let row = rows.next().map_err(|e| e.to_string())?.ok_or("Can't get row")?;
+        let local_id: i64 = row.get(0).map_err(|e| e.to_string())?;
         Ok(local_id)
     }
 
@@ -94,7 +95,8 @@ impl<T: Service> AnimeList<T> {
             .query(params![title])
             .map_err(|e| e.to_string())?;
 
-        let local_id: i64 = rows.next().unwrap().unwrap().get(0).unwrap();
+        let row = rows.next().map_err(|e| e.to_string())?.ok_or("Can't get row")?;
+        let local_id: i64 = row.get(0).map_err(|e| e.to_string())?;
         Ok(local_id)
     }
 
@@ -135,48 +137,49 @@ impl<T: Service> AnimeList<T> {
             .map_err(|e| e.to_string())
     }
 
-    pub fn update_progress(&mut self, rt: &Runtime) {
+    pub fn update_progress(&mut self, rt: &Runtime) -> Result<(), String> {
         if !self.service.is_logged_in() {
-            return
+            return Err(String::from("Can't progress, user not logged in"));
         }
-        self.get_list()
-            .expect("List from the local database")
-            .into_iter()
-            .for_each(|show| {
-                let user_entry_details = rt.block_on(self
-                    .service
-                    .get_user_entry_details(show.service_id.try_into().unwrap())
-                );
-                let user_service_progress_current = user_entry_details
-                    .map(|details| details.progress)
-                    .unwrap_or_default()
-                    .unwrap_or_default();
+        for show in self.get_list().map_err(|e| e.to_string())? {
+            let service_id = u32::try_from(show.service_id)
+                .map_err(|e: std::num::TryFromIntError| e.to_string())?;
+            let user_entry_details =
+                rt.block_on(self.service.get_user_entry_details(service_id))?;
+            let user_service_progress_current = user_entry_details
+                .map(|details| details.progress)
+                .unwrap_or_default()
+                .unwrap_or_default();
 
-                let local_progress_current = u32::try_from(show.progress).unwrap();
-                // progress different between local and service
-                match user_service_progress_current.cmp(&local_progress_current) {
-                    Ordering::Greater => self
-                        .set_progress(show.local_id, i64::from(user_service_progress_current))
-                        .expect("Set local progress"),
-                    Ordering::Less => rt.block_on(
-                        self.service.set_progress(u32::try_from(show.service_id).unwrap(), local_progress_current)
-                    ),
-                    Ordering::Equal => {},
+            let local_progress_current = u32::try_from(show.progress)
+                .map_err(|e: std::num::TryFromIntError| e.to_string())?;
+            match user_service_progress_current.cmp(&local_progress_current) {
+                Ordering::Greater => {
+                    self.set_progress(show.local_id, i64::from(user_service_progress_current))
+                        .map_err(|e| format!("Can't set progress: {e}"))?;
+                    Ok(())
                 }
-            });
+                Ordering::Less => rt.block_on(
+                    self.service
+                        .set_progress(service_id, local_progress_current),
+                ),
+                Ordering::Equal => Ok(()),
+            }?;
+        }
+        Ok(())
     }
 
     pub fn get_video_file_paths(path: &PathBuf) -> Result<Vec<PathBuf>, std::io::Error> {
         if is_video_file(path) {
             return Ok(vec![path.clone()])
         }
-        let read_dir = fs::read_dir(path)?;
-        let mut files = read_dir
-            .into_iter()
-            .filter(std::result::Result::is_ok)
-            .map(|r| r.unwrap().path())
-            .filter(|p| is_video_file(p))
-            .collect::<Vec<_>>();
+        let mut files = Vec::new();
+        for entry in fs::read_dir(path)? {
+            let path = entry?.path();
+            if is_video_file(&path) {
+                files.push(path);
+            }
+        }
         files.sort();
         Ok(files)
     }
@@ -267,35 +270,29 @@ pub struct Episode {
     pub filler: bool,
 }
 
-pub fn create<T: Service>(service: T, data_path: &Path) -> AnimeList<T> {
+pub fn create<T: Service>(service: T, data_path: &Path) -> Result<AnimeList<T>, String> {
     let path = data_path.join("database.db3");
-    let db_connection = match Connection::open(path) {
-        Ok(conn) => conn,
-        Err(why) => panic!("Cry - {why}"),
-    };
-    if db_connection
-        .is_readonly(rusqlite::DatabaseName::Main)
-        .expect("shouldn't realistically return an error")
-    {
-        panic!("Database is read-only");
-    }
+    let db_connection = Connection::open(path)
+        .map_err(|err| format!("Can't create db connection {err}"))?;
+    db_connection.is_readonly(rusqlite::DatabaseName::Main)
+        .map_err(|err| format!("Can't check if db is read only {err}"))?;
     match db_connection.execute_batch(
         "
         CREATE TABLE Shows (id INTEGER PRIMARY KEY AUTOINCREMENT, title TEXT UNIQUE, sync_service_id INTEGER UNIQUE, progress INTEGER);
         CREATE TABLE Episodes (show_id INTEGER, episode_number INTEGER, path TEXT, title TEXT, extra_info INTEGER, PRIMARY KEY (show_id, episode_number), FOREIGN KEY (show_id) REFERENCES Shows(id));
         "
     ) {
-            Ok(_) => println!("Tables created"),
-            Err(why) => {
-                if why.to_string().contains("already exists") {
-                    println!("Table creation failed: tables already exist");
-                } else {
-                    eprintln!("Table creation failed: {why}");
-                }
+        Ok(_) => println!("Tables created"),
+        Err(why) => {
+            if why.to_string().contains("already exists") {
+                println!("Table creation failed: tables already exist");
+            } else {
+                Err::<AnimeList<T>, String>(format!("Table creation failed: {why}"))?;
             }
+        }
     };
-    AnimeList {
+    Ok(AnimeList {
         db_connection,
         service,
-    }
+    })
 }

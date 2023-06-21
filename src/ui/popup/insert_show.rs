@@ -55,7 +55,7 @@ impl InsertPopup {
     }
 }
 
-pub fn build<B: Backend, T: Service + Send>(frame: &mut Frame<B>, app: &mut App<T>, rt: &Runtime) {
+pub fn build<B: Backend, T: Service + Send>(frame: &mut Frame<B>, app: &mut App<T>, rt: &Runtime) -> Result<(), String> {
     let area = centered_rect(70, 70, frame.size());
     let text_area = area.inner(&Margin {
         vertical: 1,
@@ -64,8 +64,8 @@ pub fn build<B: Backend, T: Service + Send>(frame: &mut Frame<B>, app: &mut App<
 
     match app.insert_popup.state {
         InsertState::Inputting => handle_inputting_state(app),
-        InsertState::Next => handle_next_state(app, rt),
-        InsertState::Save => handle_save_state(app, rt),
+        InsertState::Next => handle_next_state(app, rt)?,
+        InsertState::Save => handle_save_state(app, rt)?,
         InsertState::None => {},
     }
 
@@ -105,6 +105,7 @@ pub fn build<B: Backend, T: Service + Send>(frame: &mut Frame<B>, app: &mut App<
     frame.render_widget(Clear, area);
     frame.render_widget(block, area);
     frame.render_widget(form, text_area);
+    Ok(())
 }
 
 fn handle_inputting_state<T: Service>(app: &mut App<T>) {
@@ -117,7 +118,7 @@ fn handle_inputting_state<T: Service>(app: &mut App<T>) {
     }
 }
 
-fn handle_next_state<T: Service>(app: &mut App<T>, rt: &Runtime) {
+fn handle_next_state<T: Service>(app: &mut App<T>, rt: &Runtime) -> Result<(), String> {
     match app.insert_popup.current_line() {
         // after going to the next line, when data in the previous one is present
         1 if !app.insert_popup.path.to_string_lossy().is_empty() && app.insert_popup.title.is_empty() => {
@@ -125,18 +126,18 @@ fn handle_next_state<T: Service>(app: &mut App<T>, rt: &Runtime) {
             app.insert_popup.title = app
                 .anime_list
                 .guess_shows_title(&app.insert_popup.path)
-                .unwrap_or_default();
+                .unwrap_or_default(); // deal with it
         }
         2 if !app.insert_popup.title.is_empty() 
             && app.insert_popup.service_id == 0 
             && app.anime_list.service.get_service_type() != ServiceType::Local => {
             // create a popup to select the exact show from a sync service
-            let items: Vec<_> = rt.block_on(async { 
+            let items = rt.block_on(async { 
                 app.anime_list
                     .service
                     .search_title(&app.insert_popup.title)
-                    .await 
-            });
+                    .await
+            })?;
             app.titles_popup = TitlesPopup::new(items);
             app.titles_popup.state.select(Some(0));
             app.focused_window = FocusedWindow::TitleSelection;
@@ -146,7 +147,7 @@ fn handle_next_state<T: Service>(app: &mut App<T>, rt: &Runtime) {
             && app.insert_popup.episode_count == 0
             && !app.insert_popup.path.to_string_lossy().is_empty() =>
         {
-            let title = rt.block_on(app.anime_list.service.get_title(u32::try_from(app.insert_popup.service_id).unwrap()));
+            let title = rt.block_on(app.anime_list.service.get_title(u32::try_from(app.insert_popup.service_id).unwrap()))?;
             if app.anime_list.service.get_service_type() != ServiceType::Local {
                 app.insert_popup.title = title; // make it a config?
             }
@@ -155,7 +156,7 @@ fn handle_next_state<T: Service>(app: &mut App<T>, rt: &Runtime) {
                 app.anime_list
                     .service
                     .get_episode_count(u32::try_from(app.insert_popup.service_id).unwrap())
-                )
+                )?
                 .unwrap_or_default();
             let video_files_count = u32::try_from(app
                 .anime_list
@@ -196,49 +197,52 @@ fn handle_next_state<T: Service>(app: &mut App<T>, rt: &Runtime) {
         _ => String::new(),
     };
     app.insert_popup.state = InsertState::Inputting;
+    Ok(())
 }
 
-fn handle_save_state<T: Service + Send>(app: &mut App<T>, rt: &Runtime) {
+fn handle_save_state<T: Service + Send>(app: &mut App<T>, rt: &Runtime) -> Result<(), String> {
     match app.anime_list.add_show(
         &app.insert_popup.title,
         app.insert_popup.service_id,
         0,
     ) {
         Ok(local_id) => {
-            insert_episodes(rt, app, local_id);
+            insert_episodes(rt, app, local_id)?;
             rt.block_on(async {
                 app.anime_list
                     .service
                     .init_show(u32::try_from(app.insert_popup.service_id).unwrap())
-                    .await;
-            });
+                    .await
+            })
         },
         Err(why) => {
             if why.contains("constraint failed") {
                 // show with this sync_service_id or title already exists
                 // get local_id of the show with the same title
                 if let Ok(local_id) = app.anime_list.get_local_show_id(&app.insert_popup.title) {
-                    insert_episodes(rt, app, local_id);
+                    insert_episodes(rt, app, local_id)?;
                 }
                 // don't do anything more if can't get the id by title
             } else {
                 eprintln!("{why}");
             }
+            Ok(())
         },
-    }
+    }?;
     app.insert_popup.state = InsertState::None;
     app.insert_popup = InsertPopup::default();
     app.list_state.update_cache(&app.anime_list);
     app.focused_window = FocusedWindow::MainMenu;
     // to update episodes list
     app.list_state.move_selection(&SelectionDirection::Next, &app.anime_list);
+    Ok(())
 }
 
-fn insert_episodes<T: Service + Send>(rt: &Runtime, app: &mut App<T>, local_id: i64) {
+fn insert_episodes<T: Service + Send>(rt: &Runtime, app: &mut App<T>, local_id: i64) -> Result<(), String> {
     // service_id is fine because hashmap can be empty here
     let episodes_details_hash = rt.block_on(
         get_episodes_info(&mut app.anime_list.service, u32::try_from(app.insert_popup.service_id).unwrap())
-    );
+    )?;
     // surely I can be smarter about it
     let episode_offset = if app.anime_list.service.get_service_type() == ServiceType::Local {
         app.anime_list.get_list().map(|shows| {
@@ -268,11 +272,12 @@ fn insert_episodes<T: Service + Send>(rt: &Runtime, app: &mut App<T>, local_id: 
             eprintln!("{why}");
         }
     });
+    Ok(())
 }
 
-async fn get_episodes_info<T: Service + Send>(service: &mut T, id: u32) -> HashMap<u32, (String, bool, bool)> {
-    let episodes_details = service.get_episodes(id).await;
-    episodes_details
+pub async fn get_episodes_info<T: Service + Send>(service: &mut T, id: u32) -> Result<HashMap<u32, (String, bool, bool)>, String> {
+    let episodes_details = service.get_episodes(id).await?;
+    Ok(episodes_details
         .iter()
         .map(|episode| {
             (
@@ -284,10 +289,10 @@ async fn get_episodes_info<T: Service + Send>(service: &mut T, id: u32) -> HashM
                 ),
             )
         })
-        .collect()
+        .collect())
 }
 
-const fn generate_extra_info(recap: bool, filler: bool) -> i64 {
+pub const fn generate_extra_info(recap: bool, filler: bool) -> i64 {
     let mut extra_info: i64 = 0;
     if recap {
         extra_info |= 1 << 0;

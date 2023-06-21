@@ -17,17 +17,16 @@ fn main() -> Result<(), Box<dyn Error>> {
     let tick_rate = Duration::from_millis(250);
     let rt = tokio::runtime::Builder::new_multi_thread()
         .enable_all()
-        .build()
-        .unwrap();
-    
-    let config = Config::default();
+        .build()?;
+
+    let config = Config::default()?;
     let run_result = match config.service() {
         ServiceType::MAL => {
-            let app = app::App::<MAL>::build(&rt, config);
+            let app = app::App::<MAL>::build(&rt, config)?;
             app::run(&mut terminal, app, tick_rate, &rt)
         }
         ServiceType::Local => {
-            let app = app::App::<Local>::build(&rt, config);
+            let app = app::App::<Local>::build(&rt, config)?;
             app::run(&mut terminal, app, tick_rate, &rt)
         }
     };
