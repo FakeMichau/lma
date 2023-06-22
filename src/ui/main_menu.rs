@@ -46,11 +46,28 @@ impl StatefulList {
             self.move_episode_selection(direction);
         } else {
             self.update_cache(shows)?;
-            let i = Self::select_element(self.list_cache.len(), self.shows_state.selected(), direction);
-            self.shows_state.select(Some(i));
-            self.update_selected_id(i);
+            self.move_show_selection(direction);
         }
         Ok(())
+    }
+
+    fn move_episode_selection(&mut self, direction: &SelectionDirection) {
+        let Some(selected_show) = self.selected_show() else {
+            return
+        };
+        let episodes_len = selected_show.episodes.len();
+        let i = Self::select_element(
+            episodes_len,
+            self.episodes_state.selected(),
+            direction,
+        );
+        self.episodes_state.select(Some(i));
+    }
+
+    fn move_show_selection(&mut self, direction: &SelectionDirection) {
+        let i = Self::select_element(self.list_cache.len(), self.shows_state.selected(), direction);
+        self.shows_state.select(Some(i));
+        self.update_selected_id(i);
     }
 
     fn update_selected_id(&mut self, index: usize) {
@@ -58,8 +75,9 @@ impl StatefulList {
     }
 
     pub fn selected_show(&self) -> Option<&Show> {
-        self.list_cache
-            .get(self.shows_state.selected().unwrap_or_default())
+        self.shows_state
+            .selected()
+            .and_then(|index| self.list_cache.get(index))
     }
 
     pub fn move_progress<T: Service>(&mut self, direction: &SelectionDirection, shows: &mut AnimeList<T>, rt: &Runtime) -> Result<(), String> {
@@ -80,19 +98,6 @@ impl StatefulList {
         ))?;
         self.update_cache(shows)?;
         Ok(())
-    }
-
-    fn move_episode_selection(&mut self, direction: &SelectionDirection) {
-        let Some(selected_show) = self.selected_show() else {
-            return
-        };
-        let episodes_len = selected_show.episodes.len();
-        let i = Self::select_element(
-            episodes_len,
-            self.episodes_state.selected(),
-            direction,
-        );
-        self.episodes_state.select(Some(i));
     }
 
     pub fn select(&mut self) {
@@ -223,8 +228,6 @@ pub fn build<B: Backend, T: Service>(frame: &mut Frame<'_, B>, app: &mut App<T>)
                     &mut new_episode,
                     main_chunks[1].width,
                     episode,
-                    episode.recap,
-                    episode.filler,
                     episode_display_name,
                     style,
                 );
@@ -264,19 +267,17 @@ fn append_extra_info(
     new_episode: &mut ListItem<'_>,
     space: u16,
     episode: &Episode,
-    recap: bool,
-    filler: bool,
     episode_display_name: String,
     style: Style,
 ) {
-    if !recap && !filler {
+    if !episode.recap && !episode.filler {
         return
     }
     let recap_text = "RECAP";
     let filler_text = "FILLER";
-    let text = if recap && filler {
+    let text = if episode.recap && episode.filler {
         format!("{recap_text}/{filler_text}")
-    } else if recap {
+    } else if episode.recap {
         recap_text.to_string()
     } else {
         filler_text.to_string()
@@ -394,4 +395,253 @@ fn build_help<'a>(focused_window: &FocusedWindow, insert_state: &InsertState, in
     };
 
     Paragraph::new(Line::from(information))
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn help_item() {
+        let highlight_color = Color::Rgb(0, 0, 0);
+        let test_item = HelpItem::new("Testing", "THINGS", highlight_color);
+
+        let text_style = Style::default().bg(highlight_color);
+        let key_style = text_style.add_modifier(Modifier::BOLD);
+        let expected_span = vec![
+            Span::styled("Testing ", text_style),
+            Span::styled("[THINGS]", key_style),
+            Span::raw(" "),
+        ];
+
+        assert_eq!(test_item.to_span(), expected_span);
+    }
+
+    #[test]
+    fn append_extra_info_recap_filler_trunc() {
+        let space = 29; // +2 because of the border
+        let episode = create_test_episode(true, true);
+        let episode_display_name = episode.title.clone();
+        let style = Style::default();
+        let mut new_episode = ListItem::new(format!("{} {}", episode.number, episode_display_name)).style(style);
+
+        append_extra_info(
+            &mut new_episode,
+            space,
+            &episode,
+            episode_display_name,
+            style,
+        );
+
+        assert_eq!(
+            new_episode,
+            ListItem::new("1 Test Epis... RECAP/FILLER")
+                .style(style)
+        );
+    }
+
+    #[test]
+    fn append_extra_info_recap_filler() {
+        let space = 40; // +2 because of the border
+        let episode = create_test_episode(true, true);
+        let episode_display_name = episode.title.clone();
+        let style = Style::default();
+        let mut new_episode = ListItem::new(format!("{} {}", episode.number, episode_display_name)).style(style);
+
+        append_extra_info(
+            &mut new_episode,
+            space,
+            &episode,
+            episode_display_name,
+            style,
+        );
+
+        assert_eq!(
+            new_episode,
+            ListItem::new("1 Test Episode            RECAP/FILLER")
+                .style(style)
+        );
+    }
+
+    #[test]
+    fn append_extra_info_filler_trunc() {
+        let space = 24; // +2 because of the border
+        let episode = create_test_episode(false, true);
+        let episode_display_name = episode.title.clone();
+        let style = Style::default();
+        let mut new_episode = ListItem::new(format!("{} {}", episode.number, episode_display_name)).style(style);
+
+        append_extra_info(
+            &mut new_episode,
+            space,
+            &episode,
+            episode_display_name,
+            style,
+        );
+
+        assert_eq!(
+            new_episode,
+            ListItem::new("1 Test Episo... FILLER")
+                .style(style)
+        );
+    }
+
+    #[test]
+    fn append_extra_info_filler() {
+        let space = 40; // +2 because of the border
+        let episode = create_test_episode(false, true);
+        let episode_display_name = episode.title.clone();
+        let style = Style::default();
+        let mut new_episode = ListItem::new(format!("{} {}", episode.number, episode_display_name)).style(style);
+
+        append_extra_info(
+            &mut new_episode,
+            space,
+            &episode,
+            episode_display_name,
+            style,
+        );
+
+        assert_eq!(
+            new_episode,
+            ListItem::new("1 Test Episode                  FILLER")
+                .style(style)
+        );
+    }
+
+    #[test]
+    fn append_extra_info_long_number() {
+        let space = 24; // +2 because of the border
+        let mut episode = create_test_episode(false, true);
+        episode.number = 420;
+        let episode_display_name = episode.title.clone();
+        let style = Style::default();
+        let mut new_episode = ListItem::new(format!("{} {}", episode.number, episode_display_name)).style(style);
+
+        append_extra_info(
+            &mut new_episode,
+            space,
+            &episode,
+            episode_display_name,
+            style,
+        );
+
+        assert_eq!(
+            new_episode,
+            ListItem::new("420 Test Epi... FILLER")
+                .style(style)
+        );
+    }
+
+    #[test]
+    fn list_first_selection() {
+        let count = 12;
+        let mut list = generate_test_stateful_list(count);
+        assert_eq!(list.selected_local_id, 0, "Check initial state");
+        // first move doesn't change anything beside selecting an element
+        // because at the start nothing is selected by default
+        list.move_show_selection(&SelectionDirection::Next);
+        assert_eq!(list.selected_local_id, 1, "Check first selection");
+    }
+
+    #[test]
+    fn list_wrap_to_end() {
+        let count = 12;
+        let mut list = generate_test_stateful_list(count);
+        list.move_show_selection(&SelectionDirection::Next);
+        list.move_show_selection(&SelectionDirection::Previous);
+        assert_eq!(list.selected_local_id, 12, "Wrapping around the list");
+    }
+
+    #[test]
+    fn list_wrap_to_start() {
+        let count = 12;
+        let mut list = generate_test_stateful_list(count);
+        list.move_show_selection(&SelectionDirection::Next);
+        for _ in 1..=count {
+            list.move_show_selection(&SelectionDirection::Next);
+        }
+        assert_eq!(list.selected_local_id, 1, "Wrapping around the list");
+    }
+
+    #[test]
+    fn list_select_next() {
+        let count = 12;
+        let mut list = generate_test_stateful_list(count);
+        list.move_show_selection(&SelectionDirection::Next);
+        list.move_show_selection(&SelectionDirection::Next);
+        assert_eq!(list.selected_local_id, 2, "Wrapping around the list");
+    }
+
+    #[test]
+    fn list_selected_show_none() {
+        let count = 12;
+        let list = generate_test_stateful_list(count);
+        let show = list.selected_show();
+        assert!(show.is_none());
+    }
+
+    #[test]
+    fn list_selected_show() {
+        let count = 12;
+        let mut list = generate_test_stateful_list(count);
+        for _ in 1..=5 {
+            list.move_show_selection(&SelectionDirection::Next);
+        }
+        let show = list.selected_show().expect("5th show");
+        assert_eq!(show.local_id, 5);
+        assert_eq!(show.title, "Test Show 5");
+    }
+
+    fn create_test_episode(recap: bool, filler: bool) -> Episode {
+        Episode { 
+            title: String::from("Test Episode"), 
+            number: 1, 
+            path: PathBuf::from("/path/just/for/testing.mp4"), 
+            file_deleted: false, 
+            recap, 
+            filler 
+        }
+    }
+
+    fn generate_test_stateful_list(count: i64) -> StatefulList {
+        StatefulList { 
+            shows_state: ListState::default(), 
+            episodes_state: ListState::default(), 
+            selecting_episode: false, 
+            selected_local_id: 0, 
+            list_cache: generate_test_shows(count),
+        }
+    }
+
+    fn generate_test_episodes(count: i64) -> Vec<Episode> {
+        let mut episodes = Vec::new();
+        for i in 1..=count {
+            let episode = Episode { 
+                title: format!("Test Episode {i}"),
+                number: i, 
+                path: PathBuf::from("/path/just/for/testing.mp4"), 
+                file_deleted: false, 
+                recap: false, 
+                filler: false 
+            };
+            episodes.push(episode);
+        }
+        episodes
+    }
+
+    fn generate_test_shows(count: i64) -> Vec<Show> {
+        let mut shows = Vec::new();
+        for i in 1..=count {
+            let show = Show {
+                local_id: i,
+                title: format!("Test Show {i}"),
+                service_id: 100 + i,
+                episodes: generate_test_episodes(count),
+                progress: i%4,
+            };
+            shows.push(show);
+        }
+        shows
+    }
 }

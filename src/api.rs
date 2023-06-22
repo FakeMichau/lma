@@ -4,7 +4,7 @@ use std::path::PathBuf;
 use serde::{Serialize, Deserialize};
 use async_trait::async_trait;
 
-#[derive(Serialize, Deserialize, PartialEq, Eq, Clone)]
+#[derive(Serialize, Deserialize, PartialEq, Eq, Clone, Debug)]
 pub enum ServiceType {
     MAL,
     Local
