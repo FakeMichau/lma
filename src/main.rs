@@ -4,6 +4,7 @@ mod ui;
 use config::Config;
 use crossterm::execute;
 use crossterm::terminal::{disable_raw_mode, enable_raw_mode, EnterAlternateScreen, LeaveAlternateScreen};
+use lib_mal::MALClient;
 use lma::ServiceType;
 use ratatui::{backend::CrosstermBackend, Terminal};
 use std::error::Error;
@@ -22,7 +23,7 @@ fn main() -> Result<(), Box<dyn Error>> {
     let config = Config::default()?;
     let run_result = match config.service() {
         ServiceType::MAL => {
-            let app = app::App::<MAL>::build(&rt, config)?;
+            let app = app::App::<MAL<MALClient>>::build(&rt, config)?;
             app::run(&mut terminal, app, tick_rate, &rt)
         }
         ServiceType::Local => {

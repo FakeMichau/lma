@@ -716,7 +716,7 @@ checksum = "e2abad23fbc42b3700f2f279844dc832adb2b2eb069b2df918f455c4e18cc646"
 [[package]]
 name = "lib-mal"
 version = "0.6.0"
-source = "git+https://github.com/FakeMichau/lib-mal.git#b9bcb297db14fdef496288fdf21d4bbd70bb2119"
+source = "git+https://github.com/FakeMichau/lib-mal.git#a85fb9bff5536ac2c35c1e637a77c4bfa0336758"
 dependencies = [
  "aes-gcm",
  "async-trait",
