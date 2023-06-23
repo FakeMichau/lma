@@ -304,6 +304,7 @@ pub const fn generate_extra_info(recap: bool, filler: bool) -> i64 {
     extra_info
 }
 
+/// Clears the string on an invalid number
 fn parse_number(str: &mut String) -> i64 {
     str.trim().parse().map_or_else(
         |_| {
@@ -312,4 +313,68 @@ fn parse_number(str: &mut String) -> i64 {
         },
         |number| number,
     )
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    
+    #[test]
+    fn test_current_line() {
+        let insert_popup = InsertPopup::default();
+        assert_eq!(insert_popup.current_line(), insert_popup.selected_line);
+    }
+
+    #[test]
+    fn first_selection() {
+        let insert_popup = InsertPopup::default();
+        assert_eq!(insert_popup.current_line(), 0);
+    }
+
+    #[test]
+    fn wrap_to_end() {
+        let mut insert_popup = InsertPopup::default();
+        insert_popup.move_line_selection(&SelectionDirection::Previous);
+        assert_eq!(insert_popup.current_line(), 3);
+    }
+
+    #[test]
+    fn wrap_to_start() {
+        let mut insert_popup = InsertPopup::default();
+        for _ in 0..=3 {
+            insert_popup.move_line_selection(&SelectionDirection::Next);
+        }
+        assert_eq!(insert_popup.current_line(), 0);
+    }
+
+    #[test]
+    fn test_generate_extra_info() {
+        let result = generate_extra_info(false, false);
+        assert_eq!(result, 0);
+        
+        let result = generate_extra_info(true, false);
+        assert_eq!(result, 1);
+        
+        let result = generate_extra_info(false, true);
+        assert_eq!(result, 2);
+        
+        let result = generate_extra_info(true, true);
+        assert_eq!(result, 3);
+    }
+    
+    #[test]
+    fn valid_parse_number() {
+        let mut input = "123".to_owned();
+        let result = parse_number(&mut input);
+        assert_eq!(result, 123);
+        assert_eq!(input, "123");
+    }
+
+    #[test]
+    fn invalid_parse_number() {
+        let mut input = "abc".to_owned();
+        let result = parse_number(&mut input);
+        assert_eq!(result, 0);
+        assert_eq!(input, "");
+    }
 }
