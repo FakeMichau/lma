@@ -141,7 +141,6 @@ fn handle_next_state<T: Service>(app: &mut App<T>, rt: &Runtime) -> Result<(), S
                     .await
             })?;
             app.titles_popup = TitlesPopup::new(items);
-            app.titles_popup.state.select(Some(0));
             app.focused_window = FocusedWindow::TitleSelection;
         }
         3 if ((app.anime_list.service.get_service_type() == ServiceType::MAL && app.insert_popup.service_id != 0) || 

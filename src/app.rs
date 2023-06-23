@@ -60,8 +60,12 @@ impl<T: Service + Send> App<T> {
     }
 
     fn fill_with_api_data(&mut self) {
-        let selected_show = self.titles_popup.selected_show();
-        self.insert_popup.service_id = i64::from(selected_show.service_id);
+        self.insert_popup.service_id = i64::from(
+            self.titles_popup
+                .selected_show()
+                .map(|show| show.service_id)
+                .unwrap_or_default(),
+        );
         self.insert_popup.state = InsertState::Next;
         self.focused_window = FocusedWindow::InsertPopup;
     }
