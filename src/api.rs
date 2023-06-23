@@ -4,18 +4,19 @@ use std::path::PathBuf;
 use serde::{Serialize, Deserialize};
 use async_trait::async_trait;
 
-#[derive(Serialize, Deserialize, PartialEq, Eq, Clone)]
+#[derive(Serialize, Deserialize, PartialEq, Eq, Clone, Debug)]
 pub enum ServiceType {
     MAL,
     Local
 }
 
-#[derive(Clone)]
+#[derive(Clone, PartialEq, Eq, Debug)]
 pub struct ServiceTitle {
     pub service_id: u32,
     pub title: String,
 }
 
+#[derive(PartialEq, Eq, Debug)]
 pub struct ServiceEpisodeUser {
     pub status: Option<EpisodeStatus>,
     pub progress: Option<u32>,
@@ -28,6 +29,7 @@ pub struct ServiceEpisodeUser {
     pub comments: Option<String>,
 }
 
+#[derive(PartialEq, Eq, Debug)]
 pub enum EpisodeStatus {
     None,
     Watching,
@@ -37,6 +39,7 @@ pub enum EpisodeStatus {
     PlanToWatch,
 }
 
+#[derive(PartialEq, Eq, Debug)]
 pub struct ServiceEpisodeDetails {
     pub number: Option<u32>,
     pub title: Option<String>,

@@ -46,3 +46,49 @@ impl Service for Local {
         Some("Using local service stub".to_owned())
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    
+    #[tokio::test]
+    async fn test_local_service() {
+        let result = Local::new(PathBuf::new()).await;
+        assert!(result.is_ok());
+
+        let mut local_service = Local {};
+        
+        let result = local_service.login().await;
+        assert!(result.is_ok());
+        
+        let result = local_service.init_show(123).await;
+        assert!(result.is_ok());
+        
+        let result = local_service.search_title("some_title").await;
+        assert_eq!(result, Ok(Vec::new()));
+        
+        let result = local_service.get_title(456).await;
+        assert_eq!(result, Ok(String::new()));
+        
+        let result = local_service.get_episode_count(789).await;
+        assert_eq!(result, Ok(None));
+        
+        let result = local_service.get_user_entry_details(111).await;
+        assert_eq!(result, Ok(None));
+        
+        let result = local_service.get_episodes(222).await;
+        assert_eq!(result, Ok(Vec::new()));
+        
+        let result = local_service.set_progress(333, 50).await;
+        assert!(result.is_ok());
+        
+        let service_type = local_service.get_service_type();
+        assert_eq!(service_type, ServiceType::Local);
+        
+        let is_logged_in = local_service.is_logged_in();
+        assert!(is_logged_in);
+        
+        let url = local_service.get_url();
+        assert_eq!(url, Some("Using local service stub".to_owned()));
+    }
+}

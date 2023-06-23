@@ -14,8 +14,11 @@ pub struct TitlesPopup {
 
 impl TitlesPopup {
     pub fn new(titles: Vec<ServiceTitle>) -> Self {
+        let mut default_state = ListState::default();
+        // first item always selected when possible
+        if !titles.is_empty() { default_state.select(Some(0)); }
         Self {
-            state: ListState::default(),
+            state: default_state,
             service_titles: titles,
         }
     }
@@ -25,13 +28,13 @@ impl TitlesPopup {
         self.state.select(Some(i));
     }
 
-    pub fn selected_show(&self) -> ServiceTitle {
-        self.service_titles
-            .get(self.state.selected().unwrap_or_default())
-            .map_or(ServiceTitle {
-                service_id: 0,
-                title: String::new(),
-            }, std::clone::Clone::clone)
+    pub fn selected_show(&mut self) -> Option<&ServiceTitle> {
+        if self.service_titles.is_empty() {
+            None
+        } else {
+            let index = self.state.selected().unwrap_or_default();
+            self.service_titles.get(index)
+        }
     }
 
     const fn select_element(
@@ -80,4 +83,64 @@ pub fn build<B: Backend, T: Service>(frame: &mut Frame<B>, app: &mut App<T>) {
 
     frame.render_widget(Clear, area);
     frame.render_stateful_widget(items, list_area, &mut app.titles_popup.state);
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn first_selection() {
+        let mut list = generate_title_popup(6);
+        assert!(list.selected_show().is_some());
+    }
+
+    #[test]
+    fn empty_first_selection() {
+        let mut list = TitlesPopup::new(Vec::new());
+        assert!(list.selected_show().is_none());
+    }
+
+    #[test]
+    fn empty_move_selection() {
+        let mut list = TitlesPopup::new(Vec::new());
+        list.move_selection(&SelectionDirection::Previous);
+        list.move_selection(&SelectionDirection::Previous);
+        list.move_selection(&SelectionDirection::Next);
+        list.move_selection(&SelectionDirection::Next);
+        assert!(list.selected_show().is_none());
+    }
+
+    #[test]
+    fn wrap_to_end() {
+        let mut list = generate_title_popup(6);
+        list.move_selection(&SelectionDirection::Previous);
+        let selected_show = list.selected_show().expect("6th show");
+        assert_eq!(selected_show.service_id, 6);
+    }
+
+    #[test]
+    fn wrap_to_start() {
+        let mut list = generate_title_popup(6);
+        for _ in 1..=6 {
+            list.move_selection(&SelectionDirection::Next);
+        }
+        let selected_show = list.selected_show().expect("First show");
+        assert_eq!(selected_show.service_id, 1);
+    }
+
+    fn generate_title_popup(count: u32) -> TitlesPopup {
+        TitlesPopup::new(generate_title_services(count))
+    }
+
+    fn generate_title_services(count: u32) -> Vec<ServiceTitle> {
+        let mut service_titles = Vec::new();
+        for i in 1..=count {
+            service_titles.push(ServiceTitle {
+                service_id: i,
+                title: format!("Test title {i}"),
+            });
+        }
+        service_titles
+    }
 }

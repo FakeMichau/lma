@@ -4,18 +4,18 @@ use time::OffsetDateTime;
 use lib_mal::prelude::fields::AnimeFields;
 use lib_mal::prelude::options::{Status, StatusUpdate};
 use lib_mal::prelude::ListStatus;
-use lib_mal::{ClientBuilder, MALClient};
+use lib_mal::{ClientBuilder, MALClientTrait};
 use crate::{ServiceTitle, Service, ServiceType, ServiceEpisodeUser, EpisodeStatus, ServiceEpisodeDetails};
 
-pub struct MAL {
-    client: MALClient,
+pub struct MAL<T> {
+    client: T,
     challenge: String,
     state: String,
     url: Option<String>,
 }
 
 #[async_trait]
-impl Service for MAL {
+impl<T: MALClientTrait + Send + Sync> Service for MAL<T> {
     async fn new(cache_dir: PathBuf) -> Result<Self, String> {
         let token = "8f7bd7e31dcf4f931949fc0b418c76d8".to_string();
         let client = ClientBuilder::new()
@@ -38,13 +38,12 @@ impl Service for MAL {
         self.client
             .auth(redirect_uri, &self.challenge, &self.state)
             .await
-            .expect("Unable to log in");
-        self.client.need_auth = false; // should be in the library
+            .map_err(|err| err.to_string())?;
         self.url = None;
         Ok(())
     }
     async fn auth(&mut self) {
-        self.url = if self.client.need_auth {
+        self.url = if self.client.need_auth() {
             let url;
             (url, self.challenge, self.state) = self.client.get_auth_parts();
             Some(url)
@@ -187,14 +186,14 @@ impl Service for MAL {
         ServiceType::MAL
     }
     fn is_logged_in(&self) -> bool {
-        !self.client.need_auth
+        !self.client.need_auth()
     }
     fn get_url(&self) -> Option<String> {
         self.url.clone()
     }
 }
 
-impl MAL {
+impl<T: MALClientTrait + Send + Sync> MAL<T> {
     async fn update_status(&mut self, id: u32, update: StatusUpdate) -> Result<ListStatus, String> {
         Ok(self.client
             .update_user_anime_status(id, update)
@@ -214,4 +213,130 @@ fn to_episode_status(status: Option<String>) -> Option<EpisodeStatus> {
             _ => EpisodeStatus::None,
         }
     })
+}
+
+#[cfg(test)]
+mod tests {
+    use lib_mal::MockMALClient;
+    use reqwest::Client;
+
+    use super::*;
+
+    #[tokio::test]
+    async fn test_init_show() {
+        let mut client = create_logged_in_client().await;
+        let p2w = client.init_show(30230).await;
+        let not_on_list = client.init_show(21).await;
+        assert!(p2w.is_ok());
+        assert!(not_on_list.is_ok());
+    }
+
+    #[tokio::test]
+    async fn test_search() {
+        let mut client = create_logged_in_client().await;
+        let search_result = client.search_title("doesn't matter").await;
+        assert!(search_result.is_ok());
+
+        let search_vec = search_result.unwrap();
+        assert_eq!(search_vec.len(), 3);
+
+        let last_opt = search_vec.get(2);
+        assert!(last_opt.is_some());
+
+        let last = last_opt.unwrap();
+        assert_eq!(last.service_id, 459);
+    }
+
+    #[tokio::test]
+    async fn test_get_title() {
+        let mut client = create_logged_in_client().await;
+        let title_result = client.get_title(21).await;
+        assert!(title_result.is_ok());
+        let title = title_result.unwrap();
+        assert_eq!(title, "One Piece");
+    }
+
+    #[tokio::test]
+    async fn test_get_episode_count() {
+        let mut client = create_logged_in_client().await;
+        let count_result = client.get_episode_count(21).await;
+        assert!(count_result.is_ok());
+        let count = count_result.unwrap();
+        assert_eq!(count, Some(0));
+
+        let count_result = client.get_episode_count(30230).await;
+        assert!(count_result.is_ok());
+        let count = count_result.unwrap();
+        assert_eq!(count, Some(51));
+    }
+
+    #[tokio::test]
+    async fn test_get_user_entry_details() {
+        // not on user's list
+        let mut client = create_logged_in_client().await;
+        let details_result = client.get_user_entry_details(21).await;
+        assert!(details_result.is_ok());
+        let details = details_result.unwrap();
+        assert!(details.is_none());
+
+        // plan to watch
+        let details_result = client.get_user_entry_details(30230).await;
+        assert!(details_result.is_ok());
+        let details = details_result.unwrap();
+        assert!(details.is_some());
+        let details = details.unwrap();
+        assert_eq!(details.status, Some(EpisodeStatus::PlanToWatch));
+        assert_eq!(details.score, Some(0));
+        assert_eq!(details.rewatch_count, Some(0));
+        assert_eq!(details.is_rewatching, Some(false));
+        assert_eq!(details.updated_at, Some(String::from("2017-11-11T19:51:22+00:00")));
+    }
+
+    #[tokio::test]
+    async fn test_get_anime_episodes() {
+        let mut client = create_logged_in_client().await;
+        let episodes_result = client.get_episodes(21).await;
+        assert!(episodes_result.is_ok());
+        let episodes = episodes_result.unwrap();
+        // mocked get_anime_episodes returns an empty vector
+        assert!(episodes.is_empty());
+    }
+
+    #[tokio::test]
+    async fn test_get_url_not_logged_in() {
+        let mut client = generate_test_client();
+        client.auth().await;
+        let url = client.get_url().unwrap();
+        assert!(url.contains("https://example.com/&client_id=client_secret"));
+    }
+
+    #[tokio::test]
+    async fn test_get_url_logged_in() {
+        let mut client = create_logged_in_client().await;
+        client.auth().await;
+        let url = client.get_url();
+        assert!(url.is_none());
+    }
+
+    async fn create_logged_in_client() -> MAL::<MockMALClient> {
+        let mut client = generate_test_client();
+        _=client.login().await;
+        client
+    }
+
+    fn generate_test_client() -> MAL::<MockMALClient> {
+        MAL::<MockMALClient> {
+            client: MockMALClient::new(
+                String::from("client_secret"), 
+                PathBuf::new(), 
+                String::new(), 
+                Client::new(), 
+                false, 
+                true
+            ),
+            challenge: String::new(),
+            state: String::new(),
+            url: Some(String::new()),
+        }
+    }
 }
