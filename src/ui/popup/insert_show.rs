@@ -333,15 +333,15 @@ mod tests {
 
     #[test]
     fn wrap_to_end() {
-        let mut insert_popup = InsertPopup::default();
+        let mut insert_popup = InsertPopup { state: InsertState::Inputting, ..Default::default() };
         insert_popup.move_line_selection(&SelectionDirection::Previous);
         assert_eq!(insert_popup.current_line(), 3);
     }
 
     #[test]
     fn wrap_to_start() {
-        let mut insert_popup = InsertPopup::default();
-        for _ in 0..=3 {
+        let mut insert_popup = InsertPopup { state: InsertState::Inputting, ..Default::default() };
+        for _ in 1..=4 {
             insert_popup.move_line_selection(&SelectionDirection::Next);
         }
         assert_eq!(insert_popup.current_line(), 0);
