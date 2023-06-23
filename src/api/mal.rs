@@ -4,7 +4,7 @@ use time::OffsetDateTime;
 use lib_mal::prelude::fields::AnimeFields;
 use lib_mal::prelude::options::{Status, StatusUpdate};
 use lib_mal::prelude::ListStatus;
-use lib_mal::{ClientBuilder, MALClient};
+use lib_mal::{ClientBuilder, MALClient, MALClientTrait};
 use crate::{ServiceTitle, Service, ServiceType, ServiceEpisodeUser, EpisodeStatus, ServiceEpisodeDetails};
 
 pub struct MAL {
