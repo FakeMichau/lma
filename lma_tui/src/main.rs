@@ -4,13 +4,13 @@ mod ui;
 use config::Config;
 use crossterm::execute;
 use crossterm::terminal::{disable_raw_mode, enable_raw_mode, EnterAlternateScreen, LeaveAlternateScreen};
-use lib_mal::MALClient;
-use lma::ServiceType;
+use lma_lib::MALClient;
+use lma_lib::ServiceType;
 use ratatui::{backend::CrosstermBackend, Terminal};
 use std::error::Error;
 use std::io::{self, Stdout};
 use std::time::Duration;
-use lma::{local::Local, mal::MAL};
+use lma_lib::{local::Local, mal::MAL};
 
 fn main() -> Result<(), Box<dyn Error>> {
     let mut terminal = setup_terminal()?;

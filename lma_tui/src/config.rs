@@ -1,6 +1,6 @@
 use std::{path::PathBuf, fs};
 use directories::ProjectDirs;
-use lma::ServiceType;
+use lma_lib::ServiceType;
 use serde::{Serialize, Deserialize};
 use ratatui::style::Color as TermColor;
 

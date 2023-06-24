@@ -6,7 +6,7 @@ use ratatui::style::{Color, Modifier, Style};
 use ratatui::widgets::{Block, Borders, List, ListItem, ListState, Paragraph};
 use ratatui::{Frame, text::{Span, Line}};
 use tokio::runtime::Runtime;
-use lma::{AnimeList, Show, Episode, Service};
+use lma_lib::{AnimeList, Show, Episode, Service};
 use crate::app::App;
 use super::{SelectionDirection, FocusedWindow, popup::insert_show::InsertState};
 

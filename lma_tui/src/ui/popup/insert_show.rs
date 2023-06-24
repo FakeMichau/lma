@@ -6,7 +6,7 @@ use ratatui::text::{Line, Span};
 use ratatui::widgets::{Block, Borders, Clear, Paragraph};
 use ratatui::Frame;
 use tokio::runtime::Runtime;
-use lma::{Episode, AnimeList, Service, ServiceType};
+use lma_lib::{Episode, AnimeList, Service, ServiceType};
 use super::{centered_rect, title_selection::TitlesPopup, episode_mismatch::MismatchPopup};
 use crate::app::App;
 use crate::ui::{FocusedWindow, SelectionDirection};

@@ -4,7 +4,7 @@ use ratatui::text::{Line, Span};
 use ratatui::widgets::{Block, Borders, Clear, Paragraph};
 use ratatui::Frame;
 use tokio::runtime::Runtime;
-use lma::{Episode, Service, is_video_file};
+use lma_lib::{Episode, Service, is_video_file};
 use super::insert_show::InsertState;
 use super::{centered_rect, insert_show};
 use crate::app::App;

@@ -1,0 +1,15 @@
+[package]
+name = "lma_tui"
+version = "0.1.0"
+edition = "2021"
+
+# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+
+[dependencies]
+ratatui = "0.21.0"
+crossterm = "0.26"
+tokio = { version = "1.28.2", features = ["rt-multi-thread", "macros"] }
+directories = "5.0"
+serde = "1.0"
+toml = "0.7"
+lma_lib = { path = "../lma_lib" }

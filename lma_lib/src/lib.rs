@@ -1,5 +1,6 @@
 pub use api::*;
 pub mod api;
+pub use lib_mal::*;
 use std::ffi::OsStr;
 use std::fs;
 use std::collections::HashMap;

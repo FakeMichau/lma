@@ -4,7 +4,7 @@ use ratatui::style::{Modifier, Style, Color};
 use ratatui::text::{Line, Span};
 use ratatui::widgets::{Block, Borders, Clear, Paragraph, Wrap};
 use ratatui::Frame;
-use lma::Service;
+use lma_lib::Service;
 use crate::app::App;
 use super::centered_rect;
 

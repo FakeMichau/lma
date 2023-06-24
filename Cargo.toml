@@ -1,19 +1,6 @@
-[package]
-name = "lma"
-version = "0.1.0"
-edition = "2021"
+[workspace]
 
-# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
-
-[dependencies]
-rusqlite = { version = "0.29.0", features = ["bundled"] }
-ratatui = "0.21.0"
-crossterm = "0.26"
-reqwest = "0.11"
-tokio = { version = "1.28.2", features = ["rt-multi-thread", "macros"] }
-time = { version = "0.3", features = ["macros"] }
-lib-mal = { git = "https://github.com/FakeMichau/lib-mal.git" }
-directories = "5.0"
-serde = "1.0"
-toml = "0.7"
-async-trait = "0.1.68"
+members = [
+    "lma_tui",
+    "lma_lib",
+]

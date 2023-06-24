@@ -3,7 +3,7 @@ use ratatui::layout::Margin;
 use ratatui::style::{Color, Modifier, Style};
 use ratatui::widgets::{Block, Borders, Clear, List, ListItem, ListState};
 use ratatui::Frame;
-use lma::{ServiceTitle, Service};
+use lma_lib::{ServiceTitle, Service};
 use crate::{ui::SelectionDirection, app::App};
 
 #[derive(Default)]

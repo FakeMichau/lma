@@ -6,7 +6,7 @@ use ratatui::style::{Modifier, Style};
 use ratatui::text::{Line, Span};
 use ratatui::widgets::{Block, Borders, Clear, Paragraph};
 use ratatui::Frame;
-use lma::{AnimeList, Episode, Service};
+use lma_lib::{AnimeList, Episode, Service};
 use crate::app::App;
 
 #[derive(Default)]

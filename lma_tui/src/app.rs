@@ -3,7 +3,7 @@ use std::time::{Duration, Instant};
 use crossterm::event::{self, Event, KeyCode};
 use ratatui::{backend::Backend, Terminal};
 use tokio::runtime::Runtime;
-use lma::{AnimeList,Service};
+use lma_lib::{AnimeList,Service};
 use crate::app;
 use crate::config::Config;
 use crate::ui::popup::insert_episode::InsertEpisodePopup;
@@ -27,8 +27,8 @@ pub struct App<T: Service> {
 
 impl<T: Service + Send> App<T> {
     pub fn build(rt: &Runtime, config: Config) -> Result<Self, String> {
-        let service = rt.block_on(lma::Service::new(config.data_dir().clone()))?;
-        let anime_list = lma::create(service, config.data_dir())?;
+        let service = rt.block_on(lma_lib::Service::new(config.data_dir().clone()))?;
+        let anime_list = lma_lib::create(service, config.data_dir())?;
         Ok(Self {
             list_state: StatefulList::new(&anime_list)?,
             focused_window: FocusedWindow::MainMenu,

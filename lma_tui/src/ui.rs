@@ -1,6 +1,6 @@
 pub mod main_menu;
 pub mod popup;
-use lma::Service;
+use lma_lib::Service;
 use ratatui::{backend::Backend, Frame};
 use tokio::runtime::Runtime;
 use crate::app;
