@@ -2,6 +2,7 @@ mod api;
 pub use api::{local::Local, mal::MAL};
 pub use api::{ServiceTitle, Service, ServiceType, ServiceEpisodeUser, EpisodeStatus, ServiceEpisodeDetails};
 pub use lib_mal::*;
+use serde::{Deserialize, Serialize};
 use std::ffi::OsStr;
 use std::fs;
 use std::collections::HashMap;
@@ -13,6 +14,17 @@ use tokio::runtime::Runtime;
 pub struct AnimeList<T: Service> {
     db_connection: Connection,
     pub service: T,
+    pub title_sort: TitleSort,
+}
+
+#[derive(Serialize, Deserialize, Clone, PartialEq, Eq, Debug)]
+pub enum TitleSort {
+    LocalIdAsc,
+    LocalIdDesc,
+    TitleAsc,
+    TitleDesc,
+    ServiceIdAsc,
+    ServiceIdDesc,
 }
 
 impl<T: Service> AnimeList<T> {
@@ -57,7 +69,16 @@ impl<T: Service> AnimeList<T> {
             }
         }
         let mut shows: Vec<Show> = shows.into_values().collect();
-        shows.sort_by_key(|show| show.local_id);
+        shows.sort_by(|show1, show2| {
+            match self.title_sort {
+                TitleSort::LocalIdAsc => show1.local_id.cmp(&show2.local_id),
+                TitleSort::LocalIdDesc => show2.local_id.cmp(&show1.local_id),
+                TitleSort::TitleAsc => show1.title.cmp(&show2.title),
+                TitleSort::TitleDesc => show2.title.cmp(&show1.title),
+                TitleSort::ServiceIdAsc => show1.service_id.cmp(&show2.service_id),
+                TitleSort::ServiceIdDesc => show2.service_id.cmp(&show1.service_id),
+            }
+        });
         for show in &mut shows {
             show.episodes.sort_by_key(|episode| episode.number);
         }
@@ -272,7 +293,7 @@ pub struct Episode {
     pub filler: bool,
 }
 
-pub fn create<T: Service>(service: T, data_path: &Path) -> Result<AnimeList<T>, String> {
+pub fn create<T: Service>(service: T, data_path: &Path, title_sort: &TitleSort) -> Result<AnimeList<T>, String> {
     let path = data_path.join("database.db3");
     let db_connection = Connection::open(path)
         .map_err(|err| format!("Can't create db connection {err}"))?;
@@ -296,5 +317,6 @@ pub fn create<T: Service>(service: T, data_path: &Path) -> Result<AnimeList<T>, 
     Ok(AnimeList {
         db_connection,
         service,
+        title_sort: title_sort.clone(),
     })
 }

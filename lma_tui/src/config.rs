@@ -1,6 +1,6 @@
 use std::{path::PathBuf, fs};
 use directories::ProjectDirs;
-use lma_lib::ServiceType;
+use lma_lib::{ServiceType, TitleSort};
 use serde::{Serialize, Deserialize};
 use ratatui::style::Color as TermColor;
 
@@ -8,6 +8,7 @@ pub struct Config {
     service: ServiceType,
     data_dir: PathBuf,
     colors: TermColors,
+    title_sort: TitleSort,
 }
 
 #[derive(Serialize, Deserialize, Clone, PartialEq, Debug)]
@@ -15,6 +16,7 @@ struct ConfigFile {
     service: Option<ServiceType>,
     data_dir: Option<PathBuf>,
     colors: Option<Colors>,
+    title_sort: Option<TitleSort>,
 }
 
 #[derive(Serialize, Deserialize, Clone, PartialEq, Debug)]
@@ -65,11 +67,13 @@ impl Config {
         let config_file = config_dir.join("Settings.toml");
 
         let default_service = ServiceType::MAL;
+        let default_title_sort = TitleSort::LocalIdAsc;
         let default_colors = Colors::default();
         let default_config = ConfigFile {
             data_dir: Some(data_dir.clone()),
             colors: Some(default_colors.clone()),
             service: Some(default_service.clone()),
+            title_sort: Some(default_title_sort.clone()),
         };
 
         let config = if config_file.exists() {
@@ -80,6 +84,7 @@ impl Config {
         };
 
         let service = config.service.unwrap_or(default_service);
+        let title_sort = config.title_sort.unwrap_or(default_title_sort);
         let data_dir = config.data_dir.unwrap_or_else(|| default_config.data_dir.expect("Hardcoded value"));
         let colors = config.colors.unwrap_or_else(|| default_colors.clone());
         let term_colors = TermColors {
@@ -106,6 +111,7 @@ impl Config {
             data_dir,
             colors: term_colors,
             service,
+            title_sort,
         })
     }
 
@@ -136,6 +142,10 @@ impl Config {
 
     pub const fn service(&self) -> &ServiceType {
         &self.service
+    }
+
+    pub const fn title_sort(&self) -> &TitleSort {
+        &self.title_sort
     }
 }
 
@@ -177,6 +187,7 @@ mod tests {
         let config_string = "
             service = \"MAL\"
             data_dir = \"\"
+            title_sort = \"LocalIdAsc\"
             [colors.text]
             r = 220
             g = 220
@@ -198,8 +209,8 @@ mod tests {
             g = 65
             b = 10
         ";
-        let parsed_config = parse_config_file(config_string).expect("Parsed config");
-        let expected_config = ConfigFile {
+        let parsed_config_file = parse_config_file(config_string).expect("Parsed config");
+        let expected_config_file = ConfigFile {
             service: Some(ServiceType::MAL),
             data_dir: Some(PathBuf::new()),
             colors: Some(Colors {
@@ -209,8 +220,9 @@ mod tests {
                 highlight: Some(Color { r:91, g:174, b: 36 }),
                 highlight_dark: Some(Color { r:25, g:65, b: 10 }),
             }),
+            title_sort: Some(TitleSort::LocalIdAsc)
         };
-        assert_eq!(parsed_config, expected_config);
+        assert_eq!(parsed_config_file, expected_config_file);
     }
 
     #[test]
