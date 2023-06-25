@@ -1,6 +1,6 @@
 use std::path::PathBuf;
 use async_trait::async_trait;
-use crate::{ServiceTitle, Service, ServiceType, ServiceEpisodeUser, ServiceEpisodeDetails};
+use crate::{ServiceTitle, Service, ServiceType, ServiceEpisodeUser, ServiceEpisodeDetails, AlternativeTitles};
 
 pub struct Local {
 }
@@ -23,6 +23,9 @@ impl Service for Local {
     }
     async fn get_title(&mut self, _id: u32) -> Result<String, String> {
         Ok(String::new())
+    }
+    async fn get_alternative_titles(&mut self, _id: u32) -> Result<Option<AlternativeTitles>, String> {
+        Ok(None)
     }
     async fn get_episode_count(&mut self, _id: u32) -> Result<Option<u32>, String> {
         Ok(None)
@@ -69,6 +72,9 @@ mod tests {
         
         let result = local_service.get_title(456).await;
         assert_eq!(result, Ok(String::new()));
+
+        let result = local_service.get_alternative_titles(727).await;
+        assert_eq!(result, Ok(None));
         
         let result = local_service.get_episode_count(789).await;
         assert_eq!(result, Ok(None));

@@ -155,13 +155,24 @@ fn handle_next_state<T: Service>(app: &mut App<T>, rt: &Runtime) -> Result<(), S
             && app.insert_popup.episode_count == 0
             && !app.insert_popup.path.to_string_lossy().is_empty() =>
         {
-            let title = rt.block_on(app.anime_list.service.get_title(
-                u32::try_from(app.insert_popup.service_id).map_err(|e| e.to_string())?,
-            ))?;
-            if app.anime_list.service.get_service_type() != ServiceType::Local
-                && app.config.autofill_title()
-            {
-                app.insert_popup.title = title;
+            if app.config.autofill_title() {
+                let mut title = if app.config.english_show_titles() {
+                    let titles = rt.block_on(app.anime_list.service.get_alternative_titles(
+                        u32::try_from(app.insert_popup.service_id).map_err(|e| e.to_string())?,
+                    ))?;
+                    let title_languages = titles.map(|options| options.languages).unwrap_or_default();
+                    title_languages.get("en").cloned()
+                } else {
+                    None
+                };
+                if title.is_none() {
+                    title = Some(rt.block_on(app.anime_list.service.get_title(
+                        u32::try_from(app.insert_popup.service_id).map_err(|e| e.to_string())?,
+                    ))?);
+                }
+                if app.anime_list.service.get_service_type() != ServiceType::Local {
+                    app.insert_popup.title = title.expect("Has to be set at this point");
+                }
             }
             // compare number of video files with the retrieved number of episodes
             let episode_count = rt.block_on(

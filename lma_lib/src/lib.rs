@@ -1,6 +1,6 @@
 mod api;
 pub use api::{local::Local, mal::MAL};
-pub use api::{ServiceTitle, Service, ServiceType, ServiceEpisodeUser, EpisodeStatus, ServiceEpisodeDetails};
+pub use api::{ServiceTitle, Service, ServiceType, ServiceEpisodeUser, EpisodeStatus, ServiceEpisodeDetails, AlternativeTitles};
 pub use lib_mal::*;
 use serde::{Deserialize, Serialize};
 use std::ffi::OsStr;

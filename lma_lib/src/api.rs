@@ -1,6 +1,6 @@
 pub mod mal;
 pub mod local;
-use std::path::PathBuf;
+use std::{path::PathBuf, collections::HashMap};
 use serde::{Serialize, Deserialize};
 use async_trait::async_trait;
 
@@ -51,6 +51,12 @@ pub struct ServiceEpisodeDetails {
     pub recap: Option<bool>,
 }
 
+#[derive(PartialEq, Eq, Debug)]
+pub struct AlternativeTitles {
+    pub synonyms: Vec<String>,
+    pub languages: HashMap<String, String>,
+}
+
 #[async_trait]
 pub trait Service {
     async fn new(cache_dir: PathBuf) -> Result<Self, String> where Self: Sized;
@@ -59,6 +65,7 @@ pub trait Service {
     async fn init_show(&mut self, id: u32) -> Result<(), String>;
     async fn search_title(&mut self, potential_title: &str) -> Result<Vec<ServiceTitle>, String>;
     async fn get_title(&mut self, id: u32) -> Result<String, String>;
+    async fn get_alternative_titles(&mut self, id: u32) -> Result<Option<AlternativeTitles>, String>;
     async fn get_episodes(&mut self, id: u32) -> Result<Vec<ServiceEpisodeDetails>, String>;
     async fn get_episode_count(&mut self, id: u32) -> Result<Option<u32>, String>;
     async fn get_user_entry_details(&mut self, id: u32) -> Result<Option<ServiceEpisodeUser>, String>;

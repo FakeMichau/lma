@@ -13,6 +13,7 @@ pub struct Config {
     key_binds: KeyBinds,
     path_instead_of_title: bool,
     autofill_title: bool,
+    english_show_titles: bool,
 }
 
 #[derive(Serialize, Deserialize, Clone, PartialEq, Debug)]
@@ -24,6 +25,7 @@ struct ConfigFile {
     key_binds: Option<KeyBinds>,
     path_instead_of_title: Option<bool>,
     autofill_title: Option<bool>,
+    english_show_titles: Option<bool>,
 }
 
 #[derive(Serialize, Deserialize, Clone, PartialEq, Eq, Debug)]
@@ -116,6 +118,7 @@ impl Config {
         let default_title_sort = TitleSort::LocalIdAsc;
         let default_path_instead_of_title = false;
         let default_autofill_title = true;
+        let default_english_show_titles = false;
         let default_key_binds = KeyBinds::default();
         let default_colors = Colors::default();
         let default_config = ConfigFile {
@@ -126,6 +129,7 @@ impl Config {
             key_binds: Some(default_key_binds.clone()),
             path_instead_of_title: Some(default_path_instead_of_title),
             autofill_title: Some(default_autofill_title),
+            english_show_titles: Some(default_english_show_titles),
         };
 
         let config = if config_file.exists() {
@@ -141,6 +145,7 @@ impl Config {
         let key_binds = config.key_binds.unwrap_or(default_key_binds);
         let path_instead_of_title = config.path_instead_of_title.unwrap_or(default_path_instead_of_title);
         let autofill_title = config.autofill_title.unwrap_or(default_autofill_title);
+        let english_show_titles = config.english_show_titles.unwrap_or(default_english_show_titles);
         let data_dir = config
             .data_dir
             .unwrap_or_else(|| default_config.data_dir.expect("Hardcoded value"));
@@ -176,6 +181,7 @@ impl Config {
             key_binds,
             path_instead_of_title,
             autofill_title,
+            english_show_titles,
         })
     }
 
@@ -220,6 +226,10 @@ impl Config {
 
     pub const fn autofill_title(&self) -> bool {
         self.autofill_title
+    }
+
+    pub const fn english_show_titles(&self) -> bool {
+        self.english_show_titles
     }
 }
 
@@ -270,6 +280,7 @@ mod tests {
             title_sort = \"LocalIdAsc\"
             path_instead_of_title = false
             autofill_title = true
+            english_show_titles = true
             [colors.text]
             r = 220
             g = 220
@@ -343,6 +354,7 @@ mod tests {
             }),
             path_instead_of_title: Some(false),
             autofill_title: Some(true),
+            english_show_titles: Some(true),
         };
         assert_eq!(parsed_config_file, expected_config_file);
     }

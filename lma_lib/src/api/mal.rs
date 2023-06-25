@@ -5,7 +5,7 @@ use lib_mal::prelude::fields::AnimeFields;
 use lib_mal::prelude::options::{Status, StatusUpdate};
 use lib_mal::prelude::ListStatus;
 use lib_mal::{ClientBuilder, MALClientTrait};
-use crate::{ServiceTitle, Service, ServiceType, ServiceEpisodeUser, EpisodeStatus, ServiceEpisodeDetails};
+use crate::{ServiceTitle, Service, ServiceType, ServiceEpisodeUser, EpisodeStatus, ServiceEpisodeDetails, AlternativeTitles};
 
 pub struct MAL<T> {
     client: T,
@@ -91,6 +91,20 @@ impl<T: MALClientTrait + Send + Sync> Service for MAL<T> {
             .expect("Anime title") // likely will fail
             .show
             .title)
+    }
+    async fn get_alternative_titles(&mut self, id: u32) -> Result<Option<AlternativeTitles>, String> {
+        Ok(self
+            .client
+            .get_anime_details(id, AnimeFields::AlternativeTitles)
+            .await
+            .expect("Anime title") // likely will fail
+            .alternative_titles
+            .map(|titles| {
+                AlternativeTitles {
+                    synonyms: titles.synonyms,
+                    languages: titles.languages,
+                }
+            }))
     }
     async fn get_episode_count(&mut self, id: u32) -> Result<Option<u32>, String> {
         Ok(self.client
