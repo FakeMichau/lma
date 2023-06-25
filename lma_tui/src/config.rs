@@ -1,4 +1,5 @@
 use std::{path::PathBuf, fs};
+use crossterm::event::KeyCode;
 use directories::ProjectDirs;
 use serde::{Serialize, Deserialize};
 use ratatui::style::Color as TermColor;
@@ -9,6 +10,7 @@ pub struct Config {
     data_dir: PathBuf,
     colors: TermColors,
     title_sort: TitleSort,
+    key_binds: KeyBinds,
 }
 
 #[derive(Serialize, Deserialize, Clone, PartialEq, Debug)]
@@ -17,6 +19,46 @@ struct ConfigFile {
     data_dir: Option<PathBuf>,
     colors: Option<Colors>,
     title_sort: Option<TitleSort>,
+    key_binds: Option<KeyBinds>,
+}
+
+#[derive(Serialize, Deserialize, Clone, PartialEq, Eq, Debug)]
+pub struct KeyBinds {
+    pub move_up: KeyCode,
+    pub move_down: KeyCode,
+    pub backwards: KeyCode,
+    pub forwards: KeyCode,
+    pub confirmation: KeyCode,
+    pub close: KeyCode,
+    pub delete: KeyCode,
+    pub quit: KeyCode,
+    pub enter_inputting: KeyCode,
+    pub new_show: KeyCode,
+    pub new_episode: KeyCode,
+    pub progress_inc: KeyCode,
+    pub progress_dec: KeyCode,
+    pub login: KeyCode,
+}
+
+impl Default for KeyBinds {
+    fn default() -> Self {
+        Self {
+            move_up: KeyCode::Up,
+            move_down: KeyCode::Down,
+            backwards: KeyCode::Left,
+            forwards: KeyCode::Right,
+            confirmation: KeyCode::Enter,
+            close: KeyCode::Esc,
+            delete: KeyCode::Delete,
+            quit: KeyCode::Char('q'),
+            enter_inputting: KeyCode::Char('e'),
+            new_show: KeyCode::Char('n'),
+            new_episode: KeyCode::Char('e'),
+            progress_inc: KeyCode::Char('.'),
+            progress_dec: KeyCode::Char(','),
+            login: KeyCode::Char('l'),
+        }
+    }
 }
 
 #[derive(Serialize, Deserialize, Clone, PartialEq, Debug)]
@@ -38,27 +80,11 @@ struct Colors {
 impl Default for Colors {
     fn default() -> Self {
         Self {
-            text: Some(Color {
-                r: 220,
-                g: 220,
-                b: 220,
-            }),
-            text_watched: Some(Color {
-                r: 70,
-                g: 70,
-                b: 70,
-            }),
+            text: Some(Color { r: 220, g: 220, b: 220 }),
+            text_watched: Some(Color { r: 70, g: 70, b: 70 }),
             text_deleted: Some(Color { r: 200, g: 0, b: 0 }),
-            highlight: Some(Color {
-                r: 91,
-                g: 174,
-                b: 36,
-            }),
-            highlight_dark: Some(Color {
-                r: 25,
-                g: 65,
-                b: 10,
-            }),
+            highlight: Some(Color { r: 91, g: 174, b: 36 }),
+            highlight_dark: Some(Color { r: 25, g: 65, b: 10 }),
         }
     }
 }
@@ -84,12 +110,14 @@ impl Config {
 
         let default_service = ServiceType::MAL;
         let default_title_sort = TitleSort::LocalIdAsc;
+        let default_key_binds = KeyBinds::default();
         let default_colors = Colors::default();
         let default_config = ConfigFile {
             data_dir: Some(data_dir.clone()),
             colors: Some(default_colors.clone()),
             service: Some(default_service.clone()),
             title_sort: Some(default_title_sort.clone()),
+            key_binds: Some(default_key_binds.clone()),
         };
 
         let config = if config_file.exists() {
@@ -102,6 +130,7 @@ impl Config {
 
         let service = config.service.unwrap_or(default_service);
         let title_sort = config.title_sort.unwrap_or(default_title_sort);
+        let key_binds = config.key_binds.unwrap_or(default_key_binds);
         let data_dir = config
             .data_dir
             .unwrap_or_else(|| default_config.data_dir.expect("Hardcoded value"));
@@ -134,6 +163,7 @@ impl Config {
             colors: term_colors,
             service,
             title_sort,
+            key_binds
         })
     }
 
@@ -166,6 +196,10 @@ impl Config {
 
     pub const fn title_sort(&self) -> &TitleSort {
         &self.title_sort
+    }
+
+    pub const fn key_binds(&self) -> &KeyBinds {
+        &self.key_binds
     }
 }
 
@@ -234,6 +268,28 @@ mod tests {
             r = 25
             g = 65
             b = 10
+            [key_binds]
+            move_up = \"Up\"
+            move_down = \"Down\"
+            backwards = \"Left\"
+            forwards = \"Right\"
+            confirmation = \"Enter\"
+            delete = \"Delete\"
+            close = \"Esc\"
+            [key_binds.quit]
+            Char = \"q\"
+            [key_binds.enter_inputting]
+            Char = \"e\"
+            [key_binds.new_show]
+            Char = \"n\"
+            [key_binds.new_episode]
+            Char = \"e\"
+            [key_binds.progress_inc]
+            Char = \".\"
+            [key_binds.progress_dec]
+            Char = \",\"
+            [key_binds.login]
+            Char = \"l\"
         ";
         let parsed_config_file = parse_config_file(config_string).expect("Parsed config");
         let expected_config_file = ConfigFile {
@@ -247,6 +303,22 @@ mod tests {
                 highlight_dark: Some(Color { r:25, g:65, b: 10 }),
             }),
             title_sort: Some(TitleSort::LocalIdAsc),
+            key_binds: Some(KeyBinds {
+                move_up: KeyCode::Up,
+                move_down: KeyCode::Down,
+                backwards: KeyCode::Left,
+                forwards: KeyCode::Right,
+                confirmation: KeyCode::Enter,
+                close: KeyCode::Esc,
+                delete: KeyCode::Delete,
+                quit: KeyCode::Char('q'),
+                enter_inputting: KeyCode::Char('e'),
+                new_show: KeyCode::Char('n'),
+                new_episode: KeyCode::Char('e'),
+                progress_inc: KeyCode::Char('.'),
+                progress_dec: KeyCode::Char(','),
+                login: KeyCode::Char('l'),
+            }),
         };
         assert_eq!(parsed_config_file, expected_config_file);
     }

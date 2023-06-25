@@ -127,72 +127,69 @@ fn handle_main_menu_key<B: Backend, T: Service + Send>(
     rt: &Runtime,
     terminal: &mut Terminal<B>,
 ) -> Result<Option<bool>, String> {
-    match key.code {
-        KeyCode::Char('q') => return Ok(None),
-        KeyCode::Down => app
-            .list_state
-            .move_selection(&SelectionDirection::Next, &app.anime_list)?,
-        KeyCode::Up => app
-            .list_state
-            .move_selection(&SelectionDirection::Previous, &app.anime_list)?,
-        KeyCode::Char('.') => app
-            .list_state
-            .move_progress(&SelectionDirection::Next, &mut app.anime_list, rt)?,
-        KeyCode::Char(',') => app
-            .list_state
-            .move_progress(&SelectionDirection::Previous, &mut app.anime_list, rt)?,
-        KeyCode::Right | KeyCode::Enter => app.list_state.select(),
-        KeyCode::Left => app.list_state.unselect(),
-        KeyCode::Delete => app.list_state.delete(&app.anime_list)?,
-        KeyCode::Char('n') => {
-            app.focused_window = FocusedWindow::InsertPopup;
-            app.insert_popup.state = InsertState::Inputting;
-        }
-        KeyCode::Char('e') => {
-            if app.list_state.selected_show().is_some() {
-                app.focused_window = FocusedWindow::InsertEpisodePopup;
-                app.insert_episode_popup.state = InsertState::Inputting;
-            }
-        }
-        KeyCode::Char('l') => {
-            app.handle_login_popup(rt, terminal)?;
-            app.anime_list.update_progress(rt)?;
-        }
-        _ => {}
+    let key_binds = app.config.key_binds();
+    if key.code == key_binds.quit { 
+        return Ok(None);
+    } else if key.code == key_binds.move_down {
+        app.list_state
+            .move_selection(&SelectionDirection::Next, &app.anime_list)?;
+    } else if key.code == key_binds.move_up {
+        app.list_state
+            .move_selection(&SelectionDirection::Previous, &app.anime_list)?;
+    } else if key.code == key_binds.progress_inc {
+        app.list_state
+            .move_progress(&SelectionDirection::Next, &mut app.anime_list, rt)?;
+    } else if key.code == key_binds.progress_dec {
+        app.list_state
+            .move_progress(&SelectionDirection::Previous, &mut app.anime_list, rt)?;
+    } else if key.code == key_binds.forwards || key.code == key_binds.confirmation {
+        app.list_state.select();
+    } else if key.code == key_binds.backwards {
+        app.list_state.unselect();
+    } else if key.code == key_binds.delete {
+        app.list_state.delete(&app.anime_list)?;
+    } else if key.code == key_binds.new_show {
+        app.focused_window = FocusedWindow::InsertPopup;
+        app.insert_popup.state = InsertState::Inputting;
+    } else if key.code == key_binds.new_episode && app.list_state.selected_show().is_some() {
+        app.focused_window = FocusedWindow::InsertEpisodePopup;
+        app.insert_episode_popup.state = InsertState::Inputting;
+    } else if key.code == key_binds.login {
+        app.handle_login_popup(rt, terminal)?;
+        app.anime_list.update_progress(rt)?;
     }
     Ok(Some(true))
 }
 
-#[allow(clippy::single_match)]
 fn handle_login_key<T: Service + Send>(key: event::KeyEvent, app: &mut App<T>) {
-    match key.code {
-        KeyCode::Esc => {
-            app.focused_window = FocusedWindow::MainMenu;
-            if let Err(err) = app.list_state.update_cache(&app.anime_list) {
-                app.set_error(err);
-            };
-        }
-        _ => {}
+    if key.code == app.config.key_binds().close {
+        app.focused_window = FocusedWindow::MainMenu;
+        if let Err(err) = app.list_state.update_cache(&app.anime_list) {
+            app.set_error(err);
+        };
     }
 }
 
 fn handle_error_key<T: Service>(key: event::KeyEvent, app: &mut App<T>) {
-    match key.code {
-        KeyCode::Esc | KeyCode::Enter => {
-            app.error = String::new();
-            app.focused_window = FocusedWindow::MainMenu;
-        }
-        _ => {}
+    let key_binds = app.config.key_binds();
+    if key.code == key_binds.close || key.code == key_binds.confirmation {
+        app.error = String::new();
+        app.focused_window = FocusedWindow::MainMenu;
     }
 }
 
 fn handle_insert_popup_key<T: Service>(app: &mut App<T>, key: event::KeyEvent) {
+    let key_binds = app.config.key_binds();
     match app.insert_popup.state {
-        InsertState::Inputting => match key.code {
-            KeyCode::Char(c) => app.insert_popup.data.push(c),
-            KeyCode::Backspace => _ = app.insert_popup.data.pop(),
-            KeyCode::Esc => app.insert_popup.state = InsertState::None,
-            KeyCode::Enter => {
+        InsertState::Inputting => {
+            match key.code {
+                KeyCode::Char(c) => app.insert_popup.data.push(c),
+                KeyCode::Backspace => _ = app.insert_popup.data.pop(),
+                _ => {}
+            }
+            if key.code == key_binds.close {
+                app.insert_popup.state = InsertState::None;
+            } else if key.code == key_binds.confirmation {
                 app.insert_popup.state = if app
                     .insert_popup
                     .move_line_selection(&SelectionDirection::Next)
@@ -201,86 +198,89 @@ fn handle_insert_popup_key<T: Service>(app: &mut App<T>, key: event::KeyEvent) {
                 } else {
                     InsertState::Next
                 };
-            }
-            KeyCode::Down => {
+            } else if key.code == key_binds.move_down {
                 app.insert_popup
                     .move_line_selection(&SelectionDirection::Next);
                 app.insert_popup.state = InsertState::Next;
-            }
-            KeyCode::Up => {
+            } else if key.code == key_binds.move_up {
                 app.insert_popup
                     .move_line_selection(&SelectionDirection::Previous);
                 app.insert_popup.state = InsertState::Next;
             }
-            _ => {}
-        },
-        _ => match key.code {
-            KeyCode::Esc => {
+        }
+        _ => {
+            if key.code == key_binds.close {
                 app.focused_window = FocusedWindow::MainMenu;
                 app.insert_popup = InsertPopup::default();
-            }
-            KeyCode::Char('e') => app.insert_popup.state = InsertState::Inputting,
-            KeyCode::Char('i') => app.insert_popup.state = InsertState::Save,
-            KeyCode::Down => {
+            } else if key.code == key_binds.enter_inputting {
+                app.insert_popup.state = InsertState::Inputting;
+            } else if key.code == key_binds.move_down {
                 _ = app
                     .insert_popup
                     .move_line_selection(&SelectionDirection::Next);
-            }
-            KeyCode::Up => {
+            } else if key.code == key_binds.move_up {
                 _ = app
                     .insert_popup
                     .move_line_selection(&SelectionDirection::Previous);
             }
-            _ => {}
-        },
+        }
     }
 }
 
 fn handle_insert_episode_popup_key<T: Service>(app: &mut App<T>, key: event::KeyEvent) {
+    let key_binds = app.config.key_binds();
     match app.insert_episode_popup.state {
-        InsertState::Inputting => match key.code {
-            KeyCode::Char(c) => app.insert_episode_popup.data.push(c),
-            KeyCode::Backspace => _ = app.insert_episode_popup.data.pop(),
-            KeyCode::Esc => app.insert_episode_popup.state = InsertState::None,
-            KeyCode::Enter => app.insert_episode_popup.state = InsertState::Save,
-            _ => {}
+        InsertState::Inputting => {
+            if key.code == key_binds.close {
+                app.insert_episode_popup.state = InsertState::None;
+            } else if key.code == key_binds.confirmation {
+                app.insert_episode_popup.state = InsertState::Save;
+            }
+            match key.code {
+                KeyCode::Char(c) => app.insert_episode_popup.data.push(c),
+                KeyCode::Backspace => _ = app.insert_episode_popup.data.pop(),
+                _ => {}
+            }
         },
-        _ => match key.code {
-            KeyCode::Esc => {
+        _ => {
+            if key.code == key_binds.close {
                 app.focused_window = FocusedWindow::MainMenu;
                 app.insert_episode_popup = InsertEpisodePopup::default();
+            } else if key.code == key_binds.enter_inputting {
+                app.insert_episode_popup.state = InsertState::Inputting;
             }
-            KeyCode::Char('e') => app.insert_episode_popup.state = InsertState::Inputting,
-            KeyCode::Char('i') => app.insert_episode_popup.state = InsertState::Save,
-            _ => {}
-        },
+        }
     }
 }
 
 fn handle_title_selection_key<T: Service + Send>(key: event::KeyEvent, app: &mut App<T>) {
-    match key.code {
-        KeyCode::Down => app.titles_popup.move_selection(&SelectionDirection::Next),
-        KeyCode::Up => app
-            .titles_popup
-            .move_selection(&SelectionDirection::Previous),
-        KeyCode::Enter => app.fill_with_api_data(),
-        KeyCode::Esc => app.focused_window = FocusedWindow::InsertPopup,
-        _ => {}
+    let key_binds = app.config.key_binds();
+    if key.code == key_binds.move_down {
+        app.titles_popup.move_selection(&SelectionDirection::Next);
+    } else if key.code == key_binds.move_up {
+        app.titles_popup
+            .move_selection(&SelectionDirection::Previous);
+    } else if key.code == key_binds.confirmation {
+        app.fill_with_api_data();
+    } else if key.code == key_binds.close {
+        app.focused_window = FocusedWindow::InsertPopup;
     }
 }
 
 fn handle_mismatch_popup_key<T: Service + Send>(key: event::KeyEvent, app: &mut App<T>) {
+    let key_binds = app.config.key_binds();
+    if key.code == key_binds.close {
+        app.focused_window = FocusedWindow::InsertPopup;
+    } else if key.code == key_binds.confirmation {
+        match app.mismatch_popup.save::<T>(&app.insert_popup.path) {
+            Ok(episodes) => app.insert_popup.episodes = episodes,
+            Err(err) => app.set_error(err),
+        };
+        app.focused_window = FocusedWindow::InsertPopup;
+    }
     match key.code {
         KeyCode::Char(c) => app.mismatch_popup.owned_episodes.push(c),
         KeyCode::Backspace => _ = app.mismatch_popup.owned_episodes.pop(),
-        KeyCode::Enter => {
-            match app.mismatch_popup.save::<T>(&app.insert_popup.path) {
-                Ok(episodes) => app.insert_popup.episodes = episodes,
-                Err(err) => app.set_error(err),
-            };
-            app.focused_window = FocusedWindow::InsertPopup;
-        }
-        KeyCode::Esc => app.focused_window = FocusedWindow::InsertPopup,
         _ => {}
     }
 }

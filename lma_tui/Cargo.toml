@@ -9,7 +9,7 @@ path = "src/main.rs"
 
 [dependencies]
 ratatui = "0.21.0"
-crossterm = "0.26"
+crossterm = { version = "0.26", features = ["serde"] }
 tokio = { version = "1.28.2", features = ["rt-multi-thread", "macros"] }
 directories = "5.0"
 serde = "1.0"

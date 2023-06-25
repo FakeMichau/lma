@@ -243,6 +243,7 @@ dependencies = [
  "libc",
  "mio",
  "parking_lot 0.12.1",
+ "serde",
  "signal-hook",
  "signal-hook-mio",
  "winapi",
