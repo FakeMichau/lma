@@ -116,6 +116,9 @@ pub fn build<B: Backend, T: Service>(frame: &mut Frame<B>, app: &mut App<T>) {
         Line::from(vec![
             Span::raw("Type out exact episodes you have, e.g. 8,10-12"),
         ]),
+        Line::from(vec![
+            Span::raw("Ignoring this window will give you a show with no episodes"),
+        ]),
     ];
 
     let user_input = Line::from(Span::raw(app.mismatch_popup.owned_episodes.clone()));
