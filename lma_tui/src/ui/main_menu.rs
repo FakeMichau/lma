@@ -99,10 +99,10 @@ impl StatefulList {
             SelectionDirection::Next => 1,
             SelectionDirection::Previous => -1,
         };
-        let progress = selected_show.progress + offset;
+        let progress = u32::try_from(selected_show.progress + offset).unwrap_or_default();
         let actual_progress = rt.block_on(shows.service.set_progress(
             u32::try_from(selected_show.service_id).map_err(|e| e.to_string())?,
-            u32::try_from(progress).map_err(|e| e.to_string())?,
+            progress,
         ))?;
         shows
             .set_progress(selected_show.local_id, i64::from(actual_progress))
