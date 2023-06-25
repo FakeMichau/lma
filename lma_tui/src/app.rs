@@ -185,27 +185,28 @@ fn handle_insert_popup_key<T: Service>(app: &mut App<T>, key: event::KeyEvent) {
             match key.code {
                 KeyCode::Char(c) => app.insert_popup.data.push(c),
                 KeyCode::Backspace => _ = app.insert_popup.data.pop(),
-                _ => {}
-            }
-            if key.code == key_binds.close {
-                app.insert_popup.state = InsertState::None;
-            } else if key.code == key_binds.confirmation {
-                app.insert_popup.state = if app
-                    .insert_popup
-                    .move_line_selection(&SelectionDirection::Next)
-                {
-                    InsertState::Save
-                } else {
-                    InsertState::Next
-                };
-            } else if key.code == key_binds.move_down {
-                app.insert_popup
-                    .move_line_selection(&SelectionDirection::Next);
-                app.insert_popup.state = InsertState::Next;
-            } else if key.code == key_binds.move_up {
-                app.insert_popup
-                    .move_line_selection(&SelectionDirection::Previous);
-                app.insert_popup.state = InsertState::Next;
+                _ => {
+                    if key.code == key_binds.close {
+                        app.insert_popup.state = InsertState::None;
+                    } else if key.code == key_binds.confirmation {
+                        app.insert_popup.state = if app
+                            .insert_popup
+                            .move_line_selection(&SelectionDirection::Next)
+                        {
+                            InsertState::Save
+                        } else {
+                            InsertState::Next
+                        };
+                    } else if key.code == key_binds.move_down {
+                        app.insert_popup
+                            .move_line_selection(&SelectionDirection::Next);
+                        app.insert_popup.state = InsertState::Next;
+                    } else if key.code == key_binds.move_up {
+                        app.insert_popup
+                            .move_line_selection(&SelectionDirection::Previous);
+                        app.insert_popup.state = InsertState::Next;
+                    }
+                }
             }
         }
         _ => {

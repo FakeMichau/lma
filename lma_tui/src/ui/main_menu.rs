@@ -224,8 +224,7 @@ pub fn build<B: Backend, T: Service>(frame: &mut Frame<'_, B>, app: &mut App<T>)
                 if episode.file_deleted {
                     style = style.fg(app.config.colors().text_deleted);
                 }
-                // maybe make a config for that in the future
-                let episode_display_name = if episode.title.is_empty() {
+                let episode_display_name = if episode.title.is_empty() || app.config.path_instead_of_title() {
                     episode
                         .path
                         .file_name()

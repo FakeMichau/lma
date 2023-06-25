@@ -11,6 +11,8 @@ pub struct Config {
     colors: TermColors,
     title_sort: TitleSort,
     key_binds: KeyBinds,
+    path_instead_of_title: bool,
+    autofill_title: bool,
 }
 
 #[derive(Serialize, Deserialize, Clone, PartialEq, Debug)]
@@ -20,6 +22,8 @@ struct ConfigFile {
     colors: Option<Colors>,
     title_sort: Option<TitleSort>,
     key_binds: Option<KeyBinds>,
+    path_instead_of_title: Option<bool>,
+    autofill_title: Option<bool>,
 }
 
 #[derive(Serialize, Deserialize, Clone, PartialEq, Eq, Debug)]
@@ -110,6 +114,8 @@ impl Config {
 
         let default_service = ServiceType::MAL;
         let default_title_sort = TitleSort::LocalIdAsc;
+        let default_path_instead_of_title = false;
+        let default_autofill_title = true;
         let default_key_binds = KeyBinds::default();
         let default_colors = Colors::default();
         let default_config = ConfigFile {
@@ -118,6 +124,8 @@ impl Config {
             service: Some(default_service.clone()),
             title_sort: Some(default_title_sort.clone()),
             key_binds: Some(default_key_binds.clone()),
+            path_instead_of_title: Some(default_path_instead_of_title),
+            autofill_title: Some(default_autofill_title),
         };
 
         let config = if config_file.exists() {
@@ -131,6 +139,8 @@ impl Config {
         let service = config.service.unwrap_or(default_service);
         let title_sort = config.title_sort.unwrap_or(default_title_sort);
         let key_binds = config.key_binds.unwrap_or(default_key_binds);
+        let path_instead_of_title = config.path_instead_of_title.unwrap_or(default_path_instead_of_title);
+        let autofill_title = config.autofill_title.unwrap_or(default_autofill_title);
         let data_dir = config
             .data_dir
             .unwrap_or_else(|| default_config.data_dir.expect("Hardcoded value"));
@@ -163,7 +173,9 @@ impl Config {
             colors: term_colors,
             service,
             title_sort,
-            key_binds
+            key_binds,
+            path_instead_of_title,
+            autofill_title,
         })
     }
 
@@ -200,6 +212,14 @@ impl Config {
 
     pub const fn key_binds(&self) -> &KeyBinds {
         &self.key_binds
+    }
+
+    pub const fn path_instead_of_title(&self) -> bool {
+        self.path_instead_of_title
+    }
+
+    pub const fn autofill_title(&self) -> bool {
+        self.autofill_title
     }
 }
 
@@ -248,6 +268,8 @@ mod tests {
             service = \"MAL\"
             data_dir = \"\"
             title_sort = \"LocalIdAsc\"
+            path_instead_of_title = false
+            autofill_title = true
             [colors.text]
             r = 220
             g = 220
@@ -319,6 +341,8 @@ mod tests {
                 progress_dec: KeyCode::Char(','),
                 login: KeyCode::Char('l'),
             }),
+            path_instead_of_title: Some(false),
+            autofill_title: Some(true),
         };
         assert_eq!(parsed_config_file, expected_config_file);
     }

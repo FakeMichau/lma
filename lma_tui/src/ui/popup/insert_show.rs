@@ -158,8 +158,10 @@ fn handle_next_state<T: Service>(app: &mut App<T>, rt: &Runtime) -> Result<(), S
             let title = rt.block_on(app.anime_list.service.get_title(
                 u32::try_from(app.insert_popup.service_id).map_err(|e| e.to_string())?,
             ))?;
-            if app.anime_list.service.get_service_type() != ServiceType::Local {
-                app.insert_popup.title = title; // make it a config?
+            if app.anime_list.service.get_service_type() != ServiceType::Local
+                && app.config.autofill_title()
+            {
+                app.insert_popup.title = title;
             }
             // compare number of video files with the retrieved number of episodes
             let episode_count = rt.block_on(
