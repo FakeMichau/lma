@@ -314,6 +314,19 @@ fn append_extra_info(
     }
 }
 
+enum Function {
+    Navigation,
+    Progress,
+    Confirmation,
+    Close,
+    Delete,
+    Quit,
+    EnterInputting,
+    NewShow,
+    NewEpisode,
+    Login,
+}
+
 struct HelpItem<'a> {
     text: &'a str,
     key: String,
@@ -322,7 +335,7 @@ struct HelpItem<'a> {
 }
 
 impl<'a> HelpItem<'a> {
-    fn new(text: &'a str, name: &str, key_binds: &KeyBinds, highlight_color: Color) -> Self {
+    fn new(text: &'a str, name: &Function, key_binds: &KeyBinds, highlight_color: Color) -> Self {
         let text_style = Style::default().bg(highlight_color);
         let key_style = text_style.add_modifier(Modifier::BOLD);
         let key = key_to_abbr(key_binds, name);
@@ -351,17 +364,17 @@ fn build_help<'a>(
     key_binds: &KeyBinds,
 ) -> Paragraph<'a> {
     // Create help text at the bottom
-    let navigation = HelpItem::new("Navigation", "navigation", key_binds, highlight_color);
-    let insert = HelpItem::new("Insert new show", "new_show", key_binds, highlight_color);
-    let delete = HelpItem::new("Delete the entry", "delete", key_binds, highlight_color);
-    let close_window = HelpItem::new("Close the window", "close", key_binds, highlight_color);
-    let exit_inputting = HelpItem::new("Stop inputting", "close", key_binds, highlight_color);
-    let start_inputting = HelpItem::new("Start inputting", "enter_inputting", key_binds, highlight_color);
-    let confirm = HelpItem::new("Confirm", "confirmation", key_binds, highlight_color);
-    let login = HelpItem::new("Login to MAL", "login", key_binds, highlight_color);
-    let progress = HelpItem::new("Progress", "progress", key_binds, highlight_color);
-    let insert_episode = HelpItem::new("Add episode manually", "new_episode", key_binds, highlight_color);
-    let quit = HelpItem::new("Quit", "quit", key_binds, highlight_color);
+    let navigation = HelpItem::new("Navigation", &Function::Navigation, key_binds, highlight_color);
+    let insert = HelpItem::new("Insert new show", &Function::NewShow, key_binds, highlight_color);
+    let delete = HelpItem::new("Delete the entry", &Function::Delete, key_binds, highlight_color);
+    let close_window = HelpItem::new("Close the window", &Function::Close, key_binds, highlight_color);
+    let exit_inputting = HelpItem::new("Stop inputting", &Function::Close, key_binds, highlight_color);
+    let start_inputting = HelpItem::new("Start inputting", &Function::EnterInputting, key_binds, highlight_color);
+    let confirm = HelpItem::new("Confirm", &Function::Confirmation, key_binds, highlight_color);
+    let login = HelpItem::new("Login to MAL", &Function::Login, key_binds, highlight_color);
+    let progress = HelpItem::new("Progress", &Function::Progress, key_binds, highlight_color);
+    let insert_episode = HelpItem::new("Add episode manually", &Function::NewEpisode, key_binds, highlight_color);
+    let quit = HelpItem::new("Quit", &Function::Quit, key_binds, highlight_color);    
 
     let mut information = Vec::new();
     match focused_window {
@@ -416,9 +429,9 @@ fn build_help<'a>(
     Paragraph::new(Line::from(information))
 }
 
-fn key_to_abbr(key: &KeyBinds, name: &str) -> String {
+fn key_to_abbr(key: &KeyBinds, name: &Function) -> String {
     match name {
-        "navigation" => {
+        Function::Navigation => {
             if key.move_up == KeyCode::Up
                 && key.move_down == KeyCode::Down
                 && key.backwards == KeyCode::Left
@@ -426,7 +439,8 @@ fn key_to_abbr(key: &KeyBinds, name: &str) -> String {
             {
                 String::from("ARROWS")
             } else {
-                format!("{}{}{}{}", 
+                format!(
+                    "{}{}{}{}",
                     keycode_to_key(key.move_up),
                     keycode_to_key(key.move_down),
                     keycode_to_key(key.backwards),
@@ -434,27 +448,25 @@ fn key_to_abbr(key: &KeyBinds, name: &str) -> String {
                 )
             }
         }
-        "progress" => {
-            if key.progress_inc == KeyCode::Char('.')
-                && key.progress_dec == KeyCode::Char(',')
-            {
+        Function::Progress => {
+            if key.progress_inc == KeyCode::Char('.') && key.progress_dec == KeyCode::Char(',') {
                 String::from("< >")
             } else {
-                format!("{} {}", 
+                format!(
+                    "{} {}",
                     keycode_to_key(key.progress_inc),
                     keycode_to_key(key.progress_dec),
                 )
             }
         }
-        "confirmation" => keycode_to_key(key.confirmation),
-        "close" => keycode_to_key(key.close),
-        "delete" => keycode_to_key(key.delete),
-        "quit" => keycode_to_key(key.quit),
-        "enter_inputting" => keycode_to_key(key.enter_inputting),
-        "new_show" => keycode_to_key(key.new_show),
-        "new_episode" => keycode_to_key(key.new_episode),
-        "login" => keycode_to_key(key.login),
-        &_ => String::new(),
+        Function::Confirmation => keycode_to_key(key.confirmation),
+        Function::Close => keycode_to_key(key.close),
+        Function::Delete => keycode_to_key(key.delete),
+        Function::Quit => keycode_to_key(key.quit),
+        Function::EnterInputting => keycode_to_key(key.enter_inputting),
+        Function::NewShow => keycode_to_key(key.new_show),
+        Function::NewEpisode => keycode_to_key(key.new_episode),
+        Function::Login => keycode_to_key(key.login),
     }
 }
 
