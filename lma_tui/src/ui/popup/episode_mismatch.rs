@@ -53,14 +53,14 @@ impl MismatchPopup {
                     let mut range = slice.split('-');
                     let min = range
                         .next()
-                        .and_then(|str| if str.is_empty() {None} else {Some(str)})
+                        .and_then(|str| if str.is_empty() { None } else { Some(str) })
                         .ok_or("Can't find minimum value from the range")?
                         .trim()
                         .parse::<u32>()
                         .map_err(|err| format!("Value from range must be a number: {err}"))?;
                     let max = range
                         .next()
-                        .and_then(|str| if str.is_empty() {None} else {Some(str)})
+                        .and_then(|str| if str.is_empty() { None } else { Some(str) })
                         .ok_or("Can't find maximum value from the range")?
                         .trim()
                         .parse::<u32>()
@@ -69,9 +69,11 @@ impl MismatchPopup {
                 } else {
                     let episode = slice.trim();
                     if !episode.is_empty() {
-                        episodes_from_slice
-                            .push(episode.parse::<u32>()
-                                .map_err(|err| format!("Episode must be a number: {err}"))?);
+                        episodes_from_slice.push(
+                            episode
+                                .parse::<u32>()
+                                .map_err(|err| format!("Episode must be a number: {err}"))?,
+                        );
                     }
                 }
                 Ok(episodes_from_slice)
@@ -116,9 +118,7 @@ pub fn build<B: Backend, T: Service>(frame: &mut Frame<B>, app: &mut App<T>) {
         ]),
     ];
 
-    let user_input = Line::from(
-        Span::raw(app.mismatch_popup.owned_episodes.clone())
-    );
+    let user_input = Line::from(Span::raw(app.mismatch_popup.owned_episodes.clone()));
 
     frame.set_cursor(
         main_chunks[1].x + u16::try_from(user_input.width()).unwrap_or_default(),
@@ -128,8 +128,7 @@ pub fn build<B: Backend, T: Service>(frame: &mut Frame<B>, app: &mut App<T>) {
     let block = Block::default()
         .title("Episodes mismatch")
         .borders(Borders::ALL);
-    let mismatch_info = Paragraph::new(mismatch_info)
-        .alignment(Alignment::Center);
+    let mismatch_info = Paragraph::new(mismatch_info).alignment(Alignment::Center);
     let user_input = Paragraph::new(user_input);
     frame.render_widget(Clear, area);
     frame.render_widget(block, area);
@@ -207,7 +206,10 @@ mod tests {
         let result = mismatch_popup.parse_owned();
         assert!(result.is_err());
         let error = result.err().unwrap();
-        assert_eq!(error, "Value from range must be a number: invalid digit found in string");
+        assert_eq!(
+            error,
+            "Value from range must be a number: invalid digit found in string"
+        );
     }
 
     #[test]
@@ -218,6 +220,9 @@ mod tests {
         let result = mismatch_popup.parse_owned();
         assert!(result.is_err());
         let error = result.err().unwrap();
-        assert_eq!(error, "Episode must be a number: invalid digit found in string");
+        assert_eq!(
+            error,
+            "Episode must be a number: invalid digit found in string"
+        );
     }
 }

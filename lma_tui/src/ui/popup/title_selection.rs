@@ -16,7 +16,9 @@ impl TitlesPopup {
     pub fn new(titles: Vec<ServiceTitle>) -> Self {
         let mut default_state = ListState::default();
         // first item always selected when possible
-        if !titles.is_empty() { default_state.select(Some(0)); }
+        if !titles.is_empty() {
+            default_state.select(Some(0));
+        }
         Self {
             state: default_state,
             service_titles: titles,
@@ -43,7 +45,7 @@ impl TitlesPopup {
         direction: &SelectionDirection,
     ) -> usize {
         if list_length == 0 {
-            return 0
+            return 0;
         }
         match selected_element {
             Some(i) => match direction {
@@ -68,9 +70,7 @@ pub fn build<B: Backend, T: Service>(frame: &mut Frame<B>, app: &mut App<T>) {
         .titles_popup
         .service_titles
         .iter()
-        .map(|service_title| {
-            ListItem::new(service_title.title.clone()).style(Style::default())
-        })
+        .map(|service_title| ListItem::new(service_title.title.clone()).style(Style::default()))
         .collect();
 
     let items = List::new(items)

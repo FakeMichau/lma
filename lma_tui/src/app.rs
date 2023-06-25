@@ -49,11 +49,15 @@ impl<T: Service + Send> App<T> {
     ) -> Result<(), String> {
         rt.block_on(self.anime_list.service.auth());
         self.focused_window = FocusedWindow::Login;
-        terminal.draw(|f| ui(f, self, rt)).map_err(|err| err.to_string())?;
+        terminal
+            .draw(|f| ui(f, self, rt))
+            .map_err(|err| err.to_string())?;
         if !self.anime_list.service.is_logged_in() {
             rt.block_on(self.anime_list.service.login())?; // freezes the app as it waits
             self.focused_window = FocusedWindow::MainMenu;
-            terminal.draw(|f| ui(f, self, rt)).map_err(|err| err.to_string())?;
+            terminal
+                .draw(|f| ui(f, self, rt))
+                .map_err(|err| err.to_string())?;
             self.focused_window = FocusedWindow::Login;
         }
         Ok(())
@@ -96,18 +100,18 @@ pub fn run<B: Backend, T: Service + Send>(
             .unwrap_or_else(|| Duration::from_secs(0));
         if crossterm::event::poll(timeout)? {
             if let Event::Key(key) = event::read()? {
-                    match app.focused_window {
-                        FocusedWindow::MainMenu => {
-                            if handle_main_menu_key(key, &mut app, rt, terminal)?.is_none() {
-                                return Ok(());
-                            }
+                match app.focused_window {
+                    FocusedWindow::MainMenu => {
+                        if handle_main_menu_key(key, &mut app, rt, terminal)?.is_none() {
+                            return Ok(());
                         }
-                        FocusedWindow::Login => handle_login_key(key, &mut app),
-                        FocusedWindow::InsertPopup => handle_insert_popup_key(&mut app, key),
-                        FocusedWindow::InsertEpisodePopup => handle_insert_episode_popup_key(&mut app, key),
-                        FocusedWindow::TitleSelection => handle_title_selection_key(key, &mut app),
-                        FocusedWindow::EpisodeMismatch => handle_mismatch_popup_key(key, &mut app),
-                        FocusedWindow::Error => handle_error_key(key, &mut app),
+                    }
+                    FocusedWindow::Login => handle_login_key(key, &mut app),
+                    FocusedWindow::InsertPopup => handle_insert_popup_key(&mut app, key),
+                    FocusedWindow::InsertEpisodePopup => handle_insert_episode_popup_key(&mut app, key),
+                    FocusedWindow::TitleSelection => handle_title_selection_key(key, &mut app),
+                    FocusedWindow::EpisodeMismatch => handle_mismatch_popup_key(key, &mut app),
+                    FocusedWindow::Error => handle_error_key(key, &mut app),
                 }
             }
         }
@@ -125,10 +129,18 @@ fn handle_main_menu_key<B: Backend, T: Service + Send>(
 ) -> Result<Option<bool>, String> {
     match key.code {
         KeyCode::Char('q') => return Ok(None),
-        KeyCode::Down => app.list_state.move_selection(&SelectionDirection::Next, &app.anime_list)?,
-        KeyCode::Up => app.list_state.move_selection(&SelectionDirection::Previous, &app.anime_list)?,
-        KeyCode::Char('.') => app.list_state.move_progress(&SelectionDirection::Next, &mut app.anime_list, rt)?,
-        KeyCode::Char(',') => app.list_state.move_progress(&SelectionDirection::Previous, &mut app.anime_list, rt)?,
+        KeyCode::Down => app
+            .list_state
+            .move_selection(&SelectionDirection::Next, &app.anime_list)?,
+        KeyCode::Up => app
+            .list_state
+            .move_selection(&SelectionDirection::Previous, &app.anime_list)?,
+        KeyCode::Char('.') => app
+            .list_state
+            .move_progress(&SelectionDirection::Next, &mut app.anime_list, rt)?,
+        KeyCode::Char(',') => app
+            .list_state
+            .move_progress(&SelectionDirection::Previous, &mut app.anime_list, rt)?,
         KeyCode::Right | KeyCode::Enter => app.list_state.select(),
         KeyCode::Left => app.list_state.unselect(),
         KeyCode::Delete => app.list_state.delete(&app.anime_list)?,
@@ -159,7 +171,7 @@ fn handle_login_key<T: Service + Send>(key: event::KeyEvent, app: &mut App<T>) {
             if let Err(err) = app.list_state.update_cache(&app.anime_list) {
                 app.set_error(err);
             };
-        },
+        }
         _ => {}
     }
 }
@@ -169,11 +181,10 @@ fn handle_error_key<T: Service>(key: event::KeyEvent, app: &mut App<T>) {
         KeyCode::Esc | KeyCode::Enter => {
             app.error = String::new();
             app.focused_window = FocusedWindow::MainMenu;
-        },
+        }
         _ => {}
     }
 }
-
 
 fn handle_insert_popup_key<T: Service>(app: &mut App<T>, key: event::KeyEvent) {
     match app.insert_popup.state {
@@ -182,18 +193,23 @@ fn handle_insert_popup_key<T: Service>(app: &mut App<T>, key: event::KeyEvent) {
             KeyCode::Backspace => _ = app.insert_popup.data.pop(),
             KeyCode::Esc => app.insert_popup.state = InsertState::None,
             KeyCode::Enter => {
-                app.insert_popup.state = if app.insert_popup.move_line_selection(&SelectionDirection::Next) {
+                app.insert_popup.state = if app
+                    .insert_popup
+                    .move_line_selection(&SelectionDirection::Next)
+                {
                     InsertState::Save
                 } else {
                     InsertState::Next
                 };
             }
             KeyCode::Down => {
-                app.insert_popup.move_line_selection(&SelectionDirection::Next);
+                app.insert_popup
+                    .move_line_selection(&SelectionDirection::Next);
                 app.insert_popup.state = InsertState::Next;
             }
             KeyCode::Up => {
-                app.insert_popup.move_line_selection(&SelectionDirection::Previous);
+                app.insert_popup
+                    .move_line_selection(&SelectionDirection::Previous);
                 app.insert_popup.state = InsertState::Next;
             }
             _ => {}
@@ -205,10 +221,18 @@ fn handle_insert_popup_key<T: Service>(app: &mut App<T>, key: event::KeyEvent) {
             }
             KeyCode::Char('e') => app.insert_popup.state = InsertState::Inputting,
             KeyCode::Char('i') => app.insert_popup.state = InsertState::Save,
-            KeyCode::Down => _=app.insert_popup.move_line_selection(&SelectionDirection::Next),
-            KeyCode::Up => _=app.insert_popup.move_line_selection(&SelectionDirection::Previous),
+            KeyCode::Down => {
+                _ = app
+                    .insert_popup
+                    .move_line_selection(&SelectionDirection::Next);
+            }
+            KeyCode::Up => {
+                _ = app
+                    .insert_popup
+                    .move_line_selection(&SelectionDirection::Previous);
+            }
             _ => {}
-        }
+        },
     }
 }
 
@@ -229,7 +253,7 @@ fn handle_insert_episode_popup_key<T: Service>(app: &mut App<T>, key: event::Key
             KeyCode::Char('e') => app.insert_episode_popup.state = InsertState::Inputting,
             KeyCode::Char('i') => app.insert_episode_popup.state = InsertState::Save,
             _ => {}
-        }
+        },
     }
 }
 
@@ -255,7 +279,7 @@ fn handle_mismatch_popup_key<T: Service + Send>(key: event::KeyEvent, app: &mut 
                 Err(err) => app.set_error(err),
             };
             app.focused_window = FocusedWindow::InsertPopup;
-        },
+        }
         KeyCode::Esc => app.focused_window = FocusedWindow::InsertPopup,
         _ => {}
     }

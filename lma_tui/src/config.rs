@@ -1,8 +1,8 @@
 use std::{path::PathBuf, fs};
 use directories::ProjectDirs;
-use lma_lib::{ServiceType, TitleSort};
 use serde::{Serialize, Deserialize};
 use ratatui::style::Color as TermColor;
+use lma_lib::{ServiceType, TitleSort};
 
 pub struct Config {
     service: ServiceType,
@@ -38,11 +38,27 @@ struct Colors {
 impl Default for Colors {
     fn default() -> Self {
         Self {
-            text: Some(Color { r:220, g:220, b: 220 }),
-            text_watched: Some(Color { r:70, g:70, b: 70 }),
-            text_deleted: Some(Color { r:200, g:0, b: 0 }),
-            highlight: Some(Color { r:91, g:174, b: 36 }),
-            highlight_dark: Some(Color { r:25, g:65, b: 10 }),
+            text: Some(Color {
+                r: 220,
+                g: 220,
+                b: 220,
+            }),
+            text_watched: Some(Color {
+                r: 70,
+                g: 70,
+                b: 70,
+            }),
+            text_deleted: Some(Color { r: 200, g: 0, b: 0 }),
+            highlight: Some(Color {
+                r: 91,
+                g: 174,
+                b: 36,
+            }),
+            highlight_dark: Some(Color {
+                r: 25,
+                g: 65,
+                b: 10,
+            }),
         }
     }
 }
@@ -77,7 +93,8 @@ impl Config {
         };
 
         let config = if config_file.exists() {
-            let data = fs::read_to_string(config_file).map_err(|err| format!("Config can't be read: {err}"))?;
+            let data = fs::read_to_string(config_file)
+                .map_err(|err| format!("Config can't be read: {err}"))?;
             parse_config_file(&data)?
         } else {
             create_store_default_config(&default_config, config_file)?
@@ -85,10 +102,15 @@ impl Config {
 
         let service = config.service.unwrap_or(default_service);
         let title_sort = config.title_sort.unwrap_or(default_title_sort);
-        let data_dir = config.data_dir.unwrap_or_else(|| default_config.data_dir.expect("Hardcoded value"));
+        let data_dir = config
+            .data_dir
+            .unwrap_or_else(|| default_config.data_dir.expect("Hardcoded value"));
         let colors = config.colors.unwrap_or_else(|| default_colors.clone());
         let term_colors = TermColors {
-            text: colors.text.unwrap_or_else(|| default_colors.text.expect("Hardcoded value")).into(),
+            text: colors
+                .text
+                .unwrap_or_else(|| default_colors.text.expect("Hardcoded value"))
+                .into(),
             text_watched: colors
                 .text_watched
                 .unwrap_or_else(|| default_colors.text_watched.expect("Hardcoded value"))
@@ -116,14 +138,12 @@ impl Config {
     }
 
     pub fn default() -> Result<Self, String> {
-        let project_dirs = ProjectDirs::from("", "FakeMichau", "lma")
-            .unwrap_or_else(|| ProjectDirs::from_path(PathBuf::new()).expect("Backup default path"));
-        
+        let project_dirs = ProjectDirs::from("", "FakeMichau", "lma").unwrap_or_else(|| {
+            ProjectDirs::from_path(PathBuf::new()).expect("Backup default path")
+        });
+
         return if cfg!(debug_assertions) {
-            Self::build(
-                &PathBuf::default(),
-                &PathBuf::default(),
-            )
+            Self::build(&PathBuf::default(), &PathBuf::default())
         } else {
             Self::build(
                 &project_dirs.config_dir().to_path_buf(),
@@ -149,9 +169,14 @@ impl Config {
     }
 }
 
-fn create_store_default_config(default_config: &ConfigFile, config_file: PathBuf) -> Result<ConfigFile, String> {
-    let default_config_str = toml::to_string(default_config).map_err(|err| format!("Can't serialized the config: {err}"))?;
-    fs::write(config_file, default_config_str).map_err(|err| format!("Can't save default config: {err}"))?;
+fn create_store_default_config(
+    default_config: &ConfigFile,
+    config_file: PathBuf,
+) -> Result<ConfigFile, String> {
+    let default_config_str = toml::to_string(default_config)
+        .map_err(|err| format!("Can't serialized the config: {err}"))?;
+    fs::write(config_file, default_config_str)
+        .map_err(|err| format!("Can't save default config: {err}"))?;
     Ok(default_config.clone())
 }
 
@@ -161,7 +186,8 @@ fn parse_config_file(data: &str) -> Result<ConfigFile, String> {
 }
 
 fn create_dirs(config_dir: &PathBuf, data_dir: &PathBuf) -> Result<(), String> {
-    fs::create_dir_all(config_dir).map_err(|err| format!("Can't create config directory: {err}"))?;
+    fs::create_dir_all(config_dir)
+        .map_err(|err| format!("Can't create config directory: {err}"))?;
     fs::create_dir_all(data_dir).map_err(|err| format!("Can't create data directory: {err}"))?;
     Ok(())
 }
@@ -220,7 +246,7 @@ mod tests {
                 highlight: Some(Color { r:91, g:174, b: 36 }),
                 highlight_dark: Some(Color { r:25, g:65, b: 10 }),
             }),
-            title_sort: Some(TitleSort::LocalIdAsc)
+            title_sort: Some(TitleSort::LocalIdAsc),
         };
         assert_eq!(parsed_config_file, expected_config_file);
     }
@@ -252,7 +278,8 @@ mod tests {
             b = 10
         ";
         let parsed_config = parse_config_file(config_string).unwrap_err();
-        let correct_error = parsed_config.contains("Can't parse the config: unknown variant `trolololo`");
+        let correct_error = parsed_config
+            .contains("Can't parse the config: unknown variant `trolololo`");
         assert!(correct_error, "Tests wrong service name");
     }
 

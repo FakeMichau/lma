@@ -55,7 +55,11 @@ impl InsertPopup {
     }
 }
 
-pub fn build<B: Backend, T: Service + Send>(frame: &mut Frame<B>, app: &mut App<T>, rt: &Runtime) -> Result<(), String> {
+pub fn build<B: Backend, T: Service + Send>(
+    frame: &mut Frame<B>,
+    app: &mut App<T>,
+    rt: &Runtime,
+) -> Result<(), String> {
     let area = centered_rect(70, 70, frame.size());
     let text_area = area.inner(&Margin {
         vertical: 1,
@@ -66,7 +70,7 @@ pub fn build<B: Backend, T: Service + Send>(frame: &mut Frame<B>, app: &mut App<
         InsertState::Inputting => handle_inputting_state(app),
         InsertState::Next => handle_next_state(app, rt)?,
         InsertState::Save => handle_save_state(app, rt)?,
-        InsertState::None => {},
+        InsertState::None => {}
     }
 
     let input_form = vec![
@@ -123,18 +127,21 @@ fn handle_inputting_state<T: Service>(app: &mut App<T>) {
 fn handle_next_state<T: Service>(app: &mut App<T>, rt: &Runtime) -> Result<(), String> {
     match app.insert_popup.current_line() {
         // after going to the next line, when data in the previous one is present
-        1 if !app.insert_popup.path.to_string_lossy().is_empty() && app.insert_popup.title.is_empty() => {
+        1 if !app.insert_popup.path.to_string_lossy().is_empty()
+            && app.insert_popup.title.is_empty() =>
+        {
             // sanitize user input
             app.insert_popup.title = app
                 .anime_list
                 .guess_shows_title(&app.insert_popup.path)
                 .unwrap_or_default(); // deal with it
         }
-        2 if !app.insert_popup.title.is_empty() 
-            && app.insert_popup.service_id == 0 
-            && app.anime_list.service.get_service_type() != ServiceType::Local => {
+        2 if !app.insert_popup.title.is_empty()
+            && app.insert_popup.service_id == 0
+            && app.anime_list.service.get_service_type() != ServiceType::Local =>
+        {
             // create a popup to select the exact show from a sync service
-            let items = rt.block_on(async { 
+            let items = rt.block_on(async {
                 app.anime_list
                     .service
                     .search_title(&app.insert_popup.title)
@@ -143,12 +150,14 @@ fn handle_next_state<T: Service>(app: &mut App<T>, rt: &Runtime) -> Result<(), S
             app.titles_popup = TitlesPopup::new(items);
             app.focused_window = FocusedWindow::TitleSelection;
         }
-        3 if ((app.anime_list.service.get_service_type() == ServiceType::MAL && app.insert_popup.service_id != 0) || 
-            app.anime_list.service.get_service_type() == ServiceType::Local)
+        3 if ((app.anime_list.service.get_service_type() == ServiceType::MAL && app.insert_popup.service_id != 0)
+            || app.anime_list.service.get_service_type() == ServiceType::Local)
             && app.insert_popup.episode_count == 0
             && !app.insert_popup.path.to_string_lossy().is_empty() =>
         {
-            let title = rt.block_on(app.anime_list.service.get_title(u32::try_from(app.insert_popup.service_id).map_err(|e| e.to_string())?))?;
+            let title = rt.block_on(app.anime_list.service.get_title(
+                u32::try_from(app.insert_popup.service_id).map_err(|e| e.to_string())?,
+            ))?;
             if app.anime_list.service.get_service_type() != ServiceType::Local {
                 app.insert_popup.title = title; // make it a config?
             }
@@ -159,27 +168,31 @@ fn handle_next_state<T: Service>(app: &mut App<T>, rt: &Runtime) -> Result<(), S
                     .get_episode_count(u32::try_from(app.insert_popup.service_id).map_err(|e| e.to_string())?)
                 )?
                 .unwrap_or_default();
-            let video_files_count = u32::try_from(app
-                .anime_list
-                .count_video_files(&app.insert_popup.path)
-                .unwrap_or_default())
-                .map_err(|e| e.to_string())?;
+            let video_files_count = u32::try_from(
+                app.anime_list
+                    .count_video_files(&app.insert_popup.path)
+                    .unwrap_or_default(),
+            )
+            .map_err(|e| e.to_string())?;
 
             app.insert_popup.episode_count = episode_count.into();
-            if episode_count == video_files_count || app.anime_list.service.get_service_type() == ServiceType::Local {
-                app.insert_popup.episodes = AnimeList::<T>::get_video_file_paths(&app.insert_popup.path)
-                    .unwrap_or_default()
-                    .into_iter()
-                    .enumerate()
-                    .map(|(k, path)| Episode {
-                        number: k as i64 + 1,
-                        path: path.clone(),
-                        title: String::new(),
-                        file_deleted: !path.exists(),
-                        recap: false,
-                        filler: false,
-                    })
-                    .collect();
+            if episode_count == video_files_count
+                || app.anime_list.service.get_service_type() == ServiceType::Local
+            {
+                app.insert_popup.episodes =
+                    AnimeList::<T>::get_video_file_paths(&app.insert_popup.path)
+                        .unwrap_or_default()
+                        .into_iter()
+                        .enumerate()
+                        .map(|(k, path)| Episode {
+                            number: k as i64 + 1,
+                            path: path.clone(),
+                            title: String::new(),
+                            file_deleted: !path.exists(),
+                            recap: false,
+                            filler: false,
+                        })
+                        .collect();
             } else if episode_count > video_files_count {
                 app.mismatch_popup = MismatchPopup::new(episode_count, video_files_count);
                 app.focused_window = FocusedWindow::EpisodeMismatch;
@@ -191,7 +204,9 @@ fn handle_next_state<T: Service>(app: &mut App<T>, rt: &Runtime) -> Result<(), S
         _ => {}
     };
     app.insert_popup.data = match app.insert_popup.current_line() {
-        0 if !app.insert_popup.path.to_string_lossy().is_empty() => app.insert_popup.path.to_string_lossy().into(),
+        0 if !app.insert_popup.path.to_string_lossy().is_empty() => {
+            app.insert_popup.path.to_string_lossy().into()
+        }
         1 if !app.insert_popup.title.is_empty() => app.insert_popup.title.clone(),
         2 if !app.insert_popup.service_id != 0 => app.insert_popup.service_id.to_string(),
         3 if !app.insert_popup.episode_count != 0 => app.insert_popup.episode_count.to_string(),
@@ -202,11 +217,10 @@ fn handle_next_state<T: Service>(app: &mut App<T>, rt: &Runtime) -> Result<(), S
 }
 
 fn handle_save_state<T: Service + Send>(app: &mut App<T>, rt: &Runtime) -> Result<(), String> {
-    match app.anime_list.add_show(
-        &app.insert_popup.title,
-        app.insert_popup.service_id,
-        0,
-    ) {
+    match app
+        .anime_list
+        .add_show(&app.insert_popup.title, app.insert_popup.service_id, 0)
+    {
         Ok(local_id) => {
             insert_episodes(rt, app, local_id)?;
             rt.block_on(async {
@@ -215,7 +229,7 @@ fn handle_save_state<T: Service + Send>(app: &mut App<T>, rt: &Runtime) -> Resul
                     .init_show(u32::try_from(app.insert_popup.service_id).map_err(|e| e.to_string())?)
                     .await
             })
-        },
+        }
         Err(why) => {
             if why.contains("constraint failed") {
                 // show with this sync_service_id or title already exists
@@ -228,47 +242,56 @@ fn handle_save_state<T: Service + Send>(app: &mut App<T>, rt: &Runtime) -> Resul
                 eprintln!("{why}");
             }
             Ok(())
-        },
+        }
     }?;
     app.insert_popup.state = InsertState::None;
     app.insert_popup = InsertPopup::default();
     app.list_state.update_cache(&app.anime_list)?;
     app.focused_window = FocusedWindow::MainMenu;
     // to update episodes list
-    app.list_state.move_selection(&SelectionDirection::Next, &app.anime_list)?;
+    app.list_state
+        .move_selection(&SelectionDirection::Next, &app.anime_list)?;
     Ok(())
 }
 
-fn insert_episodes<T: Service + Send>(rt: &Runtime, app: &mut App<T>, local_id: i64) -> Result<(), String> {
+fn insert_episodes<T: Service + Send>(
+    rt: &Runtime,
+    app: &mut App<T>,
+    local_id: i64,
+) -> Result<(), String> {
     // service_id is fine because hashmap can be empty here
-    let episodes_details_hash = rt.block_on(
-        get_episodes_info(&mut app.anime_list.service, u32::try_from(app.insert_popup.service_id).map_err(|e| e.to_string())?)
-    )?;
+    let episodes_details_hash = rt.block_on(get_episodes_info(
+        &mut app.anime_list.service,
+        u32::try_from(app.insert_popup.service_id).map_err(|e| e.to_string())?,
+    ))?;
     // surely I can be smarter about it
     let episode_offset = if app.anime_list.service.get_service_type() == ServiceType::Local {
-        app.anime_list.get_list().map(|shows| {
-            shows.iter()
-                .find(|show| {
-                    show.local_id == local_id
-                })
-                .map(|show| {
-                    show.episodes.len()
-                })
-                .unwrap_or_default()
-        }).unwrap_or_default() as i64
+        app.anime_list
+            .get_list()
+            .map(|shows| {
+                shows
+                    .iter()
+                    .find(|show| show.local_id == local_id)
+                    .map(|show| show.episodes.len())
+                    .unwrap_or_default()
+            })
+            .unwrap_or_default() as i64
     } else {
         0
     };
     app.insert_popup.episodes.iter().for_each(|episode| {
-        let potential_title = episodes_details_hash.get(&u32::try_from(episode.number).unwrap_or_default());
-        let (title, recap, filler) = potential_title.unwrap_or(&(String::new(), false, false)).clone();
+        let potential_title =
+            episodes_details_hash.get(&u32::try_from(episode.number).unwrap_or_default());
+        let (title, recap, filler) = potential_title
+            .unwrap_or(&(String::new(), false, false))
+            .clone();
 
         if let Err(why) = app.anime_list.add_episode(
             local_id,
             episode.number + episode_offset,
             &episode.path.to_string_lossy(),
             &title,
-            generate_extra_info(recap, filler)
+            generate_extra_info(recap, filler),
         ) {
             eprintln!("{why}");
         }
@@ -276,7 +299,10 @@ fn insert_episodes<T: Service + Send>(rt: &Runtime, app: &mut App<T>, local_id: 
     Ok(())
 }
 
-pub async fn get_episodes_info<T: Service + Send>(service: &mut T, id: u32) -> Result<HashMap<u32, (String, bool, bool)>, String> {
+pub async fn get_episodes_info<T: Service + Send>(
+    service: &mut T,
+    id: u32,
+) -> Result<HashMap<u32, (String, bool, bool)>, String> {
     let episodes_details = service.get_episodes(id).await?;
     Ok(episodes_details
         .iter()
@@ -318,7 +344,7 @@ fn parse_number(str: &mut String) -> i64 {
 #[cfg(test)]
 mod tests {
     use super::*;
-    
+
     #[test]
     fn test_current_line() {
         let insert_popup = InsertPopup::default();
@@ -333,14 +359,20 @@ mod tests {
 
     #[test]
     fn wrap_to_end() {
-        let mut insert_popup = InsertPopup { state: InsertState::Inputting, ..Default::default() };
+        let mut insert_popup = InsertPopup {
+            state: InsertState::Inputting,
+            ..Default::default()
+        };
         insert_popup.move_line_selection(&SelectionDirection::Previous);
         assert_eq!(insert_popup.current_line(), 3);
     }
 
     #[test]
     fn wrap_to_start() {
-        let mut insert_popup = InsertPopup { state: InsertState::Inputting, ..Default::default() };
+        let mut insert_popup = InsertPopup {
+            state: InsertState::Inputting,
+            ..Default::default()
+        };
         for _ in 1..=4 {
             insert_popup.move_line_selection(&SelectionDirection::Next);
         }
@@ -351,17 +383,17 @@ mod tests {
     fn test_generate_extra_info() {
         let result = generate_extra_info(false, false);
         assert_eq!(result, 0);
-        
+
         let result = generate_extra_info(true, false);
         assert_eq!(result, 1);
-        
+
         let result = generate_extra_info(false, true);
         assert_eq!(result, 2);
-        
+
         let result = generate_extra_info(true, true);
         assert_eq!(result, 3);
     }
-    
+
     #[test]
     fn valid_parse_number() {
         let mut input = "123".to_owned();

@@ -41,7 +41,11 @@ impl StatefulList {
         Ok(())
     }
 
-    pub fn move_selection<T: Service>(&mut self, direction: &SelectionDirection, shows: &AnimeList<T>) -> Result<(), String> {
+    pub fn move_selection<T: Service>(
+        &mut self,
+        direction: &SelectionDirection,
+        shows: &AnimeList<T>,
+    ) -> Result<(), String> {
         if self.selecting_episode {
             self.move_episode_selection(direction);
         } else {
@@ -56,16 +60,16 @@ impl StatefulList {
             return
         };
         let episodes_len = selected_show.episodes.len();
-        let i = Self::select_element(
-            episodes_len,
-            self.episodes_state.selected(),
-            direction,
-        );
+        let i = Self::select_element(episodes_len, self.episodes_state.selected(), direction);
         self.episodes_state.select(Some(i));
     }
 
     fn move_show_selection(&mut self, direction: &SelectionDirection) {
-        let i = Self::select_element(self.list_cache.len(), self.shows_state.selected(), direction);
+        let i = Self::select_element(
+            self.list_cache.len(),
+            self.shows_state.selected(),
+            direction,
+        );
         self.shows_state.select(Some(i));
         self.update_selected_id(i);
     }
@@ -80,7 +84,12 @@ impl StatefulList {
             .and_then(|index| self.list_cache.get(index))
     }
 
-    pub fn move_progress<T: Service>(&mut self, direction: &SelectionDirection, shows: &mut AnimeList<T>, rt: &Runtime) -> Result<(), String> {
+    pub fn move_progress<T: Service>(
+        &mut self,
+        direction: &SelectionDirection,
+        shows: &mut AnimeList<T>,
+        rt: &Runtime,
+    ) -> Result<(), String> {
         let Some(selected_show) = self.selected_show() else {
             return Ok(())
         };
@@ -89,12 +98,12 @@ impl StatefulList {
             SelectionDirection::Previous => -1,
         };
         let progress = selected_show.progress + offset;
-        shows.set_progress(selected_show.local_id, progress)
+        shows
+            .set_progress(selected_show.local_id, progress)
             .expect("Set local progress");
-        rt.block_on(
-        shows.service.set_progress(
-            u32::try_from(selected_show.service_id).map_err(|e| e.to_string())?, 
-            u32::try_from(progress).map_err(|e| e.to_string())?
+        rt.block_on(shows.service.set_progress(
+            u32::try_from(selected_show.service_id).map_err(|e| e.to_string())?,
+            u32::try_from(progress).map_err(|e| e.to_string())?,
         ))?;
         self.update_cache(shows)?;
         Ok(())
@@ -103,10 +112,7 @@ impl StatefulList {
     pub fn select(&mut self) {
         if self.selecting_episode {
             // navigating inside the episodes tab
-            let selected_episode = self
-                .episodes_state
-                .selected()
-                .unwrap_or_default();
+            let selected_episode = self.episodes_state.selected().unwrap_or_default();
 
             let path = self
                 .list_cache
@@ -119,7 +125,7 @@ impl StatefulList {
                         .map(|episode| episode.path.clone())
                         .unwrap_or_default()
                 });
-            
+
             if path.exists() && cfg!(target_os = "linux") {
                 _ = Command::new("xdg-open")
                     .arg(path)
@@ -135,7 +141,7 @@ impl StatefulList {
                         .iter()
                         .position(|episode| episode.number == show.progress)
                         .map_or(0, |pos| (pos + 1) % show.episodes.len());
-        
+
                     self.episodes_state.select(Some(index));
                     self.selecting_episode = true;
                 }
@@ -187,8 +193,7 @@ pub fn build<B: Backend, T: Service>(frame: &mut Frame<'_, B>, app: &mut App<T>)
         .list_cache
         .iter()
         .map(|show| {
-            ListItem::new(show.title.clone())
-                .style(Style::default().fg(app.config.colors().text))
+            ListItem::new(show.title.clone()).style(Style::default().fg(app.config.colors().text))
         })
         .collect();
 
@@ -211,7 +216,7 @@ pub fn build<B: Backend, T: Service>(frame: &mut Frame<'_, B>, app: &mut App<T>)
             let mut temp: Vec<ListItem> = Vec::new();
             for episode in &show.episodes {
                 let mut style = Style::default();
-                if episode.number <= show.progress { 
+                if episode.number <= show.progress {
                     style = style.fg(app.config.colors().text_watched);
                 }
                 if episode.file_deleted {
@@ -219,11 +224,18 @@ pub fn build<B: Backend, T: Service>(frame: &mut Frame<'_, B>, app: &mut App<T>)
                 }
                 // maybe make a config for that in the future
                 let episode_display_name = if episode.title.is_empty() {
-                    episode.path.file_name().unwrap_or_default().to_string_lossy().into()
+                    episode
+                        .path
+                        .file_name()
+                        .unwrap_or_default()
+                        .to_string_lossy()
+                        .into()
                 } else {
                     episode.title.clone()
                 };
-                let mut new_episode = ListItem::new(format!("{} {}", episode.number, episode_display_name)).style(style);
+                let mut new_episode =
+                    ListItem::new(format!("{} {}", episode.number, episode_display_name))
+                        .style(style);
                 append_extra_info(
                     &mut new_episode,
                     main_chunks[1].width,
@@ -255,11 +267,7 @@ pub fn build<B: Backend, T: Service>(frame: &mut Frame<'_, B>, app: &mut App<T>)
 
     // We can now render the item list
     frame.render_stateful_widget(items, main_chunks[0], &mut app.list_state.shows_state);
-    frame.render_stateful_widget(
-        episodes,
-        main_chunks[1],
-        &mut app.list_state.episodes_state,
-    );
+    frame.render_stateful_widget(episodes, main_chunks[1], &mut app.list_state.episodes_state);
     frame.render_widget(help, chunks[1]);
 }
 
@@ -271,7 +279,7 @@ fn append_extra_info(
     style: Style,
 ) {
     if !episode.recap && !episode.filler {
-        return
+        return;
     }
     let recap_text = "RECAP";
     let filler_text = "FILLER";
@@ -285,7 +293,9 @@ fn append_extra_info(
     let trunc_symbol = "... ";
     let trunc_symbol_len = u16::try_from(trunc_symbol.len()).unwrap_or_default();
     let episode_width = new_episode.width();
-    let offset = u16::try_from(text.len()).unwrap_or_default() + u16::try_from(episode.number.checked_ilog10().unwrap_or(0) + 1).unwrap_or_default() + 3;
+    let offset = u16::try_from(text.len()).unwrap_or_default()
+        + u16::try_from(episode.number.checked_ilog10().unwrap_or(0) + 1).unwrap_or_default()
+        + 3;
     if episode_width > (space - offset - trunc_symbol_len + 3).into() {
         let mut trunc_episode_display_name = episode_display_name;
         trunc_episode_display_name.truncate((space - offset - trunc_symbol_len).into());
@@ -330,7 +340,12 @@ impl HelpItem {
     }
 }
 
-fn build_help<'a>(focused_window: &FocusedWindow, insert_state: &InsertState, insert_episode_state: &InsertState, highlight_color: Color) -> Paragraph<'a> {
+fn build_help<'a>(
+    focused_window: &FocusedWindow,
+    insert_state: &InsertState,
+    insert_episode_state: &InsertState,
+    highlight_color: Color,
+) -> Paragraph<'a> {
     // Create help text at the bottom
     let navigation = HelpItem::new("Navigation", "ARROWS", highlight_color);
     let insert = HelpItem::new("Insert new show", "N", highlight_color);
@@ -391,7 +406,7 @@ fn build_help<'a>(focused_window: &FocusedWindow, insert_state: &InsertState, in
         FocusedWindow::EpisodeMismatch | FocusedWindow::Error => {
             information.extend(confirm.to_span());
             information.extend(close_window.to_span());
-        },
+        }
     };
 
     Paragraph::new(Line::from(information))
@@ -423,7 +438,8 @@ mod tests {
         let episode = create_test_episode(true, true);
         let episode_display_name = episode.title.clone();
         let style = Style::default();
-        let mut new_episode = ListItem::new(format!("{} {}", episode.number, episode_display_name)).style(style);
+        let mut new_episode =
+            ListItem::new(format!("{} {}", episode.number, episode_display_name)).style(style);
 
         append_extra_info(
             &mut new_episode,
@@ -435,8 +451,7 @@ mod tests {
 
         assert_eq!(
             new_episode,
-            ListItem::new("1 Test Epis... RECAP/FILLER")
-                .style(style)
+            ListItem::new("1 Test Epis... RECAP/FILLER").style(style)
         );
     }
 
@@ -446,7 +461,8 @@ mod tests {
         let episode = create_test_episode(true, true);
         let episode_display_name = episode.title.clone();
         let style = Style::default();
-        let mut new_episode = ListItem::new(format!("{} {}", episode.number, episode_display_name)).style(style);
+        let mut new_episode =
+            ListItem::new(format!("{} {}", episode.number, episode_display_name)).style(style);
 
         append_extra_info(
             &mut new_episode,
@@ -458,8 +474,7 @@ mod tests {
 
         assert_eq!(
             new_episode,
-            ListItem::new("1 Test Episode            RECAP/FILLER")
-                .style(style)
+            ListItem::new("1 Test Episode            RECAP/FILLER").style(style)
         );
     }
 
@@ -469,7 +484,8 @@ mod tests {
         let episode = create_test_episode(false, true);
         let episode_display_name = episode.title.clone();
         let style = Style::default();
-        let mut new_episode = ListItem::new(format!("{} {}", episode.number, episode_display_name)).style(style);
+        let mut new_episode =
+            ListItem::new(format!("{} {}", episode.number, episode_display_name)).style(style);
 
         append_extra_info(
             &mut new_episode,
@@ -481,8 +497,7 @@ mod tests {
 
         assert_eq!(
             new_episode,
-            ListItem::new("1 Test Episo... FILLER")
-                .style(style)
+            ListItem::new("1 Test Episo... FILLER").style(style)
         );
     }
 
@@ -492,7 +507,8 @@ mod tests {
         let episode = create_test_episode(false, true);
         let episode_display_name = episode.title.clone();
         let style = Style::default();
-        let mut new_episode = ListItem::new(format!("{} {}", episode.number, episode_display_name)).style(style);
+        let mut new_episode =
+            ListItem::new(format!("{} {}", episode.number, episode_display_name)).style(style);
 
         append_extra_info(
             &mut new_episode,
@@ -504,8 +520,7 @@ mod tests {
 
         assert_eq!(
             new_episode,
-            ListItem::new("1 Test Episode                  FILLER")
-                .style(style)
+            ListItem::new("1 Test Episode                  FILLER").style(style)
         );
     }
 
@@ -516,7 +531,8 @@ mod tests {
         episode.number = 420;
         let episode_display_name = episode.title.clone();
         let style = Style::default();
-        let mut new_episode = ListItem::new(format!("{} {}", episode.number, episode_display_name)).style(style);
+        let mut new_episode =
+            ListItem::new(format!("{} {}", episode.number, episode_display_name)).style(style);
 
         append_extra_info(
             &mut new_episode,
@@ -528,8 +544,7 @@ mod tests {
 
         assert_eq!(
             new_episode,
-            ListItem::new("420 Test Epi... FILLER")
-                .style(style)
+            ListItem::new("420 Test Epi... FILLER").style(style)
         );
     }
 
@@ -594,22 +609,22 @@ mod tests {
     }
 
     fn create_test_episode(recap: bool, filler: bool) -> Episode {
-        Episode { 
-            title: String::from("Test Episode"), 
-            number: 1, 
-            path: PathBuf::from("/path/just/for/testing.mp4"), 
-            file_deleted: false, 
-            recap, 
-            filler 
+        Episode {
+            title: String::from("Test Episode"),
+            number: 1,
+            path: PathBuf::from("/path/just/for/testing.mp4"),
+            file_deleted: false,
+            recap,
+            filler,
         }
     }
 
     fn generate_test_stateful_list(count: i64) -> StatefulList {
-        StatefulList { 
-            shows_state: ListState::default(), 
-            episodes_state: ListState::default(), 
-            selecting_episode: false, 
-            selected_local_id: 0, 
+        StatefulList {
+            shows_state: ListState::default(),
+            episodes_state: ListState::default(),
+            selecting_episode: false,
+            selected_local_id: 0,
             list_cache: generate_test_shows(count),
         }
     }
@@ -617,13 +632,13 @@ mod tests {
     fn generate_test_episodes(count: i64) -> Vec<Episode> {
         let mut episodes = Vec::new();
         for i in 1..=count {
-            let episode = Episode { 
+            let episode = Episode {
                 title: format!("Test Episode {i}"),
-                number: i, 
-                path: PathBuf::from("/path/just/for/testing.mp4"), 
-                file_deleted: false, 
-                recap: false, 
-                filler: false 
+                number: i,
+                path: PathBuf::from("/path/just/for/testing.mp4"),
+                file_deleted: false,
+                recap: false,
+                filler: false,
             };
             episodes.push(episode);
         }
@@ -638,7 +653,7 @@ mod tests {
                 title: format!("Test Show {i}"),
                 service_id: 100 + i,
                 episodes: generate_test_episodes(count),
-                progress: i%4,
+                progress: i % 4,
             };
             shows.push(show);
         }
