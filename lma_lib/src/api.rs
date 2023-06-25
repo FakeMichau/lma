@@ -69,7 +69,8 @@ pub trait Service {
     async fn get_episodes(&mut self, id: u32) -> Result<Vec<ServiceEpisodeDetails>, String>;
     async fn get_episode_count(&mut self, id: u32) -> Result<Option<u32>, String>;
     async fn get_user_entry_details(&mut self, id: u32) -> Result<Option<ServiceEpisodeUser>, String>;
-    async fn set_progress(&mut self, id: u32, progress: u32) -> Result<(), String>;
+    /// Returns actual progress set on the service
+    async fn set_progress(&mut self, id: u32, progress: u32) -> Result<u32, String>;
     fn get_service_type(&self) -> ServiceType;
     fn get_url(&self) -> Option<String>;
     fn is_logged_in(&self) -> bool;

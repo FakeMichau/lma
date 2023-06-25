@@ -179,13 +179,20 @@ impl<T: Service> AnimeList<T> {
             match user_service_progress_current.cmp(&local_progress_current) {
                 Ordering::Greater => {
                     self.set_progress(show.local_id, i64::from(user_service_progress_current))
-                        .map_err(|e| format!("Can't set progress: {e}"))?;
-                    Ok(())
+                        .map_err(|e| format!("Can't set progress: {e}"))
                 }
-                Ordering::Less => rt.block_on(
+                Ordering::Less => {
+                    let actual_progress = rt.block_on(
                     self.service
                         .set_progress(service_id, local_progress_current),
-                ),
+                    ).unwrap_or(local_progress_current);
+                    // in case of going beyond number of episodes
+                    if actual_progress < local_progress_current {
+                        self.set_progress(show.local_id, i64::from(actual_progress))
+                            .map_err(|e| format!("Can't set progress: {e}"))?;
+                    }
+                    Ok(())
+                },
                 Ordering::Equal => Ok(()),
             }?;
         }

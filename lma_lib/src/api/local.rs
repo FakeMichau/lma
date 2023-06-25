@@ -36,8 +36,8 @@ impl Service for Local {
     async fn get_episodes(&mut self, _id: u32) -> Result<Vec<ServiceEpisodeDetails>, String> {
         Ok(Vec::new())
     }
-    async fn set_progress(&mut self, _id: u32, _progress: u32) -> Result<(), String> {
-        Ok(())
+    async fn set_progress(&mut self, _id: u32, progress: u32) -> Result<u32, String> {
+        Ok(progress)
     }
     fn get_service_type(&self) -> ServiceType {
         ServiceType::Local

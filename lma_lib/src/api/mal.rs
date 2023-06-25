@@ -156,7 +156,7 @@ impl<T: MALClientTrait + Send + Sync> Service for MAL<T> {
             })
             .unwrap_or_default())
     }
-    async fn set_progress(&mut self, id: u32, progress: u32) -> Result<(), String> {
+    async fn set_progress(&mut self, id: u32, progress: u32) -> Result<u32, String> {
         let mut update = StatusUpdate::new();
         update.num_watched_episodes(progress);
         if progress == 0 {
@@ -185,7 +185,8 @@ impl<T: MALClientTrait + Send + Sync> Service for MAL<T> {
                     count
                 }
             });
-        if updated_status.num_episodes_watched.unwrap_or_default() >= episode_count {
+        let actual_progress = updated_status.num_episodes_watched.unwrap_or(progress);
+        if actual_progress >= episode_count {
             let mut update = StatusUpdate::new();
             update.status(Status::Completed);
             if updated_status.finish_date.is_none() {
@@ -194,7 +195,7 @@ impl<T: MALClientTrait + Send + Sync> Service for MAL<T> {
             self.update_status(id, update).await?;
             // ask user for a score?
         }
-        Ok(())
+        Ok(actual_progress)
     }
     fn get_service_type(&self) -> ServiceType {
         ServiceType::MAL

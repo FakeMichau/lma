@@ -100,13 +100,13 @@ impl StatefulList {
             SelectionDirection::Previous => -1,
         };
         let progress = selected_show.progress + offset;
-        shows
-            .set_progress(selected_show.local_id, progress)
-            .expect("Set local progress");
-        rt.block_on(shows.service.set_progress(
+        let actual_progress = rt.block_on(shows.service.set_progress(
             u32::try_from(selected_show.service_id).map_err(|e| e.to_string())?,
             u32::try_from(progress).map_err(|e| e.to_string())?,
         ))?;
+        shows
+            .set_progress(selected_show.local_id, i64::from(actual_progress))
+            .expect("Set local progress");
         self.update_cache(shows)?;
         Ok(())
     }
