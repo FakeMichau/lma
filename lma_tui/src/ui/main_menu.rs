@@ -2,7 +2,7 @@ use std::path::PathBuf;
 use std::process::{Command, Stdio};
 use crossterm::event::KeyCode;
 use ratatui::backend::Backend;
-use ratatui::layout::{Constraint, Direction, Layout};
+use ratatui::layout::{Constraint, Direction, Layout, Rect};
 use ratatui::style::{Color, Modifier, Style};
 use ratatui::widgets::{Block, Borders, List, ListItem, ListState, Paragraph};
 use ratatui::{Frame, text::{Span, Line}};
@@ -181,8 +181,7 @@ impl StatefulList {
     }
 }
 
-#[allow(clippy::too_many_lines)]
-pub fn build<B: Backend, T: Service>(frame: &mut Frame<'_, B>, app: &mut App<T>) {
+pub fn render<B: Backend, T: Service>(frame: &mut Frame<'_, B>, app: &mut App<T>) {
     let chunks = Layout::default()
         .direction(Direction::Vertical)
         .constraints([Constraint::Min(1), Constraint::Max(1)].as_ref())
@@ -194,8 +193,25 @@ pub fn build<B: Backend, T: Service>(frame: &mut Frame<'_, B>, app: &mut App<T>)
         .constraints([Constraint::Percentage(50), Constraint::Percentage(50)].as_ref())
         .split(chunks[0]);
 
+    render_shows(app, main_chunks[0], frame);
+    render_episodes(app, main_chunks[1], frame);
+    render_help(app, chunks[1], frame);    
+}
+
+fn render_help<B: Backend, T: Service>(app: &mut App<T>, area: Rect, frame: &mut Frame<B>) {
+    let help = build_help(
+        &app.focused_window,
+        &app.insert_popup.state,
+        &app.insert_episode_popup.state,
+        app.config.colors().highlight_dark,
+        app.config.key_binds(),
+    );
+    frame.render_widget(help, area);
+}
+
+fn render_shows<B: Backend, T: Service>(app: &mut App<T>, area: Rect, frame: &mut Frame<B>) {
     let mut scroll_progress: usize = app.list_state.scroll_progress.try_into().unwrap();
-    let items: Vec<_> = app
+    let shows: Vec<_> = app
         .list_state
         .list_cache
         .iter()
@@ -204,7 +220,7 @@ pub fn build<B: Backend, T: Service>(frame: &mut Frame<'_, B>, app: &mut App<T>)
                 && !app.list_state.selecting_episode
             {
                 let full_title = show.title.clone();
-                let space = usize::from(main_chunks[0].width) - 2; // without border
+                let space = usize::from(area.width) - 2; // without border
                 scroll_text(full_title, space, &mut scroll_progress)
             } else {
                 show.title.clone()
@@ -214,16 +230,17 @@ pub fn build<B: Backend, T: Service>(frame: &mut Frame<'_, B>, app: &mut App<T>)
         .collect();
     app.list_state.scroll_progress = scroll_progress.try_into().unwrap();
 
-    // Create a List from all list items and highlight the currently selected one
-    let items = List::new(items)
+    let shows = List::new(shows)
         .block(Block::default().borders(Borders::ALL).title("List"))
         .highlight_style(
             Style::default()
                 .bg(app.config.colors().highlight)
                 .add_modifier(Modifier::BOLD),
         );
+    frame.render_stateful_widget(shows, area, &mut app.list_state.shows_state);
+}
 
-    // Iterate through all elements in the `items` app
+fn render_episodes<B: Backend, T: Service>(app: &mut App<T>, area: Rect, frame: &mut Frame<'_, B>) {
     let episodes: Vec<ListItem> = app
         .list_state
         .list_cache
@@ -257,7 +274,7 @@ pub fn build<B: Backend, T: Service>(frame: &mut Frame<'_, B>, app: &mut App<T>)
                     && app.list_state.selecting_episode 
                     && selected_episode.expect("Is selecting_episode").number == episode.number
                 {
-                    let space = usize::from(main_chunks[1].width)
+                    let space = usize::from(area.width)
                         - 2 // without border
                         - (episode.number.checked_ilog10().unwrap_or(0) as usize + 2); // episode number
                     let mut scroll_progress: usize =
@@ -271,7 +288,7 @@ pub fn build<B: Backend, T: Service>(frame: &mut Frame<'_, B>, app: &mut App<T>)
                         .style(style);
                 append_extra_info(
                     &mut new_episode,
-                    main_chunks[1].width,
+                    area.width,
                     episode,
                     episode_display_name,
                     style,
@@ -282,7 +299,6 @@ pub fn build<B: Backend, T: Service>(frame: &mut Frame<'_, B>, app: &mut App<T>)
         })
         .collect();
 
-    // Create a List from all list items and highlight the currently selected one
     let episodes = List::new(episodes)
         .block(Block::default().borders(Borders::ALL).title("Episodes"))
         .highlight_style(
@@ -290,18 +306,7 @@ pub fn build<B: Backend, T: Service>(frame: &mut Frame<'_, B>, app: &mut App<T>)
                 .bg(app.config.colors().highlight)
                 .add_modifier(Modifier::BOLD),
         );
-    
-    let help = build_help(
-        &app.focused_window,
-        &app.insert_popup.state,
-        &app.insert_episode_popup.state,
-        app.config.colors().highlight_dark,
-        app.config.key_binds(),
-    );
-    // We can now render the item list
-    frame.render_stateful_widget(items, main_chunks[0], &mut app.list_state.shows_state);
-    frame.render_stateful_widget(episodes, main_chunks[1], &mut app.list_state.episodes_state);
-    frame.render_widget(help, chunks[1]);
+    frame.render_stateful_widget(episodes, area, &mut app.list_state.episodes_state);
 }
 
 fn scroll_text(full_title: String, space: usize, scroll_progress: &mut usize) -> String {

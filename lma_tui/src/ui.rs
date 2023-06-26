@@ -30,7 +30,7 @@ pub fn ui<B: Backend, T: Service + Send>(
 ) {
     let result: Result<(), String> = {
         // doesn't catch errors from main
-        main_menu::build(frame, app);
+        main_menu::render(frame, app);
 
         match app.focused_window {
             FocusedWindow::InsertEpisodePopup => popup::insert_episode::build(frame, app, rt),
