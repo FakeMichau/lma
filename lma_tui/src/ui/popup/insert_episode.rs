@@ -1,7 +1,8 @@
 use ratatui::backend::Backend;
-use ratatui::layout::Margin;
+use ratatui::layout::{Margin, Layout, Direction, Constraint, Alignment};
+use ratatui::style::{Modifier, Style};
 use ratatui::text::{Line, Span};
-use ratatui::widgets::{Block, Borders, Clear, Paragraph};
+use ratatui::widgets::{Block, Borders, Clear, Paragraph, Wrap};
 use ratatui::Frame;
 use tokio::runtime::Runtime;
 use lma_lib::{Episode, Service, is_video_file};
@@ -28,12 +29,32 @@ pub fn build<B: Backend, T: Service + Send>(
         horizontal: 1,
     });
 
+    let main_chunks = Layout::default()
+        .direction(Direction::Vertical)
+        .constraints([Constraint::Min(2), Constraint::Percentage(85)].as_ref())
+        .split(text_area);
+    let title_area = main_chunks[0];
+    let text_area = main_chunks[1];
+
     match app.insert_episode_popup.state {
         InsertState::Inputting => handle_inputting_state(app),
         InsertState::Save => handle_save_state(app, rt)?,
         InsertState::None => {}
         InsertState::Next => todo!(),
     }
+    let title = app
+        .list_state
+        .selected_show()
+        .map(|show| show.title.clone())
+        .unwrap_or_default();
+    let title_line = vec![
+        Line::from(vec![
+            Span::raw("Adding episodes to:"),
+        ]),
+        Line::from(vec![
+            Span::styled(title, Style::default().add_modifier(Modifier::BOLD)),
+        ])
+    ];
 
     let input_form = Line::from(vec![
         Span::raw("Path to the episode: "),
@@ -50,9 +71,13 @@ pub fn build<B: Backend, T: Service + Send>(
         .title("Insert episode")
         .borders(Borders::ALL);
     // .wrap(Wrap { trim: true }); messes up the cursor position
+    let title = Paragraph::new(title_line)
+        .alignment(Alignment::Center)
+        .wrap( Wrap { trim: true } );
     let form = Paragraph::new(input_form);
     frame.render_widget(Clear, area);
     frame.render_widget(block, area);
+    frame.render_widget(title, title_area);
     frame.render_widget(form, text_area);
     Ok(())
 }
