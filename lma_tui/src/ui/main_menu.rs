@@ -18,6 +18,7 @@ pub struct StatefulList {
     selecting_episode: bool,
     selected_local_id: i64,
     list_cache: Vec<Show>,
+    scroll_progress: u32
 }
 
 impl StatefulList {
@@ -29,6 +30,7 @@ impl StatefulList {
             episodes_state: ListState::default(),
             selected_local_id: 0,
             list_cache,
+            scroll_progress: 0
         })
     }
 
@@ -48,6 +50,7 @@ impl StatefulList {
         direction: &SelectionDirection,
         shows: &AnimeList<T>,
     ) -> Result<(), String> {
+        self.scroll_progress = 0;
         if self.selecting_episode {
             self.move_episode_selection(direction);
         } else {
@@ -178,6 +181,7 @@ impl StatefulList {
     }
 }
 
+#[allow(clippy::too_many_lines)]
 pub fn build<B: Backend, T: Service>(frame: &mut Frame<'_, B>, app: &mut App<T>) {
     let chunks = Layout::default()
         .direction(Direction::Vertical)
@@ -190,14 +194,25 @@ pub fn build<B: Backend, T: Service>(frame: &mut Frame<'_, B>, app: &mut App<T>)
         .constraints([Constraint::Percentage(50), Constraint::Percentage(50)].as_ref())
         .split(chunks[0]);
 
+    let mut scroll_progress: usize = app.list_state.scroll_progress.try_into().unwrap();
     let items: Vec<_> = app
         .list_state
         .list_cache
         .iter()
         .map(|show| {
-            ListItem::new(show.title.clone()).style(Style::default().fg(app.config.colors().text))
+            let title = if app.list_state.selected_show().map(|selected_show| selected_show.local_id).unwrap_or_default() == show.local_id 
+                && !app.list_state.selecting_episode
+            {
+                let full_title = show.title.clone();
+                let space = usize::from(main_chunks[0].width) - 2; // without border
+                scroll_text(full_title, space, &mut scroll_progress)
+            } else {
+                show.title.clone()
+            };
+            ListItem::new(title).style(Style::default().fg(app.config.colors().text))
         })
         .collect();
+    app.list_state.scroll_progress = scroll_progress.try_into().unwrap();
 
     // Create a List from all list items and highlight the currently selected one
     let items = List::new(items)
@@ -224,7 +239,7 @@ pub fn build<B: Backend, T: Service>(frame: &mut Frame<'_, B>, app: &mut App<T>)
                 if episode.file_deleted {
                     style = style.fg(app.config.colors().text_deleted);
                 }
-                let episode_display_name = if episode.title.is_empty() || app.config.path_instead_of_title() {
+                let mut episode_display_name = if episode.title.is_empty() || app.config.path_instead_of_title() {
                     episode
                         .path
                         .file_name()
@@ -234,6 +249,23 @@ pub fn build<B: Backend, T: Service>(frame: &mut Frame<'_, B>, app: &mut App<T>)
                 } else {
                     episode.title.clone()
                 };
+                let selected_episode = app.list_state.episodes_state
+                    .selected()
+                    .and_then(|index| show.episodes.get(index));
+                if !episode.filler 
+                    && !episode.recap 
+                    && app.list_state.selecting_episode 
+                    && selected_episode.expect("Is selecting_episode").number == episode.number
+                {
+                    let space = usize::from(main_chunks[1].width)
+                        - 2 // without border
+                        - (episode.number.checked_ilog10().unwrap_or(0) as usize + 2); // episode number
+                    let mut scroll_progress: usize =
+                        app.list_state.scroll_progress.try_into().unwrap();
+                    episode_display_name =
+                        scroll_text(episode_display_name, space, &mut scroll_progress);
+                    app.list_state.scroll_progress = scroll_progress.try_into().unwrap();
+                }
                 let mut new_episode =
                     ListItem::new(format!("{} {}", episode.number, episode_display_name))
                         .style(style);
@@ -270,6 +302,27 @@ pub fn build<B: Backend, T: Service>(frame: &mut Frame<'_, B>, app: &mut App<T>)
     frame.render_stateful_widget(items, main_chunks[0], &mut app.list_state.shows_state);
     frame.render_stateful_widget(episodes, main_chunks[1], &mut app.list_state.episodes_state);
     frame.render_widget(help, chunks[1]);
+}
+
+fn scroll_text(full_title: String, space: usize, scroll_progress: &mut usize) -> String {
+    if full_title.len() > space {
+        const WAIT_OFFSET: usize = 3;
+        let max_offset = full_title.len() - space;
+        let offset = match *scroll_progress {
+            ..=WAIT_OFFSET => 0,
+            i if WAIT_OFFSET <= i && i <= WAIT_OFFSET + max_offset => i - WAIT_OFFSET - 1,
+            i if max_offset + WAIT_OFFSET < i && i <= max_offset + 2 * WAIT_OFFSET + 1 => max_offset,
+            _ => {
+                *scroll_progress = 0; 
+                0
+            }
+        };
+        *scroll_progress += 1;
+        let trimmed = &full_title[offset..offset+space];
+        String::from(trimmed)
+    } else {
+        full_title
+    }
 }
 
 fn append_extra_info(
@@ -717,6 +770,7 @@ mod tests {
             selecting_episode: false,
             selected_local_id: 0,
             list_cache: generate_test_shows(count),
+            scroll_progress: 0
         }
     }
 
