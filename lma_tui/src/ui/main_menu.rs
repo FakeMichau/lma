@@ -337,13 +337,14 @@ fn get_scroll_bar(offset: usize, scrollbar_area: Rect, episode_count: usize) -> 
     let float_skipped_entries = offset as f64;
     let float_height =  f64::from(scrollbar_area.height);
     let float_episode_count = episode_count as f64;
-    let float_y = float_skipped_entries / float_episode_count * float_height;
-    let float_height = float_height * float_height / float_episode_count;
+    let float_bar_height = float_height * float_height / float_episode_count;
+    let max_y = float_height - float_bar_height;
+    let float_y = (float_skipped_entries / float_episode_count * float_height).clamp(0.0, max_y);
     Rect { 
         x: scrollbar_area.x,
         y: float_y as u16 + scrollbar_area.y,
         width: scrollbar_area.width,
-        height: float_height.ceil() as u16,
+        height: float_bar_height.ceil() as u16,
     }
 }
 
