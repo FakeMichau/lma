@@ -2,9 +2,9 @@ use std::path::PathBuf;
 use std::process::{Command, Stdio};
 use crossterm::event::KeyCode;
 use ratatui::backend::Backend;
-use ratatui::layout::{Constraint, Direction, Layout, Rect};
+use ratatui::layout::{Constraint, Direction, Layout, Rect, Margin};
 use ratatui::style::{Color, Modifier, Style};
-use ratatui::widgets::{Block, Borders, List, ListItem, ListState, Paragraph};
+use ratatui::widgets::{Block, Borders, List, ListItem, ListState, Paragraph, Clear};
 use ratatui::{Frame, text::{Span, Line}};
 use tokio::runtime::Runtime;
 use lma_lib::{AnimeList, Show, Episode, Service};
@@ -220,7 +220,7 @@ fn render_shows<B: Backend, T: Service>(app: &mut App<T>, area: Rect, frame: &mu
                 && !app.list_state.selecting_episode
             {
                 let full_title = show.title.clone();
-                let space = usize::from(area.width) - 2; // without border
+                let space = usize::from(area.width) - 3; // without border and scrollbar
                 scroll_text(full_title, space, &mut scroll_progress)
             } else {
                 show.title.clone()
@@ -237,7 +237,10 @@ fn render_shows<B: Backend, T: Service>(app: &mut App<T>, area: Rect, frame: &mu
                 .bg(app.config.colors().highlight)
                 .add_modifier(Modifier::BOLD),
         );
+    let show_count = shows.len();
     frame.render_stateful_widget(shows, area, &mut app.list_state.shows_state);
+
+    render_scrollbar(area, frame, show_count, app, app.list_state.shows_state.offset());
 }
 
 fn render_episodes<B: Backend, T: Service>(app: &mut App<T>, area: Rect, frame: &mut Frame<'_, B>) {
@@ -276,7 +279,8 @@ fn render_episodes<B: Backend, T: Service>(app: &mut App<T>, area: Rect, frame: 
                 {
                     let space = usize::from(area.width)
                         - 2 // without border
-                        - (episode.number.checked_ilog10().unwrap_or(0) as usize + 2); // episode number
+                        - (episode.number.checked_ilog10().unwrap_or(0) as usize + 2) // episode number
+                        - 1; // scrollbar
                     let mut scroll_progress: usize =
                         app.list_state.scroll_progress.try_into().unwrap();
                     episode_display_name =
@@ -288,7 +292,7 @@ fn render_episodes<B: Backend, T: Service>(app: &mut App<T>, area: Rect, frame: 
                         .style(style);
                 append_extra_info(
                     &mut new_episode,
-                    area.width,
+                    area.width - 1, // -1 because of scrollbar
                     episode,
                     episode_display_name,
                     style,
@@ -298,7 +302,6 @@ fn render_episodes<B: Backend, T: Service>(app: &mut App<T>, area: Rect, frame: 
             temp
         })
         .collect();
-
     let episodes = List::new(episodes)
         .block(Block::default().borders(Borders::ALL).title("Episodes"))
         .highlight_style(
@@ -306,7 +309,42 @@ fn render_episodes<B: Backend, T: Service>(app: &mut App<T>, area: Rect, frame: 
                 .bg(app.config.colors().highlight)
                 .add_modifier(Modifier::BOLD),
         );
+    let episode_count = episodes.len();
     frame.render_stateful_widget(episodes, area, &mut app.list_state.episodes_state);
+
+    render_scrollbar(area, frame, episode_count, app, app.list_state.episodes_state.offset());
+}
+
+fn render_scrollbar<B: Backend, T: Service>(area: Rect, frame: &mut Frame<B>, entry_count: usize, app: &mut App<T>, offset: usize) {
+    let inner = area.inner(&Margin {
+        vertical: 1,
+        horizontal: 1,
+    });
+    let scrollbar_area = Layout::default()
+        .direction(Direction::Horizontal)
+        .constraints([Constraint::Min(1), Constraint::Max(1)].as_ref())
+        .split(inner)[1];
+    frame.render_widget(Clear, scrollbar_area);
+    if entry_count > scrollbar_area.height.into() {
+        let area = get_scroll_bar(offset, scrollbar_area, entry_count);
+        let progress = Block::default().style(Style::default().bg(app.config.colors().text));
+        frame.render_widget(progress, area);
+    }
+}
+
+#[allow(clippy::cast_precision_loss, clippy::cast_possible_truncation, clippy::cast_sign_loss)]
+fn get_scroll_bar(offset: usize, scrollbar_area: Rect, episode_count: usize) -> Rect {
+    let float_skipped_entries = offset as f64;
+    let float_height =  f64::from(scrollbar_area.height);
+    let float_episode_count = episode_count as f64;
+    let float_y = float_skipped_entries / float_episode_count * float_height;
+    let float_height = float_height * float_height / float_episode_count;
+    Rect { 
+        x: scrollbar_area.x,
+        y: float_y as u16 + scrollbar_area.y,
+        width: scrollbar_area.width,
+        height: float_height.ceil() as u16,
+    }
 }
 
 fn scroll_text(full_title: String, space: usize, scroll_progress: &mut usize) -> String {
