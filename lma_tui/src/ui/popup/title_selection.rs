@@ -4,7 +4,7 @@ use ratatui::style::{Color, Modifier, Style};
 use ratatui::widgets::{Block, Borders, Clear, List, ListItem, ListState};
 use ratatui::Frame;
 use lma_lib::{ServiceTitle, Service};
-use crate::{ui::SelectionDirection, app::App};
+use crate::{ui::{SelectionDirection, self}, app::App};
 
 #[derive(Default)]
 pub struct TitlesPopup {
@@ -26,7 +26,7 @@ impl TitlesPopup {
     }
 
     pub fn move_selection(&mut self, direction: &SelectionDirection) {
-        let i = Self::select_element(self.service_titles.len(), self.state.selected(), direction);
+        let i = ui::select_element(self.service_titles.len(), self.state.selected(), direction);
         self.state.select(Some(i));
     }
 
@@ -36,23 +36,6 @@ impl TitlesPopup {
         } else {
             let index = self.state.selected().unwrap_or_default();
             self.service_titles.get(index)
-        }
-    }
-
-    const fn select_element(
-        list_length: usize,
-        selected_element: Option<usize>,
-        direction: &SelectionDirection,
-    ) -> usize {
-        if list_length == 0 {
-            return 0;
-        }
-        match selected_element {
-            Some(i) => match direction {
-                SelectionDirection::Next => (i + 1) % list_length,
-                SelectionDirection::Previous => (list_length + i - 1) % list_length,
-            },
-            None => 0,
         }
     }
 }

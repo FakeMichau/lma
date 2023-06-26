@@ -15,6 +15,7 @@ pub enum FocusedWindow {
     TitleSelection,
     EpisodeMismatch,
     Error,
+    FirstSetup,
 }
 
 #[derive(PartialEq, Eq)]
@@ -47,6 +48,10 @@ pub fn ui<B: Backend, T: Service + Send>(
                 popup::episode_mismatch::build(frame, app);
                 Ok(())
             }
+            FocusedWindow::FirstSetup => {
+                popup::first_setup::build(frame, app);
+                Ok(())
+            }
             // main menu is always drawn and error is drawn independently
             FocusedWindow::MainMenu | FocusedWindow::Error => Ok(()),
         }
@@ -60,5 +65,22 @@ pub fn ui<B: Backend, T: Service + Send>(
         app.insert_episode_popup = InsertEpisodePopup::default();
         app.insert_episode_popup.state = InsertState::None;
         popup::error::build(frame, app);
+    }
+}
+
+const fn select_element(
+    list_length: usize,
+    selected_element: Option<usize>,
+    direction: &SelectionDirection,
+) -> usize {
+    if list_length == 0 {
+        return 0;
+    }
+    match selected_element {
+        Some(i) => match direction {
+            SelectionDirection::Next => (i + 1) % list_length,
+            SelectionDirection::Previous => (list_length + i - 1) % list_length,
+        },
+        None => 0,
     }
 }
