@@ -131,6 +131,25 @@ impl From<Color> for TermColor {
     }
 }
 
+impl TermColors {
+    fn from_colors(default_colors: Option<Colors>, config_file_colors: Option<Colors>) -> Self {
+        let default_colors = default_colors.expect("Default config has values");
+        let colors = config_file_colors.unwrap_or_else(|| default_colors.clone());
+        macro_rules! get_color_or_default {
+            ($s:ident) => {
+                colors.$s.or(default_colors.$s).expect("Default config has values").into()
+            };
+        }
+        Self {
+            text: get_color_or_default!(text),
+            text_watched: get_color_or_default!(text_watched),
+            text_deleted: get_color_or_default!(text_deleted),
+            highlight: get_color_or_default!(highlight),
+            highlight_dark: get_color_or_default!(highlight_dark),
+        }
+    }
+}
+
 impl Config {
     pub fn build(config_dir: &PathBuf, data_dir: &PathBuf) -> Result<Self, String> {
         create_dirs(config_dir, data_dir)?;
@@ -220,53 +239,24 @@ fn parse_config(config_file_path: PathBuf, default_config: ConfigFile) -> Result
     } else {
         default_config.clone()
     };
-    // todo: use a macro
-    let service = config_file.service.or(default_config.service).expect("Default config has values");
-    let title_sort = config_file.title_sort.or(default_config.title_sort).expect("Default config has values");
-    let key_binds = config_file.key_binds.or(default_config.key_binds).expect("Default config has values");
-    let path_instead_of_title = config_file.path_instead_of_title.or(default_config.path_instead_of_title).expect("Default config has values");
-    let autofill_title = config_file.autofill_title.or(default_config.autofill_title).expect("Default config has values");
-    let english_show_titles = config_file.english_show_titles.or(default_config.english_show_titles).expect("Default config has values");
-    let update_progress_on_start = config_file.update_progress_on_start.or(default_config.update_progress_on_start).expect("Default config has values");
-    let data_dir = config_file
-        .data_dir
-        .unwrap_or_else(|| default_config.data_dir.expect("Hardcoded value"));
-    let default_colors = default_config.colors.expect("Default config has values");
-    let colors = config_file.colors.unwrap_or_else(|| default_colors.clone());
-    let term_colors = TermColors {
-        text: colors
-            .text
-            .unwrap_or_else(|| default_colors.text.expect("Hardcoded value"))
-            .into(),
-        text_watched: colors
-            .text_watched
-            .unwrap_or_else(|| default_colors.text_watched.expect("Hardcoded value"))
-            .into(),
-        text_deleted: colors
-            .text_deleted
-            .unwrap_or_else(|| default_colors.text_deleted.expect("Hardcoded value"))
-            .into(),
-        highlight: colors
-            .highlight
-            .unwrap_or_else(|| default_colors.highlight.expect("Hardcoded value"))
-            .into(),
-        highlight_dark: colors
-            .highlight_dark
-            .unwrap_or_else(|| default_colors.highlight_dark.expect("Hardcoded value"))
-            .into(),
-    };
+
+    macro_rules! get_setting_or_default {
+        ($s:ident) => {
+            config_file.$s.or(default_config.$s).expect("Default config has values")
+        };
+    }
 
     Ok(Config {
         config_file_path,
-        data_dir,
-        colors: term_colors,
-        service,
-        title_sort,
-        key_binds,
-        path_instead_of_title,
-        autofill_title,
-        english_show_titles,
-        update_progress_on_start,
+        colors: TermColors::from_colors(default_config.colors, config_file.colors),
+        data_dir: get_setting_or_default!(data_dir),
+        service: get_setting_or_default!(service),
+        title_sort: get_setting_or_default!(title_sort),
+        key_binds: get_setting_or_default!(key_binds),
+        path_instead_of_title: get_setting_or_default!(path_instead_of_title),
+        autofill_title: get_setting_or_default!(autofill_title),
+        english_show_titles: get_setting_or_default!(english_show_titles),
+        update_progress_on_start: get_setting_or_default!(update_progress_on_start),
     })
 }
 
