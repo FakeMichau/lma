@@ -5,7 +5,10 @@ use serde::{Serialize, Deserialize};
 use ratatui::style::Color as TermColor;
 use lma_lib::{ServiceType, TitleSort};
 
+#[allow(dead_code)]
+#[derive(Clone)]
 pub struct Config {
+    config_file_path: PathBuf,
     service: ServiceType,
     data_dir: PathBuf,
     colors: TermColors,
@@ -26,6 +29,21 @@ struct ConfigFile {
     path_instead_of_title: Option<bool>,
     autofill_title: Option<bool>,
     english_show_titles: Option<bool>,
+}
+
+impl Default for ConfigFile {
+    fn default() -> Self {
+        Self {
+            data_dir: Some(PathBuf::new()),
+            colors: Some(Colors::default()),
+            service: Some(ServiceType::MAL),
+            title_sort: Some(TitleSort::LocalIdAsc),
+            key_binds: Some(KeyBinds::default()),
+            path_instead_of_title: Some(false),
+            autofill_title: Some(true),
+            english_show_titles: Some(false),
+        }
+    }
 }
 
 #[derive(Serialize, Deserialize, Clone, PartialEq, Eq, Debug)]
@@ -95,6 +113,7 @@ impl Default for Colors {
     }
 }
 
+#[derive(Clone)]
 pub struct TermColors {
     pub text: TermColor,
     pub text_watched: TermColor,
@@ -112,77 +131,26 @@ impl From<Color> for TermColor {
 impl Config {
     pub fn build(config_dir: &PathBuf, data_dir: &PathBuf) -> Result<Self, String> {
         create_dirs(config_dir, data_dir)?;
-        let config_file = config_dir.join("Settings.toml");
+        let config_file_path = config_dir.join("Settings.toml");
 
-        let default_service = ServiceType::MAL;
-        let default_title_sort = TitleSort::LocalIdAsc;
-        let default_path_instead_of_title = false;
-        let default_autofill_title = true;
-        let default_english_show_titles = false;
-        let default_key_binds = KeyBinds::default();
-        let default_colors = Colors::default();
-        let default_config = ConfigFile {
+        let default_config = ConfigFile { 
             data_dir: Some(data_dir.clone()),
-            colors: Some(default_colors.clone()),
-            service: Some(default_service.clone()),
-            title_sort: Some(default_title_sort.clone()),
-            key_binds: Some(default_key_binds.clone()),
-            path_instead_of_title: Some(default_path_instead_of_title),
-            autofill_title: Some(default_autofill_title),
-            english_show_titles: Some(default_english_show_titles),
+            ..Default::default() 
         };
 
-        let config = if config_file.exists() {
-            let data = fs::read_to_string(config_file)
-                .map_err(|err| format!("Config can't be read: {err}"))?;
-            parse_config_file(&data)?
-        } else {
-            create_store_default_config(&default_config, config_file)?
-        };
+        parse_config(config_file_path, default_config)
+    }
 
-        let service = config.service.unwrap_or(default_service);
-        let title_sort = config.title_sort.unwrap_or(default_title_sort);
-        let key_binds = config.key_binds.unwrap_or(default_key_binds);
-        let path_instead_of_title = config.path_instead_of_title.unwrap_or(default_path_instead_of_title);
-        let autofill_title = config.autofill_title.unwrap_or(default_autofill_title);
-        let english_show_titles = config.english_show_titles.unwrap_or(default_english_show_titles);
-        let data_dir = config
-            .data_dir
-            .unwrap_or_else(|| default_config.data_dir.expect("Hardcoded value"));
-        let colors = config.colors.unwrap_or_else(|| default_colors.clone());
-        let term_colors = TermColors {
-            text: colors
-                .text
-                .unwrap_or_else(|| default_colors.text.expect("Hardcoded value"))
-                .into(),
-            text_watched: colors
-                .text_watched
-                .unwrap_or_else(|| default_colors.text_watched.expect("Hardcoded value"))
-                .into(),
-            text_deleted: colors
-                .text_deleted
-                .unwrap_or_else(|| default_colors.text_deleted.expect("Hardcoded value"))
-                .into(),
-            highlight: colors
-                .highlight
-                .unwrap_or_else(|| default_colors.highlight.expect("Hardcoded value"))
-                .into(),
-            highlight_dark: colors
-                .highlight_dark
-                .unwrap_or_else(|| default_colors.highlight_dark.expect("Hardcoded value"))
-                .into(),
+    pub fn create_personalized(&self, service: ServiceType) -> Result<(), String> {
+        let default_config = ConfigFile { 
+            data_dir: Some(self.data_dir.clone()),
+            service: Some(service),
+            ..Default::default() 
         };
-
-        Ok(Self {
-            data_dir,
-            colors: term_colors,
-            service,
-            title_sort,
-            key_binds,
-            path_instead_of_title,
-            autofill_title,
-            english_show_titles,
-        })
+        let default_config_str = toml::to_string(&default_config)
+            .map_err(|err| format!("Can't serialized the config: {err}"))?;
+        fs::write(&self.config_file_path, default_config_str)
+            .map_err(|err| format!("Can't save default config: {err}"))
     }
 
     pub fn default() -> Result<Self, String> {
@@ -233,15 +201,59 @@ impl Config {
     }
 }
 
-fn create_store_default_config(
-    default_config: &ConfigFile,
-    config_file: PathBuf,
-) -> Result<ConfigFile, String> {
-    let default_config_str = toml::to_string(default_config)
-        .map_err(|err| format!("Can't serialized the config: {err}"))?;
-    fs::write(config_file, default_config_str)
-        .map_err(|err| format!("Can't save default config: {err}"))?;
-    Ok(default_config.clone())
+fn parse_config(config_file_path: PathBuf, default_config: ConfigFile) -> Result<Config, String> {
+    let config_file = if config_file_path.exists() {
+        let data = fs::read_to_string(&config_file_path)
+            .map_err(|err| format!("Config can't be read: {err}"))?;
+        parse_config_file(&data)?
+    } else {
+        default_config.clone()
+    };
+    let service = config_file.service.or(default_config.service).expect("Default config has values");
+    let title_sort = config_file.title_sort.or(default_config.title_sort).expect("Default config has values");
+    let key_binds = config_file.key_binds.or(default_config.key_binds).expect("Default config has values");
+    let path_instead_of_title = config_file.path_instead_of_title.or(default_config.path_instead_of_title).expect("Default config has values");
+    let autofill_title = config_file.autofill_title.or(default_config.autofill_title).expect("Default config has values");
+    let english_show_titles = config_file.english_show_titles.or(default_config.english_show_titles).expect("Default config has values");
+    let data_dir = config_file
+        .data_dir
+        .unwrap_or_else(|| default_config.data_dir.expect("Hardcoded value"));
+    let default_colors = default_config.colors.expect("Default config has values");
+    let colors = config_file.colors.unwrap_or_else(|| default_colors.clone());
+    let term_colors = TermColors {
+        text: colors
+            .text
+            .unwrap_or_else(|| default_colors.text.expect("Hardcoded value"))
+            .into(),
+        text_watched: colors
+            .text_watched
+            .unwrap_or_else(|| default_colors.text_watched.expect("Hardcoded value"))
+            .into(),
+        text_deleted: colors
+            .text_deleted
+            .unwrap_or_else(|| default_colors.text_deleted.expect("Hardcoded value"))
+            .into(),
+        highlight: colors
+            .highlight
+            .unwrap_or_else(|| default_colors.highlight.expect("Hardcoded value"))
+            .into(),
+        highlight_dark: colors
+            .highlight_dark
+            .unwrap_or_else(|| default_colors.highlight_dark.expect("Hardcoded value"))
+            .into(),
+    };
+
+    Ok(Config {
+        config_file_path,
+        data_dir,
+        colors: term_colors,
+        service,
+        title_sort,
+        key_binds,
+        path_instead_of_title,
+        autofill_title,
+        english_show_titles,
+    })
 }
 
 fn parse_config_file(data: &str) -> Result<ConfigFile, String> {

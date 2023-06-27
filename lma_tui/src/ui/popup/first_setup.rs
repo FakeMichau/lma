@@ -65,6 +65,10 @@ impl SetupPopup {
         }
     }
 
+    pub fn reset(&mut self) {
+        self.page = 0;
+    }
+
     pub const fn page(&self) -> usize {
         self.page
     }
@@ -172,8 +176,7 @@ fn render_third_page<B: Backend>(frame: &mut Frame<B>, area: Rect) {
  
     let content = vec![
         Line::from(Span::raw("That's everything")),
-        Line::from(Span::raw("If you chose an external service")),
-        Line::from(Span::raw("you will be asked to login in the next step")),
+        Line::from(Span::raw("Relaunch the application for configs to apply")),
     ];
     let form = Paragraph::new(content)
         .wrap(Wrap { trim: true })

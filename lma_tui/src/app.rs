@@ -109,13 +109,17 @@ pub fn run<B: Backend, T: Service + Send>(
                             return Ok(());
                         }
                     }
+                    FocusedWindow::FirstSetup => {
+                        if handle_first_setup_key(key, &mut app)?.is_none() {
+                            return Ok(());
+                        }
+                    }
                     FocusedWindow::Login => handle_login_key(key, &mut app),
                     FocusedWindow::InsertPopup => handle_insert_popup_key(&mut app, key),
                     FocusedWindow::InsertEpisodePopup => handle_insert_episode_popup_key(&mut app, key),
                     FocusedWindow::TitleSelection => handle_title_selection_key(key, &mut app),
                     FocusedWindow::EpisodeMismatch => handle_mismatch_popup_key(key, &mut app),
                     FocusedWindow::Error => handle_error_key(key, &mut app),
-                    FocusedWindow::FirstSetup => handle_first_setup_key(key, &mut app, rt, terminal)?,
                 }
             }
         }
@@ -176,18 +180,18 @@ fn handle_login_key<T: Service + Send>(key: event::KeyEvent, app: &mut App<T>) {
     }
 }
 
-fn handle_first_setup_key<B: Backend, T: Service + Send>(
+fn handle_first_setup_key<T: Service + Send>(
     key: event::KeyEvent,
     app: &mut App<T>,
-    rt: &Runtime,
-    terminal: &mut Terminal<B>,
-) -> Result<(), String> {
+) -> Result<Option<bool>, String> {
     let key_binds = app.config.key_binds();
     if key.code == key_binds.confirmation {
         if app.first_setup_popup.next_page() {
-            // TODO: save service to use
+            // TODO: login on the next launch
+            app.first_setup_popup.reset();
             let selected_service = app.first_setup_popup.selected_service();
-            app.handle_login_popup(rt, terminal)?;
+            app.config.create_personalized(selected_service.clone())?;
+            return Ok(None);
         }
     } else if key.code == key_binds.close {
         app.first_setup_popup.previous_page();
@@ -196,12 +200,7 @@ fn handle_first_setup_key<B: Backend, T: Service + Send>(
     } else if key.code == key_binds.move_up {
         app.first_setup_popup.move_selection(&SelectionDirection::Previous);
     }
-    Ok(())
-    // else if key.code == key_binds.forwards {
-        
-    // } else if key.code == key_binds.backwards {
-        
-    // 
+    Ok(Some(true))
 }
 
 fn handle_error_key<T: Service>(key: event::KeyEvent, app: &mut App<T>) {
