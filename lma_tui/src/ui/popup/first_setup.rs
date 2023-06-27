@@ -4,6 +4,8 @@ use ratatui::style::{Modifier, Style};
 use ratatui::text::{Line, Span};
 use ratatui::widgets::{Block, Borders, Clear, Paragraph, Wrap, ListState, List, ListItem};
 use ratatui::Frame;
+use std::env;
+use std::path::Path;
 use lma_lib::{Service, ServiceType};
 use crate::app::App;
 use crate::ui::{SelectionDirection, self};
@@ -93,7 +95,7 @@ pub fn build<B: Backend, T: Service>(frame: &mut Frame<B>, app: &mut App<T>) {
     match app.first_setup_popup.page() {
         0 => render_first_page(frame, inner_area),
         1 => render_second_page(frame, inner_area, app),
-        2 => render_third_page(frame, inner_area),
+        2 => render_third_page(frame, inner_area, app.config.config_file_path()),
         _ => {}
     };
     
@@ -161,22 +163,37 @@ fn render_second_page<B: Backend, T: Service>(frame: &mut Frame<B>, area: Rect, 
     frame.render_stateful_widget(shows, main_chunks[1], &mut app.first_setup_popup.service_list.state);
 }
 
-fn render_third_page<B: Backend>(frame: &mut Frame<B>, area: Rect) {
+fn render_third_page<B: Backend>(frame: &mut Frame<B>, area: Rect, config_path: &Path) {
     let middle = Layout::default()
         .direction(Direction::Vertical)
         .constraints(
             [
-                Constraint::Percentage(40),
-                Constraint::Min(3),
-                Constraint::Percentage(40),
+                Constraint::Percentage(33),
+                Constraint::Min(6),
+                Constraint::Percentage(33),
             ]
             .as_ref(),
         )
         .split(area)[1];
- 
+    let config_path = if config_path.is_absolute() {
+        config_path.to_path_buf()
+    } else {
+        env::current_dir().unwrap_or_default().join(config_path)
+    };
     let content = vec![
         Line::from(Span::raw("That's everything")),
         Line::from(Span::raw("Relaunch the application for configs to apply")),
+        Line::from(Span::raw("")),
+        Line::from(Span::raw("You can also edit your config manually after closing the app:")),
+        Line::from(Span::raw(config_path.to_string_lossy())),
+        Line::from(vec![
+            Span::raw("Press "),
+            Span::styled(
+                "[Enter]",
+                Style::default().add_modifier(Modifier::BOLD),
+            ),
+            Span::raw(" to continue"),
+        ]),
     ];
     let form = Paragraph::new(content)
         .wrap(Wrap { trim: true })
