@@ -1,5 +1,4 @@
 use std::path::PathBuf;
-use std::process::{Command, Stdio};
 use crossterm::event::KeyCode;
 use ratatui::backend::Backend;
 use ratatui::layout::{Constraint, Direction, Layout, Rect, Margin};
@@ -114,7 +113,7 @@ impl StatefulList {
         Ok(())
     }
 
-    pub fn select(&mut self) {
+    pub fn select(&mut self) -> Result<(), String>{
         if self.selecting_episode {
             // navigating inside the episodes tab
             let selected_episode = self.episodes_state.selected().unwrap_or_default();
@@ -131,12 +130,8 @@ impl StatefulList {
                         .unwrap_or_default()
                 });
 
-            if path.exists() && cfg!(target_os = "linux") {
-                _ = Command::new("xdg-open")
-                    .arg(path)
-                    .stderr(Stdio::null())
-                    .stdout(Stdio::null())
-                    .spawn();
+            if path.exists() {
+                open::that(path).map_err(|err| err.to_string())?;
             }
         } else if let Some(selected_id) = self.shows_state.selected() {
             if let Some(show) = self.list_cache.get(selected_id) {
@@ -152,6 +147,7 @@ impl StatefulList {
                 }
             }
         }
+        Ok(())
     }
     pub fn unselect(&mut self) {
         self.episodes_state.select(None);

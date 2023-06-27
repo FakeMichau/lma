@@ -23,6 +23,7 @@ pub fn build<B: Backend, T: Service>(frame: &mut Frame<B>, app: &mut App<T>) {
             ))]
         },
         |url| {
+            _=open::that(url.clone());
             vec![
                 Line::from(Span::raw("Login using the link below")),
                 Line::from(Span::styled(

@@ -117,8 +117,15 @@ pub fn run<B: Backend, T: Service + Send>(
             if let Event::Key(key) = event::read()? {
                 match app.focused_window {
                     FocusedWindow::MainMenu => {
-                        if handle_main_menu_key(key, &mut app, rt, terminal)?.is_none() {
-                            return Ok(());
+                        match handle_main_menu_key(key, &mut app, rt, terminal) {
+                            Ok(ok) => {
+                                if ok.is_none() {
+                                    return Ok(());
+                                }
+                            },
+                            Err(err) => {
+                                app.set_error(err);
+                            },
                         }
                     }
                     FocusedWindow::FirstSetup => {
@@ -163,7 +170,7 @@ fn handle_main_menu_key<B: Backend, T: Service + Send>(
         app.list_state
             .move_progress(&SelectionDirection::Previous, &mut app.anime_list, rt)?;
     } else if key.code == key_binds.forwards || key.code == key_binds.confirmation {
-        app.list_state.select();
+        app.list_state.select()?;
     } else if key.code == key_binds.backwards {
         app.list_state.unselect();
     } else if key.code == key_binds.delete {
