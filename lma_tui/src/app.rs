@@ -1,6 +1,6 @@
 use std::error::Error;
 use std::time::{Duration, Instant};
-use crossterm::event::{self, Event, KeyCode};
+use crossterm::event::{self, Event, KeyCode, KeyEventKind};
 use ratatui::{backend::Backend, Terminal};
 use tokio::runtime::Runtime;
 use lma_lib::{AnimeList,Service};
@@ -115,30 +115,32 @@ pub fn run<B: Backend, T: Service + Send>(
             .unwrap_or_else(|| Duration::from_secs(0));
         if crossterm::event::poll(timeout)? {
             if let Event::Key(key) = event::read()? {
-                match app.focused_window {
-                    FocusedWindow::MainMenu => {
-                        match handle_main_menu_key(key, &mut app, rt, terminal) {
-                            Ok(ok) => {
-                                if ok.is_none() {
-                                    return Ok(());
-                                }
-                            },
-                            Err(err) => {
-                                app.set_error(err);
-                            },
+                if key.kind == KeyEventKind::Press {
+                    match app.focused_window {
+                        FocusedWindow::MainMenu => {
+                            match handle_main_menu_key(key, &mut app, rt, terminal) {
+                                Ok(ok) => {
+                                    if ok.is_none() {
+                                        return Ok(());
+                                    }
+                                },
+                                Err(err) => {
+                                    app.set_error(err);
+                                },
+                            }
                         }
-                    }
-                    FocusedWindow::FirstSetup => {
-                        if handle_first_setup_key(key, &mut app)?.is_none() {
-                            return Ok(());
+                        FocusedWindow::FirstSetup => {
+                            if handle_first_setup_key(key, &mut app)?.is_none() {
+                                return Ok(());
+                            }
                         }
+                        FocusedWindow::Login => handle_login_key(key, &mut app),
+                        FocusedWindow::InsertPopup => handle_insert_popup_key(&mut app, key),
+                        FocusedWindow::InsertEpisodePopup => handle_insert_episode_popup_key(&mut app, key),
+                        FocusedWindow::TitleSelection => handle_title_selection_key(key, &mut app),
+                        FocusedWindow::EpisodeMismatch => handle_mismatch_popup_key(key, &mut app),
+                        FocusedWindow::Error => handle_error_key(key, &mut app),
                     }
-                    FocusedWindow::Login => handle_login_key(key, &mut app),
-                    FocusedWindow::InsertPopup => handle_insert_popup_key(&mut app, key),
-                    FocusedWindow::InsertEpisodePopup => handle_insert_episode_popup_key(&mut app, key),
-                    FocusedWindow::TitleSelection => handle_title_selection_key(key, &mut app),
-                    FocusedWindow::EpisodeMismatch => handle_mismatch_popup_key(key, &mut app),
-                    FocusedWindow::Error => handle_error_key(key, &mut app),
                 }
             }
         }
