@@ -5,7 +5,7 @@ use serde::{Serialize, Deserialize};
 use ratatui::style::Color as TermColor;
 use lma_lib::{ServiceType, TitleSort};
 
-#[allow(dead_code)]
+#[allow(clippy::struct_excessive_bools)]
 #[derive(Clone)]
 pub struct Config {
     config_file_path: PathBuf,
@@ -17,6 +17,7 @@ pub struct Config {
     path_instead_of_title: bool,
     autofill_title: bool,
     english_show_titles: bool,
+    update_progress_on_start: bool,
 }
 
 #[derive(Serialize, Deserialize, Clone, PartialEq, Debug)]
@@ -29,6 +30,7 @@ struct ConfigFile {
     path_instead_of_title: Option<bool>,
     autofill_title: Option<bool>,
     english_show_titles: Option<bool>,
+    update_progress_on_start: Option<bool>,
 }
 
 impl Default for ConfigFile {
@@ -42,6 +44,7 @@ impl Default for ConfigFile {
             path_instead_of_title: Some(false),
             autofill_title: Some(true),
             english_show_titles: Some(false),
+            update_progress_on_start: Some(false),
         }
     }
 }
@@ -200,6 +203,10 @@ impl Config {
         self.english_show_titles
     }
 
+    pub const fn update_progress_on_start(&self) -> bool {
+        self.update_progress_on_start
+    }
+
     pub const fn config_file_path(&self) -> &PathBuf {
         &self.config_file_path
     }
@@ -213,12 +220,14 @@ fn parse_config(config_file_path: PathBuf, default_config: ConfigFile) -> Result
     } else {
         default_config.clone()
     };
+    // todo: use a macro
     let service = config_file.service.or(default_config.service).expect("Default config has values");
     let title_sort = config_file.title_sort.or(default_config.title_sort).expect("Default config has values");
     let key_binds = config_file.key_binds.or(default_config.key_binds).expect("Default config has values");
     let path_instead_of_title = config_file.path_instead_of_title.or(default_config.path_instead_of_title).expect("Default config has values");
     let autofill_title = config_file.autofill_title.or(default_config.autofill_title).expect("Default config has values");
     let english_show_titles = config_file.english_show_titles.or(default_config.english_show_titles).expect("Default config has values");
+    let update_progress_on_start = config_file.update_progress_on_start.or(default_config.update_progress_on_start).expect("Default config has values");
     let data_dir = config_file
         .data_dir
         .unwrap_or_else(|| default_config.data_dir.expect("Hardcoded value"));
@@ -257,6 +266,7 @@ fn parse_config(config_file_path: PathBuf, default_config: ConfigFile) -> Result
         path_instead_of_title,
         autofill_title,
         english_show_titles,
+        update_progress_on_start,
     })
 }
 
@@ -297,6 +307,7 @@ mod tests {
             path_instead_of_title = false
             autofill_title = true
             english_show_titles = true
+            update_progress_on_start = true
             [colors.text]
             r = 220
             g = 220
@@ -371,6 +382,7 @@ mod tests {
             path_instead_of_title: Some(false),
             autofill_title: Some(true),
             english_show_titles: Some(true),
+            update_progress_on_start: Some(true),
         };
         assert_eq!(parsed_config_file, expected_config_file);
     }

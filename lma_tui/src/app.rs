@@ -97,8 +97,10 @@ pub fn run<B: Backend, T: Service + Send>(
     if !app.config.config_file_path().exists() {
         app.focused_window = FocusedWindow::FirstSetup;
     } else if app.config.data_dir().join("tokens").exists() {
-        println!("Updating your progress - please wait");
-        app.anime_list.update_progress(rt)?; // make if a config?
+        if app.config.update_progress_on_start() {
+            println!("Updating your progress - please wait");
+            app.anime_list.update_progress(rt)?;
+        }
     } else {
         app.focused_window = FocusedWindow::Login;
         app.handle_login_popup(rt, terminal)?;

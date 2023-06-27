@@ -451,7 +451,7 @@ fn build_help<'a>(
     let exit_inputting = HelpItem::new("Stop inputting", &Function::Close, key_binds, highlight_color);
     let start_inputting = HelpItem::new("Start inputting", &Function::EnterInputting, key_binds, highlight_color);
     let confirm = HelpItem::new("Confirm", &Function::Confirmation, key_binds, highlight_color);
-    let login = HelpItem::new("Login to MAL", &Function::Login, key_binds, highlight_color);
+    let login = HelpItem::new("Login", &Function::Login, key_binds, highlight_color);
     let progress = HelpItem::new("Progress", &Function::Progress, key_binds, highlight_color);
     let insert_episode = HelpItem::new("Add episode manually", &Function::NewEpisode, key_binds, highlight_color);
     let quit = HelpItem::new("Quit", &Function::Quit, key_binds, highlight_color);    
