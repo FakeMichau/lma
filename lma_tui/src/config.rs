@@ -199,6 +199,10 @@ impl Config {
     pub const fn english_show_titles(&self) -> bool {
         self.english_show_titles
     }
+
+    pub const fn config_file_path(&self) -> &PathBuf {
+        &self.config_file_path
+    }
 }
 
 fn parse_config(config_file_path: PathBuf, default_config: ConfigFile) -> Result<Config, String> {

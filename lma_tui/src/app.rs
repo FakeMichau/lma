@@ -94,7 +94,17 @@ pub fn run<B: Backend, T: Service + Send>(
     tick_rate: Duration,
     rt: &Runtime,
 ) -> Result<(), Box<dyn Error>> {
+    if !app.config.config_file_path().exists() {
+        app.focused_window = FocusedWindow::FirstSetup;
+    } else if app.config.data_dir().join("tokens").exists() {
+        println!("Updating your progress - please wait");
+        app.anime_list.update_progress(rt)?; // make if a config?
+    } else {
+        app.focused_window = FocusedWindow::Login;
+        app.handle_login_popup(rt, terminal)?;
+    }
     let mut last_tick = Instant::now();
+    terminal.clear()?;
     loop {
         terminal.draw(|f| ui(f, &mut app, rt))?;
 
@@ -165,8 +175,6 @@ fn handle_main_menu_key<B: Backend, T: Service + Send>(
     } else if key.code == key_binds.login {
         app.handle_login_popup(rt, terminal)?;
         app.anime_list.update_progress(rt)?;
-    } else if key.code == KeyCode::Char('b') {
-        app.focused_window = FocusedWindow::FirstSetup;
     }
     Ok(Some(true))
 }

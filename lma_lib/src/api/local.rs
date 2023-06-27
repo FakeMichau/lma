@@ -1,4 +1,4 @@
-use std::path::PathBuf;
+use std::{path::PathBuf, fs};
 use async_trait::async_trait;
 use crate::{ServiceTitle, Service, ServiceType, ServiceEpisodeUser, ServiceEpisodeDetails, AlternativeTitles};
 
@@ -7,7 +7,12 @@ pub struct Local {
 
 #[async_trait]
 impl Service for Local {
-    async fn new(_cache_dir: PathBuf) -> Result<Self, String>  {
+    async fn new(cache_dir: PathBuf) -> Result<Self, String>  {
+        let tokens_path = cache_dir.join("tokens");
+        if !tokens_path.exists() {
+            fs::write(tokens_path, String::new())
+                .map_err(|err| err.to_string())?;
+        }
         Ok(Self {})
     }
     async fn login(&mut self) -> Result<(), String> {
