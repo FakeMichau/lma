@@ -6,9 +6,10 @@ use tokio::runtime::Runtime;
 use lma_lib::{AnimeList,Service};
 use crate::app;
 use crate::config::Config;
-use crate::ui::popup::insert_episode::InsertEpisodePopup;
 use crate::ui::{FocusedWindow, SelectionDirection, ui};
 use crate::ui::main_menu::StatefulList;
+use crate::ui::popup::first_setup::SetupPopup;
+use crate::ui::popup::insert_episode::InsertEpisodePopup;
 use crate::ui::popup::episode_mismatch::MismatchPopup;
 use crate::ui::popup::title_selection::TitlesPopup;
 use crate::ui::popup::insert_show::{InsertPopup, InsertState};
@@ -19,6 +20,7 @@ pub struct App<T: Service> {
     pub insert_episode_popup: InsertEpisodePopup,
     pub titles_popup: TitlesPopup,
     pub mismatch_popup: MismatchPopup,
+    pub first_setup_popup: SetupPopup,
     pub list_state: StatefulList,
     pub anime_list: AnimeList<T>,
     pub config: Config,
@@ -36,6 +38,7 @@ impl<T: Service + Send> App<T> {
             insert_episode_popup: InsertEpisodePopup::default(),
             titles_popup: TitlesPopup::default(),
             mismatch_popup: MismatchPopup::default(),
+            first_setup_popup: SetupPopup::new(),
             anime_list,
             config,
             error: String::new(),
@@ -91,7 +94,19 @@ pub fn run<B: Backend, T: Service + Send>(
     tick_rate: Duration,
     rt: &Runtime,
 ) -> Result<(), Box<dyn Error>> {
+    if !app.config.config_file_path().exists() {
+        app.focused_window = FocusedWindow::FirstSetup;
+    } else if app.config.data_dir().join("tokens").exists() {
+        if app.config.update_progress_on_start() {
+            println!("Updating your progress - please wait");
+            app.anime_list.update_progress(rt)?;
+        }
+    } else {
+        app.focused_window = FocusedWindow::Login;
+        app.handle_login_popup(rt, terminal)?;
+    }
     let mut last_tick = Instant::now();
+    terminal.clear()?;
     loop {
         terminal.draw(|f| ui(f, &mut app, rt))?;
 
@@ -103,6 +118,11 @@ pub fn run<B: Backend, T: Service + Send>(
                 match app.focused_window {
                     FocusedWindow::MainMenu => {
                         if handle_main_menu_key(key, &mut app, rt, terminal)?.is_none() {
+                            return Ok(());
+                        }
+                    }
+                    FocusedWindow::FirstSetup => {
+                        if handle_first_setup_key(key, &mut app)?.is_none() {
                             return Ok(());
                         }
                     }
@@ -168,6 +188,29 @@ fn handle_login_key<T: Service + Send>(key: event::KeyEvent, app: &mut App<T>) {
             app.set_error(err);
         };
     }
+}
+
+fn handle_first_setup_key<T: Service + Send>(
+    key: event::KeyEvent,
+    app: &mut App<T>,
+) -> Result<Option<bool>, String> {
+    let key_binds = app.config.key_binds();
+    if key.code == key_binds.confirmation {
+        if app.first_setup_popup.next_page() {
+            // TODO: login on the next launch
+            app.first_setup_popup.reset();
+            let selected_service = app.first_setup_popup.selected_service();
+            app.config.create_personalized(selected_service.clone())?;
+            return Ok(None);
+        }
+    } else if key.code == key_binds.close {
+        app.first_setup_popup.previous_page();
+    } else if key.code == key_binds.move_down {
+        app.first_setup_popup.move_selection(&SelectionDirection::Next);
+    } else if key.code == key_binds.move_up {
+        app.first_setup_popup.move_selection(&SelectionDirection::Previous);
+    }
+    Ok(Some(true))
 }
 
 fn handle_error_key<T: Service>(key: event::KeyEvent, app: &mut App<T>) {

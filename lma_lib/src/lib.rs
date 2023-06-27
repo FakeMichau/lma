@@ -312,10 +312,14 @@ pub fn create<T: Service>(service: T, data_path: &Path, title_sort: &TitleSort) 
         CREATE TABLE Episodes (show_id INTEGER, episode_number INTEGER, path TEXT, title TEXT, extra_info INTEGER, PRIMARY KEY (show_id, episode_number), FOREIGN KEY (show_id) REFERENCES Shows(id));
         "
     ) {
-        Ok(_) => println!("Tables created"),
+        Ok(_) => {
+            #[cfg(debug_assertions)]
+            dbg!("Tables created");
+        },
         Err(why) => {
             if why.to_string().contains("already exists") {
-                println!("Table creation failed: tables already exist");
+                #[cfg(debug_assertions)]
+                dbg!("Table creation failed: tables already exist");
             } else {
                 Err::<AnimeList<T>, String>(format!("Table creation failed: {why}"))?;
             }

@@ -65,12 +65,12 @@ impl StatefulList {
             return
         };
         let episodes_len = selected_show.episodes.len();
-        let i = Self::select_element(episodes_len, self.episodes_state.selected(), direction);
+        let i = super::select_element(episodes_len, self.episodes_state.selected(), direction);
         self.episodes_state.select(Some(i));
     }
 
     fn move_show_selection(&mut self, direction: &SelectionDirection) {
-        let i = Self::select_element(
+        let i = super::select_element(
             self.list_cache.len(),
             self.shows_state.selected(),
             direction,
@@ -156,23 +156,6 @@ impl StatefulList {
     pub fn unselect(&mut self) {
         self.episodes_state.select(None);
         self.selecting_episode = false;
-    }
-
-    const fn select_element(
-        list_length: usize,
-        selected_element: Option<usize>,
-        direction: &SelectionDirection,
-    ) -> usize {
-        if list_length == 0 {
-            return 0;
-        }
-        match selected_element {
-            Some(i) => match direction {
-                SelectionDirection::Next => (i + 1) % list_length,
-                SelectionDirection::Previous => (list_length + i - 1) % list_length,
-            },
-            None => 0,
-        }
     }
 
     pub fn update_cache<T: Service>(&mut self, shows: &AnimeList<T>) -> Result<(), String> {
@@ -463,11 +446,12 @@ fn build_help<'a>(
     let navigation = HelpItem::new("Navigation", &Function::Navigation, key_binds, highlight_color);
     let insert = HelpItem::new("Insert new show", &Function::NewShow, key_binds, highlight_color);
     let delete = HelpItem::new("Delete the entry", &Function::Delete, key_binds, highlight_color);
+    let go_back = HelpItem::new("Go back", &Function::Close, key_binds, highlight_color);
     let close_window = HelpItem::new("Close the window", &Function::Close, key_binds, highlight_color);
     let exit_inputting = HelpItem::new("Stop inputting", &Function::Close, key_binds, highlight_color);
     let start_inputting = HelpItem::new("Start inputting", &Function::EnterInputting, key_binds, highlight_color);
     let confirm = HelpItem::new("Confirm", &Function::Confirmation, key_binds, highlight_color);
-    let login = HelpItem::new("Login to MAL", &Function::Login, key_binds, highlight_color);
+    let login = HelpItem::new("Login", &Function::Login, key_binds, highlight_color);
     let progress = HelpItem::new("Progress", &Function::Progress, key_binds, highlight_color);
     let insert_episode = HelpItem::new("Add episode manually", &Function::NewEpisode, key_binds, highlight_color);
     let quit = HelpItem::new("Quit", &Function::Quit, key_binds, highlight_color);    
@@ -511,6 +495,11 @@ fn build_help<'a>(
         }
         FocusedWindow::Login => {
             information.extend(close_window.to_span());
+        }
+        FocusedWindow::FirstSetup => {
+            information.extend(navigation.to_span());
+            information.extend(go_back.to_span());
+            information.extend(confirm.to_span());
         }
         FocusedWindow::TitleSelection => {
             information.extend(navigation.to_span());
