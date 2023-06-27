@@ -214,17 +214,24 @@ impl<T: Service> AnimeList<T> {
         Ok(files)
     }
 
-    pub fn guess_shows_title(&self, path: &PathBuf) -> Result<String, std::io::Error> {
-        Ok(Self::remove_after_last_dash(
-            &Self::get_video_file_paths(path)?
-                .iter()
-                .map(|dir| {
-                    let filename = dir.file_stem().unwrap_or_default();
-                    Self::cleanup_title(filename)
-                })
-                .next()
-                .unwrap_or_default(),
-        ))
+    pub fn guess_shows_title(&self, path: &PathBuf) -> Result<String, String> {
+        let mut fname = String::new();
+        let guessed_title = Self::get_video_file_paths(path)
+            .map_err(|err| err.to_string())?
+            .iter()
+            .map(|dir| {
+                let filename = dir.file_stem().unwrap_or_default();
+                fname = filename.to_string_lossy().to_string();
+                Self::cleanup_title(filename)
+            })
+            .next()
+            .map_or(String::new(), |str| Self::remove_after_last_dash(&str));
+        
+        Ok(if guessed_title.is_empty() {
+            fname
+        } else {
+            guessed_title
+        })
     }
 
     pub fn count_video_files(&self, path: &PathBuf) -> Result<usize, std::io::Error> {

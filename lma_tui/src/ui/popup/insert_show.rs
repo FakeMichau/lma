@@ -130,11 +130,9 @@ fn handle_next_state<T: Service>(app: &mut App<T>, rt: &Runtime) -> Result<(), S
         1 if !app.insert_popup.path.to_string_lossy().is_empty()
             && app.insert_popup.title.is_empty() =>
         {
-            // sanitize user input
             app.insert_popup.title = app
                 .anime_list
-                .guess_shows_title(&app.insert_popup.path)
-                .unwrap_or_default(); // deal with it
+                .guess_shows_title(&app.insert_popup.path)?;
         }
         2 if !app.insert_popup.title.is_empty()
             && app.insert_popup.service_id == 0
