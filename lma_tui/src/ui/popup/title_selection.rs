@@ -1,6 +1,6 @@
 use ratatui::backend::Backend;
 use ratatui::layout::Margin;
-use ratatui::style::{Color, Modifier, Style};
+use ratatui::style::{Modifier, Style};
 use ratatui::widgets::{Block, Borders, Clear, List, ListItem, ListState};
 use ratatui::Frame;
 use lma_lib::{ServiceTitle, Service};
@@ -53,14 +53,14 @@ pub fn build<B: Backend, T: Service>(frame: &mut Frame<B>, app: &mut App<T>) {
         .titles_popup
         .service_titles
         .iter()
-        .map(|service_title| ListItem::new(service_title.title.clone()).style(Style::default()))
+        .map(|service_title| ListItem::new(service_title.title.clone()).style(Style::default().fg(app.config.colors().text)))
         .collect();
 
     let items = List::new(items)
         .block(Block::default().borders(Borders::ALL).title("List"))
         .highlight_style(
             Style::default()
-                .bg(Color::LightGreen)
+                .bg(app.config.colors().highlight)
                 .add_modifier(Modifier::BOLD),
         );
 
