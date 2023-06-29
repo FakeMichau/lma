@@ -210,7 +210,13 @@ fn render_shows<B: Backend, T: Service>(app: &mut App<T>, area: Rect, frame: &mu
     app.list_state.scroll_progress = scroll_progress.try_into().unwrap();
 
     let shows = List::new(shows)
-        .block(Block::default().borders(Borders::ALL).title("List"))
+        .block(Block::default().borders(Borders::ALL).title("List").border_style(
+            if app.list_state.selecting_episode || app.list_state.selected_show().is_none() {
+                Style::default()
+            } else {
+                Style::default().fg(app.config.colors().highlight)
+            }
+        ))
         .highlight_style(
             Style::default()
                 .fg(app.config.colors().highlight)
@@ -282,7 +288,13 @@ fn render_episodes<B: Backend, T: Service>(app: &mut App<T>, area: Rect, frame: 
         })
         .collect();
     let episodes = List::new(episodes)
-        .block(Block::default().borders(Borders::ALL).title("Episodes"))
+        .block(Block::default().borders(Borders::ALL).title("Episodes").border_style(
+            if app.list_state.selecting_episode {
+                Style::default().fg(app.config.colors().highlight)
+            } else {
+                Style::default()
+            }
+        ))
         .highlight_style(
             Style::default()
                 .fg(app.config.colors().highlight)
