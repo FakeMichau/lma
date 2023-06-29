@@ -1,9 +1,9 @@
-use std::{path::PathBuf, fs};
 use crossterm::event::KeyCode;
 use directories::ProjectDirs;
-use serde::{Serialize, Deserialize};
-use ratatui::style::Color as TermColor;
 use lma_lib::{ServiceType, TitleSort};
+use ratatui::style::Color as TermColor;
+use serde::{Deserialize, Serialize};
+use std::{fs, path::PathBuf};
 
 #[allow(clippy::struct_excessive_bools)]
 #[derive(Clone)]
@@ -90,13 +90,21 @@ impl Default for KeyBinds {
 
 #[derive(Serialize, Deserialize, Clone, PartialEq, Debug)]
 struct Color {
-    hex: String
+    hex: String,
+}
+
+impl Color {
+    fn new(hex: &str) -> Self {
+        Self {
+            hex: String::from(hex),
+        }
+    }
 }
 
 impl Default for Color {
     fn default() -> Self {
         Self {
-            hex: "#000000".to_string()
+            hex: "#000000".to_string(),
         }
     }
 }
@@ -113,11 +121,11 @@ struct Colors {
 impl Default for Colors {
     fn default() -> Self {
         Self {
-            text: Some(Color { hex: String::from("#DCDCDC") }),
-            text_watched: Some(Color { hex: String::from("#464646") }),
-            text_deleted: Some(Color { hex: String::from("#C1292E") }),
-            highlight: Some(Color { hex: String::from("#F2D202") }),
-            highlight_dark: Some(Color { hex: String::from("#161925") }),
+            text: Some(Color::new("#DCDCDC")),
+            text_watched: Some(Color::new("#464646")),
+            text_deleted: Some(Color::new("#C1292E")),
+            highlight: Some(Color::new("#F2D202")),
+            highlight_dark: Some(Color::new("#161925")),
         }
     }
 }
@@ -140,36 +148,37 @@ impl TryFrom<Color> for TermColor {
         let colors = match hex.len() {
             3 => split_hex(&chars, 1),
             6 => split_hex(&chars, 2),
-            _ => {
-                return Err(format!("Wrong hex value: {}", color.hex))
-            },
+            _ => return Err(format!("Wrong hex value: {}", color.hex)),
         };
         Ok(Self::Rgb(colors[0], colors[1], colors[2]))
     }
 }
 
-
 fn split_hex(chars: &[char], size: usize) -> Vec<u8> {
-    chars.chunks(size)
+    chars
+        .chunks(size)
         .map(|chunk| chunk.iter().collect::<String>())
         .map(|color| {
-            let hex_color = if size == 1 {
-                color + "0"
-            } else {
-                color
-            };
+            let hex_color = if size == 1 { color + "0" } else { color };
             u8::from_str_radix(&hex_color, 16).unwrap_or_default()
         })
         .collect()
 }
 
 impl TermColors {
-    fn from_colors(default_colors: Option<Colors>, config_file_colors: Option<Colors>) -> Result<Self, String> {
+    fn from_colors(
+        default_colors: Option<Colors>,
+        config_file_colors: Option<Colors>,
+    ) -> Result<Self, String> {
         let default_colors = default_colors.expect("Default config has values");
         let colors = config_file_colors.unwrap_or_else(|| default_colors.clone());
         macro_rules! get_color_or_default {
             ($s:ident) => {
-                colors.$s.or(default_colors.$s).expect("Default config has values").try_into()?
+                colors
+                    .$s
+                    .or(default_colors.$s)
+                    .expect("Default config has values")
+                    .try_into()?
             };
         }
         Ok(Self {
@@ -187,19 +196,19 @@ impl Config {
         create_dirs(config_dir, data_dir)?;
         let config_file_path = config_dir.join("Settings.toml");
 
-        let default_config = ConfigFile { 
+        let default_config = ConfigFile {
             data_dir: Some(data_dir.clone()),
-            ..Default::default() 
+            ..Default::default()
         };
 
         parse_config(config_file_path, default_config)
     }
 
     pub fn create_personalized(&self, service: ServiceType) -> Result<(), String> {
-        let default_config = ConfigFile { 
+        let default_config = ConfigFile {
             data_dir: Some(self.data_dir.clone()),
             service: Some(service),
-            ..Default::default() 
+            ..Default::default()
         };
         let default_config_str = toml::to_string(&default_config)
             .map_err(|err| format!("Can't serialized the config: {err}"))?;
@@ -274,7 +283,10 @@ fn parse_config(config_file_path: PathBuf, default_config: ConfigFile) -> Result
 
     macro_rules! get_setting_or_default {
         ($s:ident) => {
-            config_file.$s.or(default_config.$s).expect("Default config has values")
+            config_file
+                .$s
+                .or(default_config.$s)
+                .expect("Default config has values")
         };
     }
 
@@ -304,7 +316,8 @@ fn create_dirs(config_dir: &PathBuf, data_dir: &PathBuf) -> Result<(), String> {
     Ok(())
 }
 
-#[cfg(test)]mod tests {
+#[cfg(test)]
+mod tests {
     use super::*;
 
     #[test]
@@ -367,11 +380,21 @@ fn create_dirs(config_dir: &PathBuf, data_dir: &PathBuf) -> Result<(), String> {
             service: Some(ServiceType::MAL),
             data_dir: Some(PathBuf::new()),
             colors: Some(Colors {
-                text: Some(Color { hex: String::from("#DCDCDC") }),
-                text_watched: Some(Color { hex: String::from("#464646") }),
-                text_deleted: Some(Color { hex: String::from("#C80000") }),
-                highlight: Some(Color { hex: String::from("#5BAE24") }),
-                highlight_dark: Some(Color { hex: String::from("#19410A") }),
+                text: Some(Color {
+                    hex: String::from("#DCDCDC"),
+                }),
+                text_watched: Some(Color {
+                    hex: String::from("#464646"),
+                }),
+                text_deleted: Some(Color {
+                    hex: String::from("#C80000"),
+                }),
+                highlight: Some(Color {
+                    hex: String::from("#5BAE24"),
+                }),
+                highlight_dark: Some(Color {
+                    hex: String::from("#19410A"),
+                }),
             }),
             title_sort: Some(TitleSort::LocalIdAsc),
             key_binds: Some(KeyBinds {
@@ -415,8 +438,8 @@ fn create_dirs(config_dir: &PathBuf, data_dir: &PathBuf) -> Result<(), String> {
             hex = \"#19410A\"
         ";
         let parsed_config = parse_config_file(config_string).unwrap_err();
-        let correct_error = parsed_config
-            .contains("Can't parse the config: unknown variant `trolololo`");
+        let correct_error =
+            parsed_config.contains("Can't parse the config: unknown variant `trolololo`");
         assert!(correct_error, "Tests wrong service name");
     }
 
@@ -443,7 +466,9 @@ fn create_dirs(config_dir: &PathBuf, data_dir: &PathBuf) -> Result<(), String> {
 
     #[test]
     fn color_conversion() {
-        let color = Color { hex: String::from("#454545") };
+        let color = Color {
+            hex: String::from("#454545"),
+        };
         let converted_color: TermColor = color.try_into().expect("Hardcoded color");
         let expected_termcolor = TermColor::Rgb(69, 69, 69);
         assert_eq!(converted_color, expected_termcolor);
@@ -451,7 +476,9 @@ fn create_dirs(config_dir: &PathBuf, data_dir: &PathBuf) -> Result<(), String> {
 
     #[test]
     fn failing_color_conversion() {
-        let color = Color { hex: String::from("#45454") };
+        let color = Color {
+            hex: String::from("#45454"),
+        };
         let converted_color: Result<TermColor, _> = color.try_into();
         let correct_error = converted_color.unwrap_err().contains("Wrong hex value");
         assert!(correct_error, "Tests incorrect hex value");
