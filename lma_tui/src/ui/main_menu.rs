@@ -233,7 +233,7 @@ fn render_episodes<B: Backend, T: Service>(app: &mut App<T>, area: Rect, frame: 
             for episode in &show.episodes {
                 let mut style = Style::default();
                 if episode.number <= show.progress {
-                    style = style.fg(app.config.colors().text_watched);
+                    style = style.add_modifier(Modifier::DIM);
                 }
                 if episode.file_deleted {
                     style = style.fg(app.config.colors().text_deleted);

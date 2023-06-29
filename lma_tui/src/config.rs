@@ -112,7 +112,6 @@ impl Default for Color {
 #[derive(Serialize, Deserialize, Clone, PartialEq, Debug)]
 struct Colors {
     text: Option<Color>,
-    text_watched: Option<Color>,
     text_deleted: Option<Color>,
     highlight: Option<Color>,
     highlight_dark: Option<Color>,
@@ -122,7 +121,6 @@ impl Default for Colors {
     fn default() -> Self {
         Self {
             text: Some(Color::new("#DCDCDC")),
-            text_watched: Some(Color::new("#464646")),
             text_deleted: Some(Color::new("#C1292E")),
             highlight: Some(Color::new("#F2D202")),
             highlight_dark: Some(Color::new("#161925")),
@@ -133,7 +131,6 @@ impl Default for Colors {
 #[derive(Clone)]
 pub struct TermColors {
     pub text: TermColor,
-    pub text_watched: TermColor,
     pub text_deleted: TermColor,
     pub highlight: TermColor,
     pub highlight_dark: TermColor,
@@ -183,7 +180,6 @@ impl TermColors {
         }
         Ok(Self {
             text: get_color_or_default!(text),
-            text_watched: get_color_or_default!(text_watched),
             text_deleted: get_color_or_default!(text_deleted),
             highlight: get_color_or_default!(highlight),
             highlight_dark: get_color_or_default!(highlight_dark),
@@ -344,8 +340,6 @@ mod tests {
             update_progress_on_start = true
             [colors.text]
             hex = \"#DCDCDC\"
-            [colors.text_watched]
-            hex = \"#464646\"
             [colors.text_deleted]
             hex = \"#C80000\"
             [colors.highlight]
@@ -382,9 +376,6 @@ mod tests {
             colors: Some(Colors {
                 text: Some(Color {
                     hex: String::from("#DCDCDC"),
-                }),
-                text_watched: Some(Color {
-                    hex: String::from("#464646"),
                 }),
                 text_deleted: Some(Color {
                     hex: String::from("#C80000"),
@@ -427,8 +418,6 @@ mod tests {
             service = \"trolololo\"
             data_dir = \"\"
             [colors.text]
-            hex = \"#DCDCDC\"
-            [colors.text_watched]
             hex = \"#464646\"
             [colors.text_deleted]
             hex = \"#C80000\"
@@ -449,9 +438,7 @@ mod tests {
             service = \"MAL\"
             data_dir = \"\"
             [colors.text]
-            he = \"#DCDCDC\"
-            [colors.text_watched]
-            hex = \"#464646\"
+            he = \"#464646\"
             [colors.text_deleted]
             hex = \"#C80000\"
             [colors.highlight]
