@@ -128,18 +128,18 @@ fn insert_episode<T: Service + Send>(
         u32::try_from(service_id).map_err(|e| e.to_string())?,
     ))?;
     let episode = &app.insert_episode_popup.episode;
-    let potential_title =
-        episodes_details_hash.get(&u32::try_from(episode.number).map_err(|e| e.to_string())?);
-    let (title, recap, filler) = potential_title
-        .unwrap_or(&(String::new(), false, false))
-        .clone();
+    let details = episodes_details_hash
+        .get(&u32::try_from(episode.number)
+        .map_err(|e| e.to_string())?)
+        .cloned()
+        .unwrap_or_default();
 
     if let Err(why) = app.anime_list.add_episode(
         local_id,
         episode.number,
         &episode.path.to_string_lossy(),
-        &title,
-        insert_show::generate_extra_info(recap, filler),
+        &details.title,
+        insert_show::generate_extra_info(details.recap, details.filler),
     ) {
         eprintln!("{why}");
     }

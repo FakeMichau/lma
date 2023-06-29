@@ -147,7 +147,7 @@ fn handle_next_state<T: Service>(app: &mut App<T>, rt: &Runtime) -> Result<(), S
             // when there's service id and path but no episodes
             handle_forth_line(app, rt)
         }
-        _ => Ok(())
+        _ => Ok(()),
     }?;
     app.insert_popup.data = match app.insert_popup.current_line() {
         0 if !app.insert_popup.path.to_string_lossy().is_empty() => {
@@ -320,18 +320,16 @@ fn insert_episodes<T: Service + Send>(
         0
     };
     app.insert_popup.episodes.iter().for_each(|episode| {
-        let potential_title =
-            episodes_details_hash.get(&u32::try_from(episode.number).unwrap_or_default());
-        let (title, recap, filler) = potential_title
-            .unwrap_or(&(String::new(), false, false))
-            .clone();
-
+        let details = episodes_details_hash
+            .get(&u32::try_from(episode.number).unwrap_or_default())
+            .cloned()
+            .unwrap_or_default();
         if let Err(why) = app.anime_list.add_episode(
             local_id,
             episode.number + episode_offset,
             &episode.path.to_string_lossy(),
-            &title,
-            generate_extra_info(recap, filler),
+            &details.title,
+            generate_extra_info(details.recap, details.filler),
         ) {
             eprintln!("{why}");
         }
@@ -339,21 +337,28 @@ fn insert_episodes<T: Service + Send>(
     Ok(())
 }
 
+#[derive(Default, Clone)]
+pub struct EpisodeDetails {
+    pub title: String,
+    pub recap: bool,
+    pub filler: bool,
+}
+
 pub async fn get_episodes_info<T: Service + Send>(
     service: &mut T,
     id: u32,
-) -> Result<HashMap<u32, (String, bool, bool)>, String> {
+) -> Result<HashMap<u32, EpisodeDetails>, String> {
     let episodes_details = service.get_episodes(id).await?;
     Ok(episodes_details
         .iter()
         .map(|episode| {
             (
                 episode.number.unwrap_or_default(),
-                (
-                    episode.title.clone().unwrap_or_default(),
-                    episode.recap.unwrap_or_default(),
-                    episode.filler.unwrap_or_default(),
-                ),
+                (EpisodeDetails {
+                    title: episode.title.clone().unwrap_or_default(),
+                    recap: episode.recap.unwrap_or_default(),
+                    filler: episode.filler.unwrap_or_default(),
+                }),
             )
         })
         .collect())
