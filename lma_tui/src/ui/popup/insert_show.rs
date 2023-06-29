@@ -130,6 +130,14 @@ fn handle_next_state<T: Service>(app: &mut App<T>, rt: &Runtime) -> Result<(), S
         1 if !app.insert_popup.path.to_string_lossy().is_empty()
             && app.insert_popup.title.is_empty() =>
         {
+            let matches: &[_] = &['"', '\''];
+            app.insert_popup.path = app
+                .insert_popup
+                .path
+                .to_str()
+                .map_or(app.insert_popup.path.clone(), |str| {
+                    PathBuf::from(str.trim_matches(matches))
+                });
             app.insert_popup.title = app
                 .anime_list
                 .guess_shows_title(&app.insert_popup.path)?;
