@@ -236,7 +236,7 @@ fn render_episodes<B: Backend, T: Service>(app: &mut App<T>, area: Rect, frame: 
                     style = style.add_modifier(Modifier::DIM);
                 }
                 if episode.file_deleted {
-                    style = style.fg(app.config.colors().text_deleted);
+                    style = style.fg(app.config.colors().text_deleted).add_modifier(Modifier::CROSSED_OUT | Modifier::DIM);
                 }
                 let mut episode_display_name = if episode.title.is_empty() || app.config.path_instead_of_title() {
                     episode
