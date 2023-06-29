@@ -6,8 +6,8 @@ use ratatui::text::{Line, Span};
 use ratatui::widgets::{Block, Borders, Clear, Paragraph};
 use ratatui::Frame;
 use tokio::runtime::Runtime;
-use lma_lib::{Episode, AnimeList, Service, ServiceType};
-use super::{centered_rect, title_selection::TitlesPopup, episode_mismatch::MismatchPopup};
+use lma_lib::{AnimeList, Episode, Service, ServiceType};
+use super::{centered_rect, episode_mismatch::MismatchPopup, title_selection::TitlesPopup};
 use crate::app::App;
 use crate::ui::{FocusedWindow, SelectionDirection};
 
@@ -126,102 +126,29 @@ fn handle_inputting_state<T: Service>(app: &mut App<T>) {
 
 fn handle_next_state<T: Service>(app: &mut App<T>, rt: &Runtime) -> Result<(), String> {
     match app.insert_popup.current_line() {
-        // after going to the next line, when data in the previous one is present
         1 if !app.insert_popup.path.to_string_lossy().is_empty()
             && app.insert_popup.title.is_empty() =>
         {
-            let matches: &[_] = &['"', '\''];
-            app.insert_popup.path = app
-                .insert_popup
-                .path
-                .to_str()
-                .map_or(app.insert_popup.path.clone(), |str| {
-                    PathBuf::from(str.trim_matches(matches))
-                });
-            app.insert_popup.title = app
-                .anime_list
-                .guess_shows_title(&app.insert_popup.path)?;
+            // when there's a path and no title yet
+            handle_second_line(app)
         }
         2 if !app.insert_popup.title.is_empty()
             && app.insert_popup.service_id == 0
             && app.anime_list.service.get_service_type() != ServiceType::Local =>
         {
-            // create a popup to select the exact show from a sync service
-            let items = rt.block_on(async {
-                app.anime_list
-                    .service
-                    .search_title(&app.insert_popup.title)
-                    .await
-            })?;
-            app.titles_popup = TitlesPopup::new(items);
-            app.focused_window = FocusedWindow::TitleSelection;
+            // when there's title and no service id
+            handle_third_line(app, rt)
         }
-        3 if ((app.anime_list.service.get_service_type() == ServiceType::MAL && app.insert_popup.service_id != 0)
+        3 if (app.insert_popup.service_id != 0
             || app.anime_list.service.get_service_type() == ServiceType::Local)
             && app.insert_popup.episode_count == 0
             && !app.insert_popup.path.to_string_lossy().is_empty() =>
         {
-            if app.config.autofill_title() {
-                let mut title = if app.config.english_show_titles() {
-                    let titles = rt.block_on(app.anime_list.service.get_alternative_titles(
-                        u32::try_from(app.insert_popup.service_id).map_err(|e| e.to_string())?,
-                    ))?;
-                    let title_languages = titles.map(|options| options.languages).unwrap_or_default();
-                    title_languages.get("en").cloned()
-                } else {
-                    None
-                };
-                if title.is_none() {
-                    title = Some(rt.block_on(app.anime_list.service.get_title(
-                        u32::try_from(app.insert_popup.service_id).map_err(|e| e.to_string())?,
-                    ))?);
-                }
-                if app.anime_list.service.get_service_type() != ServiceType::Local {
-                    app.insert_popup.title = title.expect("Has to be set at this point");
-                }
-            }
-            // compare number of video files with the retrieved number of episodes
-            let episode_count = rt.block_on(
-                app.anime_list
-                    .service
-                    .get_episode_count(u32::try_from(app.insert_popup.service_id).map_err(|e| e.to_string())?)
-                )?
-                .unwrap_or_default();
-            let video_files_count = u32::try_from(
-                app.anime_list
-                    .count_video_files(&app.insert_popup.path)
-                    .unwrap_or_default(),
-            )
-            .map_err(|e| e.to_string())?;
-
-            app.insert_popup.episode_count = episode_count.into();
-            if episode_count == video_files_count
-                || app.anime_list.service.get_service_type() == ServiceType::Local
-            {
-                app.insert_popup.episodes =
-                    AnimeList::<T>::get_video_file_paths(&app.insert_popup.path)
-                        .unwrap_or_default()
-                        .into_iter()
-                        .enumerate()
-                        .map(|(k, path)| Episode {
-                            number: k as i64 + 1,
-                            path: path.clone(),
-                            title: String::new(),
-                            file_deleted: !path.exists(),
-                            recap: false,
-                            filler: false,
-                        })
-                        .collect();
-            } else if episode_count > video_files_count {
-                app.mismatch_popup = MismatchPopup::new(episode_count, video_files_count);
-                app.focused_window = FocusedWindow::EpisodeMismatch;
-            } else {
-                // more files locally than expected
-                app.insert_popup.episode_count = 0;
-            }
+            // when there's service id and path but no episodes
+            handle_forth_line(app, rt)
         }
-        _ => {}
-    };
+        _ => Ok(())
+    }?;
     app.insert_popup.data = match app.insert_popup.current_line() {
         0 if !app.insert_popup.path.to_string_lossy().is_empty() => {
             app.insert_popup.path.to_string_lossy().into()
@@ -235,6 +162,98 @@ fn handle_next_state<T: Service>(app: &mut App<T>, rt: &Runtime) -> Result<(), S
     Ok(())
 }
 
+fn handle_second_line<T: Service>(app: &mut App<T>) -> Result<(), String> {
+    // trim path
+    let matches: &[_] = &['"', '\''];
+    app.insert_popup.path = app
+        .insert_popup
+        .path
+        .to_str()
+        .map_or(app.insert_popup.path.clone(), |str| {
+            PathBuf::from(str.trim_matches(matches))
+        });
+    app.insert_popup.title = app.anime_list.guess_shows_title(&app.insert_popup.path)?;
+    Ok(())
+}
+
+fn handle_third_line<T: Service>(app: &mut App<T>, rt: &Runtime) -> Result<(), String> {
+    // create a popup to select the exact show from a sync service
+    let items = rt.block_on(async {
+        app.anime_list
+            .service
+            .search_title(&app.insert_popup.title)
+            .await
+    })?;
+    app.titles_popup = TitlesPopup::new(items);
+    app.focused_window = FocusedWindow::TitleSelection;
+    Ok(())
+}
+
+fn handle_forth_line<T: Service>(app: &mut App<T>, rt: &Runtime) -> Result<(), String> {
+    if app.config.autofill_title() {
+        fill_title(app, rt)?;
+    }
+    // compare number of video files with the retrieved number of episodes
+    let episode_count = rt
+        .block_on(app.anime_list.service.get_episode_count(
+            u32::try_from(app.insert_popup.service_id).map_err(|e| e.to_string())?,
+        ))?
+        .unwrap_or_default();
+    let video_files_count = u32::try_from(
+        app.anime_list
+            .count_video_files(&app.insert_popup.path)
+            .unwrap_or_default(),
+    )
+    .map_err(|e| e.to_string())?;
+
+    app.insert_popup.episode_count = episode_count.into();
+    if episode_count == video_files_count
+        || app.anime_list.service.get_service_type() == ServiceType::Local
+    {
+        app.insert_popup.episodes = AnimeList::<T>::get_video_file_paths(&app.insert_popup.path)
+            .unwrap_or_default()
+            .into_iter()
+            .enumerate()
+            .map(|(k, path)| Episode {
+                number: k as i64 + 1,
+                path: path.clone(),
+                title: String::new(),
+                file_deleted: !path.exists(),
+                recap: false,
+                filler: false,
+            })
+            .collect();
+    } else if episode_count > video_files_count {
+        app.mismatch_popup = MismatchPopup::new(episode_count, video_files_count);
+        app.focused_window = FocusedWindow::EpisodeMismatch;
+    } else {
+        // more files locally than expected
+        app.insert_popup.episode_count = 0;
+    }
+    Ok(())
+}
+
+fn fill_title<T: Service>(app: &mut App<T>, rt: &Runtime) -> Result<(), String> {
+    let mut title = if app.config.english_show_titles() {
+        let titles = rt.block_on(app.anime_list.service.get_alternative_titles(
+            u32::try_from(app.insert_popup.service_id).map_err(|e| e.to_string())?,
+        ))?;
+        let title_languages = titles.map(|options| options.languages).unwrap_or_default();
+        title_languages.get("en").cloned()
+    } else {
+        None
+    };
+    if title.is_none() {
+        title = Some(rt.block_on(app.anime_list.service.get_title(
+            u32::try_from(app.insert_popup.service_id).map_err(|e| e.to_string())?,
+        ))?);
+    }
+    if app.anime_list.service.get_service_type() != ServiceType::Local {
+        app.insert_popup.title = title.expect("Has to be set at this point");
+    }
+    Ok(())
+}
+
 fn handle_save_state<T: Service + Send>(app: &mut App<T>, rt: &Runtime) -> Result<(), String> {
     match app
         .anime_list
@@ -245,7 +264,9 @@ fn handle_save_state<T: Service + Send>(app: &mut App<T>, rt: &Runtime) -> Resul
             rt.block_on(async {
                 app.anime_list
                     .service
-                    .init_show(u32::try_from(app.insert_popup.service_id).map_err(|e| e.to_string())?)
+                    .init_show(
+                        u32::try_from(app.insert_popup.service_id).map_err(|e| e.to_string())?,
+                    )
                     .await
             })
         }
