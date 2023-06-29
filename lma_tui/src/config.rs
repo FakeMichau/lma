@@ -146,23 +146,23 @@ impl TryFrom<Color> for TermColor {
         let hex = color.hex.trim_start_matches('#');
         let chars: Vec<_> = hex.chars().collect();
         let colors = match hex.len() {
-            3 => split_hex(&chars, 1),
-            6 => split_hex(&chars, 2),
+            3 => split_hex(&chars, 1)?,
+            6 => split_hex(&chars, 2)?,
             _ => return Err(format!("Wrong hex value: {}", color.hex)),
         };
         Ok(Self::Rgb(colors[0], colors[1], colors[2]))
     }
 }
 
-fn split_hex(chars: &[char], size: usize) -> Vec<u8> {
-    chars
-        .chunks(size)
-        .map(|chunk| chunk.iter().collect::<String>())
-        .map(|color| {
-            let hex_color = if size == 1 { color + "0" } else { color };
-            u8::from_str_radix(&hex_color, 16).unwrap_or_default()
+fn split_hex(chars: &[char], size: usize) -> Result<Vec<u8>, String> {
+    chars.chunks(size)
+        .map(|chunk| {
+            let color = chunk.iter().collect::<String>();
+            let hex_color = if size == 1 { format!("{color}{color}") } else { color };
+            u8::from_str_radix(&hex_color, 16)
         })
-        .collect()
+        .collect::<Result<Vec<u8>, _>>()
+        .map_err(|err| format!("Couldn't split hex: {err}"))
 }
 
 impl TermColors {
@@ -482,5 +482,53 @@ mod tests {
         let converted_color: Result<TermColor, _> = color.try_into();
         let correct_error = converted_color.unwrap_err().contains("Wrong hex value");
         assert!(correct_error, "Tests incorrect hex value");
+    }
+
+    #[test]
+    fn try_from_valid_color() {
+        let color = Color { hex: "#FF0000".to_string() };
+        let term_color: Result<TermColor, String> = color.try_into();
+        assert!(term_color.is_ok());
+        assert_eq!(term_color.unwrap(), TermColor::Rgb(255, 0, 0));
+    }
+
+    #[test]
+    fn try_from_color_no_hash() {
+        let color = Color { hex: "420072".to_string() };
+        let term_color: Result<TermColor, String> = color.try_into();
+        assert!(term_color.is_ok());
+        assert_eq!(term_color.unwrap(), TermColor::Rgb(66, 0, 114));
+    }
+
+    #[test]
+    fn try_from_invalid_hex() {
+        let color = Color { hex: "#FF00".to_string() };
+        let term_color: Result<TermColor, String> = color.try_into();
+        assert!(term_color.is_err());
+        assert_eq!(term_color.unwrap_err(), "Wrong hex value: #FF00");
+    }
+
+    #[test]
+    fn split_hex_three_chars() {
+        let chars: Vec<char> = vec!['F', 'F', '0'];
+        let colors = split_hex(&chars, 1);
+        assert!(colors.is_ok());
+        assert_eq!(colors.unwrap(), vec![255, 255, 0]);
+    }
+
+    #[test]
+    fn split_hex_six_chars() {
+        let chars: Vec<char> = vec!['F', 'F', '0', '0', '0', '0'];
+        let colors = split_hex(&chars, 2);
+        assert!(colors.is_ok());
+        assert_eq!(colors.unwrap(), vec![255, 0, 0]);
+    }
+
+    #[test]
+    fn split_wrong_hex() {
+        let chars: Vec<char> = vec!['R', 'F', '0', '0', '0', '0'];
+        let colors = split_hex(&chars, 2);
+        assert!(colors.is_err());
+        assert!(colors.unwrap_err().contains("Couldn't split hex"));
     }
 }
