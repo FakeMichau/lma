@@ -206,7 +206,6 @@ fn handle_first_setup_key<T: Service + Send>(
     let key_binds = app.config.key_binds();
     if key.code == key_binds.confirmation {
         if app.first_setup_popup.next_page() {
-            // TODO: login on the next launch
             app.first_setup_popup.reset();
             let selected_service = app.first_setup_popup.selected_service();
             app.config.create_personalized(selected_service.clone())?;
