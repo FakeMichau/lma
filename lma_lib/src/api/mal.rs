@@ -59,7 +59,7 @@ impl<T: MALClientTrait + Send + Sync> Service for MAL<T> {
             self.client
                 .update_user_anime_status(id, update)
                 .await
-                .expect("Update user's list"); // likely will fail
+                .map_err(|err| format!("Update user's list: {err}"))?;
         }
         Ok(())
     }
@@ -74,7 +74,7 @@ impl<T: MALClientTrait + Send + Sync> Service for MAL<T> {
             .client
             .get_anime_list(&padded_title, 20)
             .await
-            .expect("MAL search result")
+            .map_err(|err| format!("MAL search result: {err}"))?
             .data
             .iter()
             .map(|entry| ServiceTitle {
@@ -88,7 +88,7 @@ impl<T: MALClientTrait + Send + Sync> Service for MAL<T> {
             .client
             .get_anime_details(id, AnimeFields::Title)
             .await
-            .expect("Anime title") // likely will fail
+            .map_err(|err| format!("Anime title: {err}"))?
             .show
             .title)
     }
@@ -97,7 +97,7 @@ impl<T: MALClientTrait + Send + Sync> Service for MAL<T> {
             .client
             .get_anime_details(id, AnimeFields::AlternativeTitles)
             .await
-            .expect("Anime title") // likely will fail
+            .map_err(|err| format!("Alternative anime titles: {err}"))?
             .alternative_titles
             .map(|titles| {
                 AlternativeTitles {
@@ -110,14 +110,14 @@ impl<T: MALClientTrait + Send + Sync> Service for MAL<T> {
         Ok(self.client
             .get_anime_details(id, AnimeFields::NumEpisodes)
             .await
-            .expect("Anime episode count") // likely will fail
+            .map_err(|err| format!("Anime episode count: {err}"))?
             .num_episodes)
     }
     async fn get_user_entry_details(&mut self, id: u32) -> Result<Option<ServiceEpisodeUser>, String> {
         Ok(self.client
             .get_anime_details(id, AnimeFields::MyListStatus)
             .await
-            .expect("Anime details") // likely will fail
+            .map_err(|err| format!("Anime details: {err}"))?
             .my_list_status
             .map(|episode_status| {
                 ServiceEpisodeUser {
@@ -134,9 +134,9 @@ impl<T: MALClientTrait + Send + Sync> Service for MAL<T> {
             }))
     }
     async fn get_episodes(&mut self, id: u32) -> Result<Vec<ServiceEpisodeDetails>, String> {
-        Ok(self.client
+        self.client
             .get_anime_episodes(id)
-            .await // todo: extract mal error
+            .await
             .map(|episodes| episodes.data)
             .map(|vec| {
                 vec.into_iter()
@@ -154,7 +154,7 @@ impl<T: MALClientTrait + Send + Sync> Service for MAL<T> {
                 })
                 .collect::<Vec<_>>()
             })
-            .unwrap_or_default())
+            .map_err(|err| format!("Get episodes: {err}"))
     }
     async fn set_progress(&mut self, id: u32, progress: u32) -> Result<u32, String> {
         let mut update = StatusUpdate::new();
@@ -176,7 +176,7 @@ impl<T: MALClientTrait + Send + Sync> Service for MAL<T> {
         let episode_count = self.client
             .get_anime_details(id, AnimeFields::NumEpisodes)
             .await
-            .expect("Anime details") // likely will fail
+            .map_err(|err| format!("Anime details: {err}"))?
             .num_episodes
             .map_or(u32::MAX, |count| {
                 if count == 0 {
@@ -210,10 +210,10 @@ impl<T: MALClientTrait + Send + Sync> Service for MAL<T> {
 
 impl<T: MALClientTrait + Send + Sync> MAL<T> {
     async fn update_status(&mut self, id: u32, update: StatusUpdate) -> Result<ListStatus, String> {
-        Ok(self.client
+        self.client
             .update_user_anime_status(id, update)
             .await
-            .expect("Update user's list")) // likely will fail
+            .map_err(|err| format!("Update user's list: {err}"))
     }
 }
 
