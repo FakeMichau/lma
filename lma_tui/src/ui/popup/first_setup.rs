@@ -157,7 +157,7 @@ fn render_second_page<B: Backend, T: Service>(frame: &mut Frame<B>, area: Rect, 
         .block(Block::default().borders(Borders::ALL).title("Services"))
         .highlight_style(
             Style::default()
-                .bg(app.config.colors().highlight)
+                .fg(app.config.colors().highlight)
                 .add_modifier(Modifier::BOLD),
         );
     frame.render_stateful_widget(shows, main_chunks[1], &mut app.first_setup_popup.service_list.state);

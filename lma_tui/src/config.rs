@@ -109,9 +109,9 @@ impl Default for Colors {
         Self {
             text: Some(Color { r: 220, g: 220, b: 220 }),
             text_watched: Some(Color { r: 70, g: 70, b: 70 }),
-            text_deleted: Some(Color { r: 200, g: 0, b: 0 }),
-            highlight: Some(Color { r: 91, g: 174, b: 36 }),
-            highlight_dark: Some(Color { r: 25, g: 65, b: 10 }),
+            text_deleted: Some(Color { r: 193, g: 41, b: 46 }),
+            highlight: Some(Color { r: 242, g: 210, b: 2 }),
+            highlight_dark: Some(Color { r: 22, g: 25, b: 37 }),
         }
     }
 }

@@ -60,7 +60,7 @@ pub fn build<B: Backend, T: Service>(frame: &mut Frame<B>, app: &mut App<T>) {
         .block(Block::default().borders(Borders::ALL).title("List"))
         .highlight_style(
             Style::default()
-                .bg(app.config.colors().highlight)
+                .fg(app.config.colors().highlight)
                 .add_modifier(Modifier::BOLD),
         );
 

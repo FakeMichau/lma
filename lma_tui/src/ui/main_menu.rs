@@ -213,7 +213,7 @@ fn render_shows<B: Backend, T: Service>(app: &mut App<T>, area: Rect, frame: &mu
         .block(Block::default().borders(Borders::ALL).title("List"))
         .highlight_style(
             Style::default()
-                .bg(app.config.colors().highlight)
+                .fg(app.config.colors().highlight)
                 .add_modifier(Modifier::BOLD),
         );
     let show_count = shows.len();
@@ -285,7 +285,7 @@ fn render_episodes<B: Backend, T: Service>(app: &mut App<T>, area: Rect, frame: 
         .block(Block::default().borders(Borders::ALL).title("Episodes"))
         .highlight_style(
             Style::default()
-                .bg(app.config.colors().highlight)
+                .fg(app.config.colors().highlight)
                 .add_modifier(Modifier::BOLD),
         );
     let episode_count = episodes.len();
