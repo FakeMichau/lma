@@ -5,6 +5,7 @@ use ratatui::layout::{Constraint, Direction, Layout, Rect, Margin};
 use ratatui::style::{Color, Modifier, Style};
 use ratatui::widgets::{Block, Borders, List, ListItem, ListState, Paragraph, Clear};
 use ratatui::{Frame, text::{Span, Line}};
+use ratatui::widgets::{Row, Table, TableState, Cell};
 use tokio::runtime::Runtime;
 use lma_lib::{AnimeList, Show, Episode, Service};
 use crate::app::App;
@@ -13,7 +14,7 @@ use super::{SelectionDirection, FocusedWindow, popup::insert_show::InsertState};
 
 pub struct StatefulList {
     shows_state: ListState,
-    episodes_state: ListState,
+    episodes_state: TableState,
     selecting_episode: bool,
     selected_local_id: i64,
     list_cache: Vec<Show>,
@@ -26,7 +27,7 @@ impl StatefulList {
         Ok(Self {
             shows_state: ListState::default(),
             selecting_episode: false,
-            episodes_state: ListState::default(),
+            episodes_state: TableState::default(),
             selected_local_id: 0,
             list_cache,
             scroll_progress: 0
@@ -169,7 +170,7 @@ pub fn render<B: Backend, T: Service>(frame: &mut Frame<'_, B>, app: &mut App<T>
     // Split the bigger chunk into halves
     let main_chunks = Layout::default()
         .direction(Direction::Horizontal)
-        .constraints([Constraint::Percentage(50), Constraint::Percentage(50)].as_ref())
+        .constraints([Constraint::Percentage(45), Constraint::Percentage(55)].as_ref())
         .split(chunks[0]);
 
     render_shows(app, main_chunks[0], frame);
@@ -210,7 +211,7 @@ fn render_shows<B: Backend, T: Service>(app: &mut App<T>, area: Rect, frame: &mu
     app.list_state.scroll_progress = scroll_progress.try_into().unwrap();
 
     let shows = List::new(shows)
-        .block(Block::default().borders(Borders::ALL).title("List").border_style(
+        .block(Block::default().borders(Borders::ALL).title("Shows").border_style(
             if app.list_state.selecting_episode || app.list_state.selected_show().is_none() {
                 Style::default()
             } else {
@@ -229,13 +230,13 @@ fn render_shows<B: Backend, T: Service>(app: &mut App<T>, area: Rect, frame: &mu
 }
 
 fn render_episodes<B: Backend, T: Service>(app: &mut App<T>, area: Rect, frame: &mut Frame<'_, B>) {
-    let episodes: Vec<ListItem> = app
+    let episodes: Vec<Row> = app
         .list_state
         .list_cache
         .iter()
         .filter(|show| show.local_id == app.list_state.selected_local_id)
         .flat_map(|show| {
-            let mut temp: Vec<ListItem> = Vec::new();
+            let mut temp: Vec<Row> = Vec::new();
             for episode in &show.episodes {
                 let mut style = Style::default();
                 if episode.number <= show.progress {
@@ -272,22 +273,35 @@ fn render_episodes<B: Backend, T: Service>(app: &mut App<T>, area: Rect, frame: 
                         scroll_text(episode_display_name, space, &mut scroll_progress);
                     app.list_state.scroll_progress = scroll_progress.try_into().unwrap();
                 }
-                let mut new_episode =
-                    ListItem::new(format!("{} {}", episode.number, episode_display_name))
-                        .style(style);
-                append_extra_info(
-                    &mut new_episode,
-                    area.width - 1, // -1 because of scrollbar
-                    episode,
-                    episode_display_name,
-                    style,
-                );
+                // let new_episode = Row::new([format!("{}", episode.number), episode_display_name.to_string()]).style(style);
+                let new_episode = Row::new(vec![
+                    Cell::from(episode.number.to_string()).style(style),
+                    Cell::from(episode_display_name.to_string()).style(style),
+                    Cell::from(
+                        format!(" {} {} ", if episode.filler {"F"} else {""}, if episode.recap {"R"} else {""})
+                    ).style(style),
+                ]);
+                // append_extra_info(
+                //     &mut new_episode,
+                //     area.width - 1, // -1 because of scrollbar
+                //     episode,
+                //     episode_display_name,
+                //     style,
+                // );
                 temp.push(new_episode);
             }
             temp
         })
         .collect();
-    let episodes = List::new(episodes)
+    let episode_count = episodes.len();
+    let episodes = Table::new(episodes)
+        .header(
+            Row::new(vec!["#", "Title", "Extra"])
+                .style(Style::default().fg(Color::Yellow))
+                .bottom_margin(1)
+        )
+        .widths(&[Constraint::Min(3), Constraint::Percentage(100), Constraint::Min(5), Constraint::Min(2)])
+        .column_spacing(1)
         .block(Block::default().borders(Borders::ALL).title("Episodes").border_style(
             if app.list_state.selecting_episode {
                 Style::default().fg(app.config.colors().highlight)
@@ -300,7 +314,6 @@ fn render_episodes<B: Backend, T: Service>(app: &mut App<T>, area: Rect, frame: 
                 .fg(app.config.colors().highlight)
                 .add_modifier(Modifier::BOLD),
         );
-    let episode_count = episodes.len();
     frame.render_stateful_widget(episodes, area, &mut app.list_state.episodes_state);
 
     render_scrollbar(area, frame, episode_count, app, app.list_state.episodes_state.offset());
@@ -360,46 +373,46 @@ fn scroll_text(full_title: String, space: usize, scroll_progress: &mut usize) ->
     }
 }
 
-fn append_extra_info(
-    new_episode: &mut ListItem<'_>,
-    space: u16,
-    episode: &Episode,
-    episode_display_name: String,
-    style: Style,
-) {
-    if !episode.recap && !episode.filler {
-        return;
-    }
-    let recap_text = "RECAP";
-    let filler_text = "FILLER";
-    let text = if episode.recap && episode.filler {
-        format!("{recap_text}/{filler_text}")
-    } else if episode.recap {
-        recap_text.to_string()
-    } else {
-        filler_text.to_string()
-    };
-    let trunc_symbol = "... ";
-    let trunc_symbol_len = u16::try_from(trunc_symbol.len()).unwrap_or_default();
-    let episode_width = new_episode.width();
-    let offset = u16::try_from(text.len()).unwrap_or_default()
-        + u16::try_from(episode.number.checked_ilog10().unwrap_or(0) + 1).unwrap_or_default()
-        + 3;
-    if episode_width > (space - offset - trunc_symbol_len + 3).into() {
-        let mut trunc_episode_display_name = episode_display_name;
-        trunc_episode_display_name.truncate((space - offset - trunc_symbol_len).into());
-        trunc_episode_display_name += trunc_symbol;
-        trunc_episode_display_name += text.as_str();
-        *new_episode = ListItem::new(format!("{} {}", episode.number, trunc_episode_display_name))
-            .style(style);
-    } else {
-        let mut trunc_episode_display_name =
-            format!("{:1$}", episode_display_name, (space - offset).into());
-        trunc_episode_display_name += text.as_str();
-        *new_episode = ListItem::new(format!("{} {}", episode.number, trunc_episode_display_name))
-            .style(style);
-    }
-}
+// fn append_extra_info(
+//     new_episode: &mut Row<'_>,
+//     space: u16,
+//     episode: &Episode,
+//     episode_display_name: String,
+//     style: Style,
+// ) {
+//     if !episode.recap && !episode.filler {
+//         return;
+//     }
+//     let recap_text = "RECAP";
+//     let filler_text = "FILLER";
+//     let text = if episode.recap && episode.filler {
+//         format!("{recap_text}/{filler_text}")
+//     } else if episode.recap {
+//         recap_text.to_string()
+//     } else {
+//         filler_text.to_string()
+//     };
+//     let trunc_symbol = "... ";
+//     let trunc_symbol_len = u16::try_from(trunc_symbol.len()).unwrap_or_default();
+//     let episode_width = new_episode.width();
+//     let offset = u16::try_from(text.len()).unwrap_or_default()
+//         + u16::try_from(episode.number.checked_ilog10().unwrap_or(0) + 1).unwrap_or_default()
+//         + 3;
+//     if episode_width > (space - offset - trunc_symbol_len + 3).into() {
+//         let mut trunc_episode_display_name = episode_display_name;
+//         trunc_episode_display_name.truncate((space - offset - trunc_symbol_len).into());
+//         trunc_episode_display_name += trunc_symbol;
+//         trunc_episode_display_name += text.as_str();
+//         *new_episode = Row::new([format!("{} {}", episode.number, trunc_episode_display_name)])
+//             .style(style);
+//     } else {
+//         let mut trunc_episode_display_name =
+//             format!("{:1$}", episode_display_name, (space - offset).into());
+//         trunc_episode_display_name += text.as_str();
+//         *new_episode = Row::new([format!("{} {}", episode.number, trunc_episode_display_name)])
+//             .style(style);
+//     }
+// }
 
 enum Function {
     Navigation,
