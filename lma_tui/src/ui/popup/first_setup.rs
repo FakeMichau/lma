@@ -101,18 +101,28 @@ pub fn build<B: Backend, T: Service>(frame: &mut Frame<B>, app: &mut App<T>) {
     
 }
 
+fn get_vertical_middle(needed_space: u16, area: Rect) -> Rect{
+    area.height.checked_sub(needed_space).map_or_else(
+        Rect::default,
+        |space| {
+            Layout::default()
+                .direction(Direction::Vertical)
+                .constraints(
+                    [
+                        Constraint::Length(space / 2),
+                        Constraint::Min(3),
+                        Constraint::Percentage(space / 2),
+                    ]
+                    .as_ref(),
+                )
+                .split(area)[1]
+        },
+    )
+}
+
 fn render_first_page<B: Backend>(frame: &mut Frame<B>, area: Rect) {
-    let middle = Layout::default()
-        .direction(Direction::Vertical)
-        .constraints(
-            [
-                Constraint::Percentage(40),
-                Constraint::Min(3),
-                Constraint::Percentage(40),
-            ]
-            .as_ref(),
-        )
-        .split(area)[1];
+    const LINES_TO_FIT: u16 = 3;
+    let middle = get_vertical_middle(LINES_TO_FIT, area);
  
     let content = vec![
         Line::from(Span::raw("Thanks for checking out the project")),
@@ -164,17 +174,8 @@ fn render_second_page<B: Backend, T: Service>(frame: &mut Frame<B>, area: Rect, 
 }
 
 fn render_third_page<B: Backend>(frame: &mut Frame<B>, area: Rect, config_path: &Path) {
-    let middle = Layout::default()
-        .direction(Direction::Vertical)
-        .constraints(
-            [
-                Constraint::Percentage(33),
-                Constraint::Min(6),
-                Constraint::Percentage(33),
-            ]
-            .as_ref(),
-        )
-        .split(area)[1];
+    const LINES_TO_FIT: u16 = 6;
+    let middle = get_vertical_middle(LINES_TO_FIT, area);
     let config_path = if config_path.is_absolute() {
         config_path.to_path_buf()
     } else {
@@ -196,7 +197,6 @@ fn render_third_page<B: Backend>(frame: &mut Frame<B>, area: Rect, config_path: 
         ]),
     ];
     let form = Paragraph::new(content)
-        .wrap(Wrap { trim: true })
         .alignment(Alignment::Center);
     frame.render_widget(form, middle);
 }
