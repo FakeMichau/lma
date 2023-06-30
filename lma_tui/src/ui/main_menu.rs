@@ -236,7 +236,7 @@ fn render_shows<B: Backend, T: Service>(app: &mut App<T>, area: Rect, frame: &mu
     frame.render_widget(border, area);
 
     let header: Vec<HeaderType> = vec![
-        HeaderType::Title
+        HeaderType::title(),
     ];
 
     Table::new(&mut app.list_state.shows_state, shows, header, inner_layout[0])
