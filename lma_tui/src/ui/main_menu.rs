@@ -3,11 +3,11 @@ use crossterm::event::KeyCode;
 use ratatui::backend::Backend;
 use ratatui::layout::{Constraint, Direction, Layout, Rect, Margin};
 use ratatui::style::{Color, Modifier, Style};
-use ratatui::widgets::{Block, Borders, List, ListItem, ListState, Paragraph, Clear};
+use ratatui::widgets::{Block, Borders, Paragraph, Clear};
 use ratatui::{Frame, text::{Span, Line}};
 use ratatui::widgets::{Row, Table as TableWidget, TableState, Cell};
 use tokio::runtime::Runtime;
-use lma_lib::{AnimeList, Show, Episode, Service};
+use lma_lib::{AnimeList, Show, Service};
 use crate::app::App;
 use crate::config::{KeyBinds, TermColors};
 use super::{SelectionDirection, FocusedWindow, popup::insert_show::InsertState};
@@ -689,141 +689,27 @@ fn keycode_to_key(keycode: KeyCode) -> String {
 
 #[cfg(test)]
 mod tests {
-    use lma_lib::EpisodeStatus;
-
     use super::*;
 
-    // #[test]
-    // fn help_item() {
-    //     let highlight_color = Color::Rgb(0, 0, 0);
-    //     let test_item = HelpItem::new("Testing", "THINGS",  highlight_color);
+    #[test]
+    fn help_item() {
+        let highlight_color = Color::Rgb(0, 0, 0);
+        let key_binds = KeyBinds {
+            quit: KeyCode::Char('q'),
+            ..Default::default()
+        };
+        let test_item = HelpItem::new("Testing", &Function::Quit, &key_binds, highlight_color);
 
-    //     let text_style = Style::default().bg(highlight_color);
-    //     let key_style = text_style.add_modifier(Modifier::BOLD);
-    //     let expected_span = vec![
-    //         Span::styled("Testing ", text_style),
-    //         Span::styled("[THINGS]", key_style),
-    //         Span::raw(" "),
-    //     ];
+        let text_style = Style::default().bg(highlight_color);
+        let key_style = text_style.add_modifier(Modifier::BOLD);
+        let expected_span = vec![
+            Span::styled("Testing ", text_style),
+            Span::styled("[Q]", key_style),
+            Span::raw(" "),
+        ];
 
-    //     assert_eq!(test_item.to_span(), expected_span);
-    // }
-
-    // #[test]
-    // fn append_extra_info_recap_filler_trunc() {
-    //     let space = 29; // +2 because of the border
-    //     let episode = create_test_episode(true, true);
-    //     let episode_display_name = episode.title.clone();
-    //     let style = Style::default();
-    //     let mut new_episode =
-    //         ListItem::new(format!("{} {}", episode.number, episode_display_name)).style(style);
-
-    //     append_extra_info(
-    //         &mut new_episode,
-    //         space,
-    //         &episode,
-    //         episode_display_name,
-    //         style,
-    //     );
-
-    //     assert_eq!(
-    //         new_episode,
-    //         ListItem::new("1 Test Epis... RECAP/FILLER").style(style)
-    //     );
-    // }
-
-    // #[test]
-    // fn append_extra_info_recap_filler() {
-    //     let space = 40; // +2 because of the border
-    //     let episode = create_test_episode(true, true);
-    //     let episode_display_name = episode.title.clone();
-    //     let style = Style::default();
-    //     let mut new_episode =
-    //         ListItem::new(format!("{} {}", episode.number, episode_display_name)).style(style);
-
-    //     append_extra_info(
-    //         &mut new_episode,
-    //         space,
-    //         &episode,
-    //         episode_display_name,
-    //         style,
-    //     );
-
-    //     assert_eq!(
-    //         new_episode,
-    //         ListItem::new("1 Test Episode            RECAP/FILLER").style(style)
-    //     );
-    // }
-
-    // #[test]
-    // fn append_extra_info_filler_trunc() {
-    //     let space = 24; // +2 because of the border
-    //     let episode = create_test_episode(false, true);
-    //     let episode_display_name = episode.title.clone();
-    //     let style = Style::default();
-    //     let mut new_episode =
-    //         ListItem::new(format!("{} {}", episode.number, episode_display_name)).style(style);
-
-    //     append_extra_info(
-    //         &mut new_episode,
-    //         space,
-    //         &episode,
-    //         episode_display_name,
-    //         style,
-    //     );
-
-    //     assert_eq!(
-    //         new_episode,
-    //         ListItem::new("1 Test Episo... FILLER").style(style)
-    //     );
-    // }
-
-    // #[test]
-    // fn append_extra_info_filler() {
-    //     let space = 40; // +2 because of the border
-    //     let episode = create_test_episode(false, true);
-    //     let episode_display_name = episode.title.clone();
-    //     let style = Style::default();
-    //     let mut new_episode =
-    //         ListItem::new(format!("{} {}", episode.number, episode_display_name)).style(style);
-
-    //     append_extra_info(
-    //         &mut new_episode,
-    //         space,
-    //         &episode,
-    //         episode_display_name,
-    //         style,
-    //     );
-
-    //     assert_eq!(
-    //         new_episode,
-    //         ListItem::new("1 Test Episode                  FILLER").style(style)
-    //     );
-    // }
-
-    // #[test]
-    // fn append_extra_info_long_number() {
-    //     let space = 24; // +2 because of the border
-    //     let mut episode = create_test_episode(false, true);
-    //     episode.number = 420;
-    //     let episode_display_name = episode.title.clone();
-    //     let style = Style::default();
-    //     let mut new_episode =
-    //         ListItem::new(format!("{} {}", episode.number, episode_display_name)).style(style);
-
-    //     append_extra_info(
-    //         &mut new_episode,
-    //         space,
-    //         &episode,
-    //         episode_display_name,
-    //         style,
-    //     );
-
-    //     assert_eq!(
-    //         new_episode,
-    //         ListItem::new("420 Test Epi... FILLER").style(style)
-    //     );
-    // }
+        assert_eq!(test_item.to_span(), expected_span);
+    }
 
     #[test]
     fn list_first_selection() {
@@ -885,17 +771,6 @@ mod tests {
         assert_eq!(show.title, "Test Show 5");
     }
 
-    fn create_test_episode(recap: bool, filler: bool) -> Episode {
-        Episode {
-            title: String::from("Test Episode"),
-            number: 1,
-            path: PathBuf::from("/path/just/for/testing.mp4"),
-            file_deleted: false,
-            recap,
-            filler,
-        }
-    }
-
     fn generate_test_stateful_list(count: i64) -> StatefulList {
         StatefulList {
             shows_state: TableState::default(),
@@ -907,6 +782,7 @@ mod tests {
         }
     }
 
+    use lma_lib::Episode;
     fn generate_test_episodes(count: i64) -> Vec<Episode> {
         let mut episodes = Vec::new();
         for i in 1..=count {
