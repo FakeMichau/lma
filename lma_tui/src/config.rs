@@ -125,7 +125,7 @@ impl Default for Colors {
             text_deleted: Some(Color::new("#C1292E")),
             highlight: Some(Color::new("#F2D202")),
             highlight_dark: Some(Color::new("#161925")),
-            secondary: Some(Color::new("#3C87CD")),
+            secondary: Some(Color::new("#F45D01")),
         }
     }
 }
