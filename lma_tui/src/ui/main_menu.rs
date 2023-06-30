@@ -7,7 +7,7 @@ use ratatui::widgets::{Block, Borders, Paragraph, Clear};
 use ratatui::{Frame, text::{Span, Line}};
 use ratatui::widgets::{Row, Table as TableWidget, TableState, Cell};
 use tokio::runtime::Runtime;
-use lma_lib::{AnimeList, Show, Service};
+use lma_lib::{AnimeList, Show, Service, Episode};
 use crate::app::App;
 use crate::config::{KeyBinds, TermColors};
 use super::{SelectionDirection, FocusedWindow, popup::insert_show::InsertState};
@@ -271,45 +271,15 @@ fn render_episodes<B: Backend, T: Service>(app: &mut App<T>, area: Rect, frame: 
         .flat_map(|show| {
             let mut temp: Vec<Row> = Vec::new();
             for episode in &show.episodes {
-                let mut style = Style::default();
-                if episode.number <= show.progress {
-                    style = style.fg(app.config.colors().text).add_modifier(Modifier::DIM);
-                }
-                if episode.file_deleted {
-                    style = style.fg(app.config.colors().text_deleted).add_modifier(Modifier::CROSSED_OUT | Modifier::DIM);
-                }
-                let mut episode_display_name = if episode.title.is_empty() || app.config.path_instead_of_title() {
-                    episode
-                        .path
-                        .file_name()
-                        .unwrap_or_default()
-                        .to_string_lossy()
-                        .into()
-                } else {
-                    episode.title.clone()
-                };
-                let selected_episode = app.list_state.episodes_state
-                    .selected()
-                    .and_then(|index| show.episodes.get(index));
-                if !episode.filler 
-                    && !episode.recap 
-                    && app.list_state.selecting_episode 
+                let style = get_style(episode, show, app.config.colors());
+                let mut episode_display_name = get_display_name(episode, app.config.path_instead_of_title());
+                let selected_episode = get_selected_show(&app.list_state.episodes_state, show);
+                if app.list_state.selecting_episode 
                     && selected_episode.expect("Is selecting_episode").number == episode.number
                 {
-                    let space = usize::from(inner_layout[0].width - header.sum_consts() - 2);
-                    let mut scroll_progress: usize =
-                        app.list_state.scroll_progress.try_into().unwrap();
-                    episode_display_name =
-                        scroll_text(episode_display_name, space, &mut scroll_progress);
-                    app.list_state.scroll_progress = scroll_progress.try_into().unwrap();
+                    try_to_scroll_title(inner_layout[0].width, &header, &mut app.list_state.scroll_progress, &mut episode_display_name);
                 }
-                let episode_column_width = header.iter().map(|item| {
-                    match item {
-                        HeaderType::Number(width) => Some(width),
-                        _ => None
-                    }
-                }).find(Option::is_some)
-                .unwrap_or_default().copied().unwrap_or_default();
+                let episode_column_width = get_episode_number_col_width(&header);
                 let cells  = header.iter().map(|column| {
                     match column {
                         HeaderType::Number(_) => Cell::from(format!("{:>1$}", episode.number.to_string(), usize::from(episode_column_width))).style(style),
@@ -342,6 +312,51 @@ fn render_episodes<B: Backend, T: Service>(app: &mut App<T>, area: Rect, frame: 
         .render(frame, app.config.colors());
     
     render_scrollbar(inner_layout[1], frame, episode_count, app, app.list_state.episodes_state.offset());
+}
+
+fn get_episode_number_col_width(header: &[HeaderType]) -> u16 {
+    header.iter().map(|item| {
+        match item {
+            HeaderType::Number(width) => Some(width),
+            _ => None
+        }
+    }).find(Option::is_some)
+    .unwrap_or_default().copied().unwrap_or_default()
+}
+
+fn try_to_scroll_title(width: u16, header: &Vec<HeaderType>, scroll_progress: &mut u32, episode_display_name: &mut String) {
+    let space = usize::from(width - header.sum_consts() - 2);
+    let mut scroll_progress: usize = (*scroll_progress).try_into().unwrap();
+    *episode_display_name = scroll_text(episode_display_name.clone(), space, &mut scroll_progress);
+}
+
+fn get_selected_show<'a>(episode_state: &TableState, show: &'a Show) -> Option<&'a Episode> {
+    episode_state.selected()
+        .and_then(|index| show.episodes.get(index))
+}
+
+fn get_display_name(episode: &Episode, use_path: bool) -> String {
+    if episode.title.is_empty() || use_path {
+        episode
+            .path
+            .file_name()
+            .unwrap_or_default()
+            .to_string_lossy()
+            .into()
+    } else {
+        episode.title.clone()
+    }
+}
+
+fn get_style(episode: &Episode, show: &Show, colors: &TermColors) -> Style {
+    let mut style = Style::default();
+    if episode.number <= show.progress {
+        style = style.fg(colors.text).add_modifier(Modifier::DIM);
+    }
+    if episode.file_deleted {
+        style = style.fg(colors.text_deleted).add_modifier(Modifier::CROSSED_OUT | Modifier::DIM);
+    }
+    style
 }
 
 enum HeaderType {
