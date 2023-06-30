@@ -246,6 +246,23 @@ fn render_shows<B: Backend, T: Service>(app: &mut App<T>, area: Rect, frame: &mu
 }
 
 fn render_episodes<B: Backend, T: Service>(app: &mut App<T>, area: Rect, frame: &mut Frame<'_, B>) {
+    let header: Vec<HeaderType> = vec![
+        HeaderType::number(),
+        HeaderType::title(),
+        HeaderType::extra(),
+    ];
+    let inner_area = area.inner(&Margin {
+        vertical: 1,
+        horizontal: 1,
+    });
+    let inner_layout = Layout::default()
+        .direction(Direction::Horizontal)
+        .constraints(
+            [ Constraint::Percentage(100), Constraint::Min(1) ]
+            .as_ref(),
+        )
+        .split(inner_area);
+    
     let episodes: Vec<Row> = app
         .list_state
         .list_cache
@@ -279,10 +296,7 @@ fn render_episodes<B: Backend, T: Service>(app: &mut App<T>, area: Rect, frame: 
                     && app.list_state.selecting_episode 
                     && selected_episode.expect("Is selecting_episode").number == episode.number
                 {
-                    let space = usize::from(area.width)
-                        - 2 // without border
-                        - (episode.number.checked_ilog10().unwrap_or(0) as usize + 2) // episode number
-                        - 1; // scrollbar
+                    let space = usize::from(inner_layout[0].width - header.sum_consts() - 2);
                     let mut scroll_progress: usize =
                         app.list_state.scroll_progress.try_into().unwrap();
                     episode_display_name =
@@ -312,23 +326,6 @@ fn render_episodes<B: Backend, T: Service>(app: &mut App<T>, area: Rect, frame: 
         }
     );
     frame.render_widget(border, area);
-
-    let header: Vec<HeaderType> = vec![
-        HeaderType::number(),
-        HeaderType::title(),
-        HeaderType::extra(),
-    ];
-    let inner_area = area.inner(&Margin {
-        vertical: 1,
-        horizontal: 1,
-    });
-    let inner_layout = Layout::default()
-        .direction(Direction::Horizontal)
-        .constraints(
-            [ Constraint::Percentage(100), Constraint::Min(1) ]
-            .as_ref(),
-        )
-        .split(inner_area);
 
     Table::new(&mut app.list_state.episodes_state, episodes, header, inner_layout[0])
         .render(frame, app.config.colors());
@@ -366,14 +363,12 @@ impl HeaderType {
 
 trait HeaderAlign {
     fn align(&self, space: u16) -> Vec<TableHeaderItem>;
+    fn sum_consts(&self) -> u16;
 }
 
 impl HeaderAlign for Vec<HeaderType> {
     fn align<'a>(&self, space: u16) -> Vec<TableHeaderItem> {
-        let space_of_consts: u16 = self
-            .iter()
-            .map(|header_type| header_type.get_width().map_or(0, |width| width))
-            .sum();
+        let space_of_consts: u16 = self.sum_consts();
         self.iter()
             .map(|header_type| match header_type {
                 HeaderType::Number(width) => {
@@ -390,6 +385,11 @@ impl HeaderAlign for Vec<HeaderType> {
                 }
             })
             .collect()
+    }
+    fn sum_consts(&self) -> u16 {
+        self.iter()
+            .map(|header_type| header_type.get_width().map_or(0, |width| width))
+            .sum()
     }
 }
 fn const_align(text: &str, width: u16) -> String {
