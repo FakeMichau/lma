@@ -303,14 +303,25 @@ fn render_episodes<B: Backend, T: Service>(app: &mut App<T>, area: Rect, frame: 
                         scroll_text(episode_display_name, space, &mut scroll_progress);
                     app.list_state.scroll_progress = scroll_progress.try_into().unwrap();
                 }
-                
-                let new_episode = Row::new(vec![
-                    Cell::from(episode.number.to_string()).style(style),
-                    Cell::from(episode_display_name.to_string()).style(style),
-                    Cell::from(
-                        format!(" {} {} ", if episode.filler {"F"} else {""}, if episode.recap {"R"} else {""})
-                    ).style(style),
-                ]);
+                let episode_column_width = header.iter().map(|item| {
+                    match item {
+                        HeaderType::Number(width) => Some(width),
+                        _ => None
+                    }
+                }).find(Option::is_some)
+                .unwrap_or_default().copied().unwrap_or_default();
+                let cells  = header.iter().map(|column| {
+                    match column {
+                        HeaderType::Number(_) => Cell::from(format!("{:>1$}", episode.number.to_string(), usize::from(episode_column_width))).style(style),
+                        HeaderType::Title => Cell::from(episode_display_name.to_string()).style(style),
+                        HeaderType::Extra(_) => Cell::from(
+                            format!(" {} {} ", if episode.filler {"F"} else {""}, if episode.recap {"R"} else {""})
+                        ).style(style),
+                        HeaderType::Score(_) => Cell::from(""),
+                    }
+                })
+                .collect::<Vec<_>>();
+                let new_episode = Row::new(cells);
                 temp.push(new_episode);
             }
             temp
