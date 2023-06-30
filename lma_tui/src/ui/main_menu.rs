@@ -193,6 +193,10 @@ fn render_help<B: Backend, T: Service>(app: &mut App<T>, area: Rect, frame: &mut
 }
 
 fn render_shows<B: Backend, T: Service>(app: &mut App<T>, area: Rect, frame: &mut Frame<B>) {
+    let header: Vec<HeaderType> = vec![
+        // HeaderType::number(),
+        HeaderType::title(),
+    ];
     let inner_area = area.inner(&Margin {
         vertical: 1,
         horizontal: 1,
@@ -202,32 +206,27 @@ fn render_shows<B: Backend, T: Service>(app: &mut App<T>, area: Rect, frame: &mu
         .constraints([Constraint::Percentage(100), Constraint::Min(1)].as_ref())
         .split(inner_area);
 
-    let mut scroll_progress: usize = app.list_state.scroll_progress.try_into().unwrap();
-    let shows: Vec<_> = app
+    let mut progress = app.list_state.scroll_progress;
+    let shows: Vec<Row> = app
         .list_state
         .list_cache
         .iter()
         .map(|show| {
-            let title = if app
+            let selected_show_id = app
                 .list_state
                 .selected_show()
-                .map(|selected_show| selected_show.local_id)
-                .unwrap_or_default()
-                == show.local_id
-                && !app.list_state.selecting_episode
-            {
-                let full_title = show.title.clone();
-                let space = usize::from(inner_layout[0].width); // without border and scrollbar
-                scroll_text(full_title, space, &mut scroll_progress)
-            } else {
-                show.title.clone()
-            };
+                .map(|selected_show| selected_show.local_id);
+            let mut title = show.title.clone();
+            if selected_show_id == Some(show.local_id) && !app.list_state.selecting_episode {
+                try_to_scroll_title(inner_layout[0].width, &header, &mut progress, &mut title);
+            }
 
             let style = Style::default().fg(app.config.colors().text);
-            Row::new(vec![Cell::from(title).style(style)])
+            let cells = generate_show_cells(show, &header, style, &title);
+            Row::new(cells)
         })
         .collect();
-    app.list_state.scroll_progress = scroll_progress.try_into().unwrap();
+    app.list_state.scroll_progress = progress;
 
     let show_count = shows.len();
 
@@ -244,8 +243,6 @@ fn render_shows<B: Backend, T: Service>(app: &mut App<T>, area: Rect, frame: &mu
 
     frame.render_widget(border, area);
 
-    let header: Vec<HeaderType> = vec![HeaderType::title()];
-
     Table::new(
         &mut app.list_state.shows_state,
         shows,
@@ -261,6 +258,27 @@ fn render_shows<B: Backend, T: Service>(app: &mut App<T>, area: Rect, frame: &mu
         app,
         app.list_state.shows_state.offset(),
     );
+}
+
+fn generate_show_cells<'a>(
+    show: &'a Show,
+    header: &[HeaderType],
+    style: Style,
+    title: &str,
+) -> Vec<Cell<'a>> {
+    header
+        .iter()
+        .map(|column| match column {
+            HeaderType::Number(_) => Cell::from(format!(
+                "{:>1$}",
+                show.local_id.to_string(),
+                usize::from(get_number_col_width(header))
+            ))
+            .style(style),
+            HeaderType::Title => Cell::from(String::from(title)).style(style),
+            _ => Cell::from(""),
+        })
+        .collect::<Vec<_>>()
 }
 
 fn render_episodes<B: Backend, T: Service>(app: &mut App<T>, area: Rect, frame: &mut Frame<'_, B>) {
@@ -302,7 +320,7 @@ fn render_episodes<B: Backend, T: Service>(app: &mut App<T>, area: Rect, frame: 
                     );
                 }
                 let style = get_style(episode, show, app.config.colors());
-                let cells = generate_cells(episode, &header, style, &episode_display_name);
+                let cells = generate_episode_cells(episode, &header, style, &episode_display_name);
                 let new_episode = Row::new(cells);
                 temp.push(new_episode);
             }
@@ -338,19 +356,19 @@ fn render_episodes<B: Backend, T: Service>(app: &mut App<T>, area: Rect, frame: 
     );
 }
 
-fn generate_cells<'a>(
+fn generate_episode_cells<'a>(
     episode: &'a Episode,
     header: &[HeaderType],
     style: Style,
     episode_display_name: &str,
 ) -> Vec<Cell<'a>> {
-    let cells = header
+    header
         .iter()
         .map(|column| match column {
             HeaderType::Number(_) => Cell::from(format!(
                 "{:>1$}",
                 episode.number.to_string(),
-                usize::from(get_episode_number_col_width(header))
+                usize::from(get_number_col_width(header))
             ))
             .style(style),
             HeaderType::Title => Cell::from(episode_display_name.to_string()).style(style),
@@ -362,11 +380,10 @@ fn generate_cells<'a>(
             .style(style),
             HeaderType::Score(_) => Cell::from(""),
         })
-        .collect::<Vec<_>>();
-    cells
+        .collect::<Vec<_>>()
 }
 
-fn get_episode_number_col_width(header: &[HeaderType]) -> u16 {
+fn get_number_col_width(header: &[HeaderType]) -> u16 {
     header
         .iter()
         .map(|item| match item {
@@ -560,7 +577,11 @@ fn render_scrollbar<B: Backend, T: Service>(
     }
 }
 
-#[allow(clippy::cast_precision_loss, clippy::cast_possible_truncation, clippy::cast_sign_loss)]
+#[allow(
+    clippy::cast_precision_loss,
+    clippy::cast_possible_truncation,
+    clippy::cast_sign_loss
+)]
 fn get_scroll_bar(offset: usize, scrollbar_area: Rect, episode_count: usize) -> Rect {
     let float_skipped_entries = offset as f64;
     let float_height = f64::from(scrollbar_area.height);
@@ -583,7 +604,9 @@ fn scroll_text(full_title: String, space: usize, scroll_progress: &mut usize) ->
         let offset = match *scroll_progress {
             ..=WAIT_OFFSET => 0,
             i if WAIT_OFFSET <= i && i <= WAIT_OFFSET + max_offset => i - WAIT_OFFSET - 1,
-            i if max_offset + WAIT_OFFSET < i && i <= max_offset + 2 * WAIT_OFFSET + 1 => max_offset,
+            i if max_offset + WAIT_OFFSET < i && i <= max_offset + 2 * WAIT_OFFSET + 1 => {
+                max_offset
+            }
             _ => {
                 *scroll_progress = 0;
                 0
@@ -653,12 +676,17 @@ fn build_help<'a>(
     let go_back = HelpItem::new("Go back", &Function::Close, key_binds, bg_color);
     let close_window = HelpItem::new("Close the window", &Function::Close, key_binds, bg_color);
     let exit_input = HelpItem::new("Stop inputting", &Function::Close, key_binds, bg_color);
-    let start_input = HelpItem::new("Start inputting", &Function::EnterInput, key_binds, bg_color);
+    let start_input = HelpItem::new(
+        "Start inputting",
+        &Function::EnterInput,
+        key_binds,
+        bg_color,
+    );
     let confirm = HelpItem::new("Confirm", &Function::Confirmation, key_binds, bg_color);
     let login = HelpItem::new("Login", &Function::Login, key_binds, bg_color);
     let progress = HelpItem::new("Progress", &Function::Progress, key_binds, bg_color);
     let insert_episode = HelpItem::new("Add episode", &Function::NewEpisode, key_binds, bg_color);
-    let quit = HelpItem::new("Quit", &Function::Quit, key_binds, bg_color);    
+    let quit = HelpItem::new("Quit", &Function::Quit, key_binds, bg_color);
 
     let mut information = Vec::new();
     match focused_window {
