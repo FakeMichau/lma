@@ -13,7 +13,7 @@ use crate::config::KeyBinds;
 use super::{SelectionDirection, FocusedWindow, popup::insert_show::InsertState};
 
 pub struct StatefulList {
-    shows_state: ListState,
+    shows_state: TableState,
     episodes_state: TableState,
     selecting_episode: bool,
     selected_local_id: i64,
@@ -25,7 +25,7 @@ impl StatefulList {
     pub fn new<T: Service>(shows: &AnimeList<T>) -> Result<Self, String> {
         let list_cache = shows.get_list().map_err(|e| e.to_string())?;
         Ok(Self {
-            shows_state: ListState::default(),
+            shows_state: TableState::default(),
             selecting_episode: false,
             episodes_state: TableState::default(),
             selected_local_id: 0,
@@ -190,6 +190,15 @@ fn render_help<B: Backend, T: Service>(app: &mut App<T>, area: Rect, frame: &mut
 }
 
 fn render_shows<B: Backend, T: Service>(app: &mut App<T>, area: Rect, frame: &mut Frame<B>) {
+    let inner_area = area.inner(&Margin {
+        vertical: 1,
+        horizontal: 1,
+    });
+    let inner_layout = Layout::default()
+        .direction(Direction::Horizontal)
+        .constraints([ Constraint::Percentage(100), Constraint::Min(1) ].as_ref())
+        .split(inner_area);
+
     let mut scroll_progress: usize = app.list_state.scroll_progress.try_into().unwrap();
     let shows: Vec<_> = app
         .list_state
@@ -200,45 +209,40 @@ fn render_shows<B: Backend, T: Service>(app: &mut App<T>, area: Rect, frame: &mu
                 && !app.list_state.selecting_episode
             {
                 let full_title = show.title.clone();
-                let space = usize::from(area.width) - 3; // without border and scrollbar
+                let space = usize::from(inner_layout[0].width); // without border and scrollbar
                 scroll_text(full_title, space, &mut scroll_progress)
             } else {
                 show.title.clone()
             };
-            ListItem::new(title).style(Style::default().fg(app.config.colors().text))
+
+            let style = Style::default().fg(app.config.colors().text);
+            Row::new(vec![
+                Cell::from(title).style(style),
+            ])
         })
         .collect();
     app.list_state.scroll_progress = scroll_progress.try_into().unwrap();
-
-    let shows = List::new(shows)
-        .block(Block::default().borders(Borders::ALL).title("Shows").border_style(
-            if app.list_state.selecting_episode || app.list_state.selected_show().is_none() {
-                Style::default()
-            } else {
-                Style::default().fg(app.config.colors().highlight)
-            }
-        ))
-        .highlight_style(
-            Style::default()
-                .fg(app.config.colors().highlight)
-                .add_modifier(Modifier::BOLD),
-        );
+    
     let show_count = shows.len();
-    frame.render_stateful_widget(shows, area, &mut app.list_state.shows_state);
 
-    let inner_area = area.inner(&Margin {
-        vertical: 1,
-        horizontal: 1,
-    });
-    let scrollbar_area = Layout::default()
-        .direction(Direction::Horizontal)
-        .constraints(
-            [ Constraint::Percentage(100), Constraint::Min(1) ]
-            .as_ref(),
-        )
-        .split(inner_area)[1];
+    let border = Block::default().borders(Borders::ALL).title("Shows").border_style(
+        if app.list_state.selecting_episode || app.list_state.selected_show().is_none() {
+            Style::default()
+        } else {
+            Style::default().fg(app.config.colors().highlight)
+        }
+    );
 
-    render_scrollbar(scrollbar_area, frame, show_count, app, app.list_state.shows_state.offset());
+    frame.render_widget(border, area);
+
+    let header: Vec<HeaderType> = vec![
+        HeaderType::Title,
+    ];
+
+    Table::new(&mut app.list_state.shows_state, shows, header, inner_layout[0])
+        .render(frame, app.config.colors().highlight);
+    
+    render_scrollbar(inner_layout[1], frame, show_count, app, app.list_state.shows_state.offset());
 }
 
 fn render_episodes<B: Backend, T: Service>(app: &mut App<T>, area: Rect, frame: &mut Frame<'_, B>) {
@@ -252,7 +256,7 @@ fn render_episodes<B: Backend, T: Service>(app: &mut App<T>, area: Rect, frame: 
             for episode in &show.episodes {
                 let mut style = Style::default();
                 if episode.number <= show.progress {
-                    style = style.add_modifier(Modifier::DIM);
+                    style = style.fg(app.config.colors().text).add_modifier(Modifier::DIM);
                 }
                 if episode.file_deleted {
                     style = style.fg(app.config.colors().text_deleted).add_modifier(Modifier::CROSSED_OUT | Modifier::DIM);
@@ -285,7 +289,7 @@ fn render_episodes<B: Backend, T: Service>(app: &mut App<T>, area: Rect, frame: 
                         scroll_text(episode_display_name, space, &mut scroll_progress);
                     app.list_state.scroll_progress = scroll_progress.try_into().unwrap();
                 }
-                // let new_episode = Row::new([format!("{}", episode.number), episode_display_name.to_string()]).style(style);
+                
                 let new_episode = Row::new(vec![
                     Cell::from(episode.number.to_string()).style(style),
                     Cell::from(episode_display_name.to_string()).style(style),
@@ -300,7 +304,6 @@ fn render_episodes<B: Backend, T: Service>(app: &mut App<T>, area: Rect, frame: 
         .collect();
     let episode_count = episodes.len();
     
-
     let border = Block::default().borders(Borders::ALL).title("Episodes").border_style(
         if app.list_state.selecting_episode {
             Style::default().fg(app.config.colors().highlight)
@@ -310,10 +313,10 @@ fn render_episodes<B: Backend, T: Service>(app: &mut App<T>, area: Rect, frame: 
     );
     frame.render_widget(border, area);
 
-    let header: Vec<TableHeaderItem<'_>> = vec![
-        TableHeaderItem::new("#", Constraint::Min(3)),
-        TableHeaderItem::new("Title", Constraint::Percentage(100)),
-        TableHeaderItem::new("Extra", Constraint::Min(5)),
+    let header: Vec<HeaderType> = vec![
+        HeaderType::Number,
+        HeaderType::Title,
+        HeaderType::Extra,
     ];
     let inner_area = area.inner(&Margin {
         vertical: 1,
@@ -333,6 +336,24 @@ fn render_episodes<B: Backend, T: Service>(app: &mut App<T>, area: Rect, frame: 
     render_scrollbar(inner_layout[1], frame, episode_count, app, app.list_state.episodes_state.offset());
 }
 
+enum HeaderType {
+    Number,
+    Title,
+    Score,
+    Extra,
+}
+
+impl HeaderType {
+    const fn to_pair<'a>(&self) -> TableHeaderItem<'a> {
+        match self {
+            Self::Number => { TableHeaderItem::new("#", Constraint::Min(3)) }
+            Self::Title => { TableHeaderItem::new("Title", Constraint::Percentage(100)) }
+            Self::Score => { TableHeaderItem::new("Score", Constraint::Min(5)) }
+            Self::Extra => { TableHeaderItem::new("Extra", Constraint::Min(5)) }
+        }
+    }
+}
+
 struct TableHeaderItem<'a> {
     text: &'a str, 
     constraint: Constraint,
@@ -347,7 +368,7 @@ impl<'a> TableHeaderItem<'a> {
 struct Table<'a> {
     state: &'a mut TableState,
     items: Option<Vec<Row<'a>>>,
-    header: Vec<TableHeaderItem<'a>>,
+    header: Vec<HeaderType>,
     area: Rect,
 }
 
@@ -355,7 +376,7 @@ impl<'a> Table<'a> {
     fn new(
         state: &'a mut TableState,
         items: Vec<Row<'a>>,
-        header: Vec<TableHeaderItem<'a>>,
+        header: Vec<HeaderType>,
         area: Rect
     ) -> Self {
         Self { state, items: Some(items), header, area }
@@ -366,10 +387,12 @@ impl<'a> Table<'a> {
         let mut header_text = Vec::new();
         let mut header_constraint = Vec::new();
         for header_item in &self.header {
-            header_text.push(header_item.text);
-            header_constraint.push(header_item.constraint);
+            header_text.push(header_item.to_pair().text);
+            header_constraint.push(header_item.to_pair().constraint);
         }
-        header_constraint.push(Constraint::Min(COLUMN_SPACING));
+        if header_text.len() > 1 {
+            header_constraint.push(Constraint::Min(COLUMN_SPACING));
+        }
         let widget = TableWidget::new(self.items.take().unwrap_or_default())
             .header(Row::new(header_text))
             .widths(&header_constraint)
@@ -832,7 +855,7 @@ mod tests {
 
     fn generate_test_stateful_list(count: i64) -> StatefulList {
         StatefulList {
-            shows_state: ListState::default(),
+            shows_state: TableState::default(),
             episodes_state: TableState::default(),
             selecting_episode: false,
             selected_local_id: 0,
