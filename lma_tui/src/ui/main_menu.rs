@@ -292,7 +292,7 @@ fn render_episodes<B: Backend, T: Service>(app: &mut App<T>, area: Rect, frame: 
                 let selected_episode = get_selected_show(&app.list_state.episodes_state, show);
 
                 if app.list_state.selecting_episode
-                    && selected_episode.expect("Is selecting_episode").number == episode.number
+                    && selected_episode.map(|e| e.number) == Some(episode.number)
                 {
                     try_to_scroll_title(
                         inner_layout[0].width,
@@ -382,12 +382,13 @@ fn get_episode_number_col_width(header: &[HeaderType]) -> u16 {
 fn try_to_scroll_title(
     width: u16,
     header: &Vec<HeaderType>,
-    scroll_progress: &mut u32,
+    scroll_progress_u32: &mut u32,
     episode_display_name: &mut String,
 ) {
     let space = usize::from(width - header.sum_consts() - 2);
-    let mut scroll_progress: usize = (*scroll_progress).try_into().unwrap();
+    let mut scroll_progress: usize = (*scroll_progress_u32).try_into().unwrap();
     *episode_display_name = scroll_text(episode_display_name.clone(), space, &mut scroll_progress);
+    scroll_progress_u32.clone_from(&u32::try_from(scroll_progress).unwrap_or_default());
 }
 
 fn get_selected_show<'a>(episode_state: &TableState, show: &'a Show) -> Option<&'a Episode> {
