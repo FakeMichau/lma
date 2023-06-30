@@ -9,7 +9,7 @@ use ratatui::widgets::{Row, Table as TableWidget, TableState, Cell};
 use tokio::runtime::Runtime;
 use lma_lib::{AnimeList, Show, Episode, Service};
 use crate::app::App;
-use crate::config::KeyBinds;
+use crate::config::{KeyBinds, TermColors};
 use super::{SelectionDirection, FocusedWindow, popup::insert_show::InsertState};
 
 pub struct StatefulList {
@@ -236,11 +236,11 @@ fn render_shows<B: Backend, T: Service>(app: &mut App<T>, area: Rect, frame: &mu
     frame.render_widget(border, area);
 
     let header: Vec<HeaderType> = vec![
-        HeaderType::Title,
+        HeaderType::Title
     ];
 
     Table::new(&mut app.list_state.shows_state, shows, header, inner_layout[0])
-        .render(frame, app.config.colors().highlight);
+        .render(frame, app.config.colors());
     
     render_scrollbar(inner_layout[1], frame, show_count, app, app.list_state.shows_state.offset());
 }
@@ -314,9 +314,9 @@ fn render_episodes<B: Backend, T: Service>(app: &mut App<T>, area: Rect, frame: 
     frame.render_widget(border, area);
 
     let header: Vec<HeaderType> = vec![
-        HeaderType::Number,
-        HeaderType::Title,
-        HeaderType::Extra,
+        HeaderType::number(),
+        HeaderType::title(),
+        HeaderType::extra(),
     ];
     let inner_area = area.inner(&Margin {
         vertical: 1,
@@ -331,36 +331,78 @@ fn render_episodes<B: Backend, T: Service>(app: &mut App<T>, area: Rect, frame: 
         .split(inner_area);
 
     Table::new(&mut app.list_state.episodes_state, episodes, header, inner_layout[0])
-        .render(frame, app.config.colors().highlight);
+        .render(frame, app.config.colors());
     
     render_scrollbar(inner_layout[1], frame, episode_count, app, app.list_state.episodes_state.offset());
 }
 
 enum HeaderType {
-    Number,
+    Number(u16),
     Title,
-    Score,
-    Extra,
+    Score(u16),
+    Extra(u16),
 }
 
 impl HeaderType {
-    const fn to_pair<'a>(&self) -> TableHeaderItem<'a> {
+    const fn get_width(&self) -> Option<u16> {
         match self {
-            Self::Number => { TableHeaderItem::new("#", Constraint::Min(3)) }
-            Self::Title => { TableHeaderItem::new("Title", Constraint::Percentage(100)) }
-            Self::Score => { TableHeaderItem::new("Score", Constraint::Min(5)) }
-            Self::Extra => { TableHeaderItem::new("Extra", Constraint::Min(5)) }
+            Self::Title => None,
+            Self::Number(width) | Self::Score(width) | Self::Extra(width) => Some(*width),
         }
+    }
+    const fn title() -> Self {
+        Self::Title
+    }
+    const fn number() -> Self {
+        Self::Number(3)
+    }
+    const fn score() -> Self {
+        Self::Score(5)
+    }
+    const fn extra() -> Self {
+        Self::Extra(5)
     }
 }
 
-struct TableHeaderItem<'a> {
-    text: &'a str, 
+trait HeaderAlign {
+    fn align(&self, space: u16) -> Vec<TableHeaderItem>;
+}
+
+impl HeaderAlign for Vec<HeaderType> {
+    fn align<'a>(&self, space: u16) -> Vec<TableHeaderItem> {
+        let space_of_consts: u16 = self
+            .iter()
+            .map(|header_type| header_type.get_width().map_or(0, |width| width))
+            .sum();
+        self.iter()
+            .map(|header_type| match header_type {
+                HeaderType::Number(width) => {
+                    TableHeaderItem::new(const_align("#", *width), Constraint::Min(*width))
+                }
+                HeaderType::Title => {
+                    TableHeaderItem::new(const_align("Title", space - space_of_consts), Constraint::Percentage(100))
+                }
+                HeaderType::Score(width) => {
+                    TableHeaderItem::new(const_align("Score", *width), Constraint::Min(*width))
+                }
+                HeaderType::Extra(width) => {
+                    TableHeaderItem::new(const_align("Extra", *width), Constraint::Min(*width))
+                }
+            })
+            .collect()
+    }
+}
+fn const_align(text: &str, width: u16) -> String {
+    format!("{:^1$}", text, usize::from(width))
+}
+
+struct TableHeaderItem {
+    text: String, 
     constraint: Constraint,
 }
 
-impl<'a> TableHeaderItem<'a> {
-    const fn new(text: &'a str, constraint: Constraint) -> Self {
+impl TableHeaderItem {
+    const fn new(text: String, constraint: Constraint) -> Self {
         Self { text, constraint }
     }
 }
@@ -382,22 +424,23 @@ impl<'a> Table<'a> {
         Self { state, items: Some(items), header, area }
     }
 
-    fn render<B: Backend>(&mut self, frame: &mut Frame<'_, B>, highlight: Color) {
+    fn render<B: Backend>(&mut self, frame: &mut Frame<'_, B>, colors: &TermColors) {
         const COLUMN_SPACING: u16 = 1;
         let mut header_text = Vec::new();
         let mut header_constraint = Vec::new();
-        for header_item in &self.header {
-            header_text.push(header_item.to_pair().text);
-            header_constraint.push(header_item.to_pair().constraint);
+        let aligned_header = &self.header.align(self.area.width);
+        for header_item in aligned_header {
+            header_text.push(header_item.text.clone());
+            header_constraint.push(header_item.constraint);
         }
         if header_text.len() > 1 {
             header_constraint.push(Constraint::Min(COLUMN_SPACING));
         }
         let widget = TableWidget::new(self.items.take().unwrap_or_default())
-            .header(Row::new(header_text))
+            .header(Row::new(header_text).style(Style::default().fg(colors.secondary)))
             .widths(&header_constraint)
             .column_spacing(COLUMN_SPACING)
-            .highlight_style(Style::default().fg(highlight).add_modifier(Modifier::BOLD));
+            .highlight_style(Style::default().fg(colors.highlight).add_modifier(Modifier::BOLD));
         frame.render_stateful_widget(widget, self.area, self.state);
     }
 }

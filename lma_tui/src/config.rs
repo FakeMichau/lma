@@ -115,6 +115,7 @@ struct Colors {
     text_deleted: Option<Color>,
     highlight: Option<Color>,
     highlight_dark: Option<Color>,
+    secondary: Option<Color>,
 }
 
 impl Default for Colors {
@@ -124,6 +125,7 @@ impl Default for Colors {
             text_deleted: Some(Color::new("#C1292E")),
             highlight: Some(Color::new("#F2D202")),
             highlight_dark: Some(Color::new("#161925")),
+            secondary: Some(Color::new("#3C87CD")),
         }
     }
 }
@@ -134,6 +136,7 @@ pub struct TermColors {
     pub text_deleted: TermColor,
     pub highlight: TermColor,
     pub highlight_dark: TermColor,
+    pub secondary: TermColor,
 }
 
 impl TryFrom<Color> for TermColor {
@@ -183,6 +186,7 @@ impl TermColors {
             text_deleted: get_color_or_default!(text_deleted),
             highlight: get_color_or_default!(highlight),
             highlight_dark: get_color_or_default!(highlight_dark),
+            secondary: get_color_or_default!(secondary),
         })
     }
 }
@@ -346,6 +350,8 @@ mod tests {
             hex = \"#5BAE24\"
             [colors.highlight_dark]
             hex = \"#19410A\"
+            [colors.secondary]
+            hex = \"#3C87CD\"
             [key_binds]
             move_up = \"Up\"
             move_down = \"Down\"
@@ -385,6 +391,9 @@ mod tests {
                 }),
                 highlight_dark: Some(Color {
                     hex: String::from("#19410A"),
+                }),
+                secondary: Some(Color {
+                    hex: String::from("#3C87CD"),
                 }),
             }),
             title_sort: Some(TitleSort::LocalIdAsc),
