@@ -1,35 +1,39 @@
-use std::path::PathBuf;
-use crossterm::event::KeyCode;
-use ratatui::backend::Backend;
-use ratatui::layout::{Constraint, Direction, Layout, Rect, Margin};
-use ratatui::style::{Color, Modifier, Style};
-use ratatui::widgets::{Block, Borders, List, ListItem, ListState, Paragraph, Clear};
-use ratatui::{Frame, text::{Span, Line}};
-use tokio::runtime::Runtime;
-use lma_lib::{AnimeList, Show, Episode, Service};
+use super::{popup::insert_show::InsertState, FocusedWindow, SelectionDirection};
 use crate::app::App;
-use crate::config::KeyBinds;
-use super::{SelectionDirection, FocusedWindow, popup::insert_show::InsertState};
+use crate::config::{KeyBinds, TermColors};
+use crossterm::event::KeyCode;
+use lma_lib::{AnimeList, Episode, Service, Show};
+use ratatui::backend::Backend;
+use ratatui::layout::{Constraint, Direction, Layout, Margin, Rect};
+use ratatui::style::{Color, Modifier, Style};
+use ratatui::widgets::{Block, Borders, Clear, Paragraph};
+use ratatui::widgets::{Cell, Row, Table as TableWidget, TableState};
+use ratatui::{
+    text::{Line, Span},
+    Frame,
+};
+use std::path::PathBuf;
+use tokio::runtime::Runtime;
 
 pub struct StatefulList {
-    shows_state: ListState,
-    episodes_state: ListState,
+    shows_state: TableState,
+    episodes_state: TableState,
     selecting_episode: bool,
     selected_local_id: i64,
     list_cache: Vec<Show>,
-    scroll_progress: u32
+    scroll_progress: u32,
 }
 
 impl StatefulList {
     pub fn new<T: Service>(shows: &AnimeList<T>) -> Result<Self, String> {
         let list_cache = shows.get_list().map_err(|e| e.to_string())?;
         Ok(Self {
-            shows_state: ListState::default(),
+            shows_state: TableState::default(),
             selecting_episode: false,
-            episodes_state: ListState::default(),
+            episodes_state: TableState::default(),
             selected_local_id: 0,
             list_cache,
-            scroll_progress: 0
+            scroll_progress: 0,
         })
     }
 
@@ -113,7 +117,7 @@ impl StatefulList {
         Ok(())
     }
 
-    pub fn select(&mut self) -> Result<(), String>{
+    pub fn select(&mut self) -> Result<(), String> {
         if self.selecting_episode {
             // navigating inside the episodes tab
             let selected_episode = self.episodes_state.selected().unwrap_or_default();
@@ -169,12 +173,12 @@ pub fn render<B: Backend, T: Service>(frame: &mut Frame<'_, B>, app: &mut App<T>
     // Split the bigger chunk into halves
     let main_chunks = Layout::default()
         .direction(Direction::Horizontal)
-        .constraints([Constraint::Percentage(50), Constraint::Percentage(50)].as_ref())
+        .constraints([Constraint::Percentage(45), Constraint::Percentage(55)].as_ref())
         .split(chunks[0]);
 
     render_shows(app, main_chunks[0], frame);
     render_episodes(app, main_chunks[1], frame);
-    render_help(app, chunks[1], frame);    
+    render_help(app, chunks[1], frame);
 }
 
 fn render_help<B: Backend, T: Service>(app: &mut App<T>, area: Rect, frame: &mut Frame<B>) {
@@ -189,149 +193,399 @@ fn render_help<B: Backend, T: Service>(app: &mut App<T>, area: Rect, frame: &mut
 }
 
 fn render_shows<B: Backend, T: Service>(app: &mut App<T>, area: Rect, frame: &mut Frame<B>) {
-    let mut scroll_progress: usize = app.list_state.scroll_progress.try_into().unwrap();
-    let shows: Vec<_> = app
+    let header = &app.config.headers().shows;
+    let inner_area = area.inner(&Margin {
+        vertical: 1,
+        horizontal: 1,
+    });
+    let inner_layout = Layout::default()
+        .direction(Direction::Horizontal)
+        .constraints([Constraint::Percentage(100), Constraint::Min(1)].as_ref())
+        .split(inner_area);
+    let table_area = inner_layout[0];
+    let scrollbar_area = inner_layout[1];
+
+    let mut progress = app.list_state.scroll_progress;
+    let shows: Vec<Row> = app
         .list_state
         .list_cache
         .iter()
         .map(|show| {
-            let title = if app.list_state.selected_show().map(|selected_show| selected_show.local_id).unwrap_or_default() == show.local_id 
-                && !app.list_state.selecting_episode
-            {
-                let full_title = show.title.clone();
-                let space = usize::from(area.width) - 3; // without border and scrollbar
-                scroll_text(full_title, space, &mut scroll_progress)
-            } else {
-                show.title.clone()
-            };
-            ListItem::new(title).style(Style::default().fg(app.config.colors().text))
+            let selected_show_id = app
+                .list_state
+                .selected_show()
+                .map(|selected_show| selected_show.local_id);
+            let mut title = show.title.clone();
+            if selected_show_id == Some(show.local_id) && !app.list_state.selecting_episode {
+                try_to_scroll_title(table_area.width, header, &mut progress, &mut title);
+            }
+
+            let style = Style::default().fg(app.config.colors().text);
+            let cells = generate_show_cells(show, header, style, &title);
+            Row::new(cells)
         })
         .collect();
-    app.list_state.scroll_progress = scroll_progress.try_into().unwrap();
+    app.list_state.scroll_progress = progress;
 
-    let shows = List::new(shows)
-        .block(Block::default().borders(Borders::ALL).title("List").border_style(
+    let show_count = shows.len();
+
+    let border = Block::default()
+        .borders(Borders::ALL)
+        .title("Shows")
+        .border_style(
             if app.list_state.selecting_episode || app.list_state.selected_show().is_none() {
                 Style::default()
             } else {
                 Style::default().fg(app.config.colors().highlight)
-            }
-        ))
-        .highlight_style(
-            Style::default()
-                .fg(app.config.colors().highlight)
-                .add_modifier(Modifier::BOLD),
+            },
         );
-    let show_count = shows.len();
-    frame.render_stateful_widget(shows, area, &mut app.list_state.shows_state);
 
-    render_scrollbar(area, frame, show_count, app, app.list_state.shows_state.offset());
+    frame.render_widget(border, area);
+
+    Table::new(&mut app.list_state.shows_state, shows, header, table_area)
+        .render(frame, app.config.colors());
+
+    render_scrollbar(
+        scrollbar_area,
+        frame,
+        show_count,
+        app.config.colors(),
+        app.list_state.shows_state.offset(),
+    );
+}
+
+fn generate_show_cells<'a>(
+    show: &'a Show,
+    header: &[HeaderType],
+    style: Style,
+    title: &str,
+) -> Vec<Cell<'a>> {
+    header
+        .iter()
+        .map(|column| match column {
+            HeaderType::Number(_) => Cell::from(format!(
+                "{:>1$}",
+                show.local_id.to_string(),
+                usize::from(get_number_col_width(header))
+            ))
+            .style(style),
+            HeaderType::Title => Cell::from(String::from(title)).style(style),
+            _ => Cell::from(""),
+        })
+        .collect::<Vec<_>>()
 }
 
 fn render_episodes<B: Backend, T: Service>(app: &mut App<T>, area: Rect, frame: &mut Frame<'_, B>) {
-    let episodes: Vec<ListItem> = app
+    let header = &app.config.headers().episodes;
+    let inner_area = area.inner(&Margin {
+        vertical: 1,
+        horizontal: 1,
+    });
+    let inner_layout = Layout::default()
+        .direction(Direction::Horizontal)
+        .constraints([Constraint::Percentage(100), Constraint::Min(1)].as_ref())
+        .split(inner_area);
+
+    let episodes: Vec<Row> = app
         .list_state
         .list_cache
         .iter()
         .filter(|show| show.local_id == app.list_state.selected_local_id)
         .flat_map(|show| {
-            let mut temp: Vec<ListItem> = Vec::new();
+            let mut temp: Vec<Row> = Vec::new();
             for episode in &show.episodes {
-                let mut style = Style::default();
-                if episode.number <= show.progress {
-                    style = style.add_modifier(Modifier::DIM);
-                }
-                if episode.file_deleted {
-                    style = style.fg(app.config.colors().text_deleted).add_modifier(Modifier::CROSSED_OUT | Modifier::DIM);
-                }
-                let mut episode_display_name = if episode.title.is_empty() || app.config.path_instead_of_title() {
-                    episode
-                        .path
-                        .file_name()
-                        .unwrap_or_default()
-                        .to_string_lossy()
-                        .into()
-                } else {
-                    episode.title.clone()
-                };
-                let selected_episode = app.list_state.episodes_state
-                    .selected()
-                    .and_then(|index| show.episodes.get(index));
-                if !episode.filler 
-                    && !episode.recap 
-                    && app.list_state.selecting_episode 
-                    && selected_episode.expect("Is selecting_episode").number == episode.number
+                let mut episode_display_name =
+                    get_display_name(episode, app.config.path_instead_of_title());
+
+                let selected_episode = get_selected_show(&app.list_state.episodes_state, show);
+
+                if app.list_state.selecting_episode
+                    && selected_episode.map(|e| e.number) == Some(episode.number)
                 {
-                    let space = usize::from(area.width)
-                        - 2 // without border
-                        - (episode.number.checked_ilog10().unwrap_or(0) as usize + 2) // episode number
-                        - 1; // scrollbar
-                    let mut scroll_progress: usize =
-                        app.list_state.scroll_progress.try_into().unwrap();
-                    episode_display_name =
-                        scroll_text(episode_display_name, space, &mut scroll_progress);
-                    app.list_state.scroll_progress = scroll_progress.try_into().unwrap();
+                    try_to_scroll_title(
+                        inner_layout[0].width,
+                        header,
+                        &mut app.list_state.scroll_progress,
+                        &mut episode_display_name,
+                    );
                 }
-                let mut new_episode =
-                    ListItem::new(format!("{} {}", episode.number, episode_display_name))
-                        .style(style);
-                append_extra_info(
-                    &mut new_episode,
-                    area.width - 1, // -1 because of scrollbar
-                    episode,
-                    episode_display_name,
-                    style,
-                );
+                let style = get_style(episode, show, app.config.colors());
+                let cells = generate_episode_cells(episode, header, style, &episode_display_name);
+                let new_episode = Row::new(cells);
                 temp.push(new_episode);
             }
             temp
         })
         .collect();
-    let episodes = List::new(episodes)
-        .block(Block::default().borders(Borders::ALL).title("Episodes").border_style(
-            if app.list_state.selecting_episode {
-                Style::default().fg(app.config.colors().highlight)
-            } else {
-                Style::default()
-            }
-        ))
-        .highlight_style(
-            Style::default()
-                .fg(app.config.colors().highlight)
-                .add_modifier(Modifier::BOLD),
-        );
     let episode_count = episodes.len();
-    frame.render_stateful_widget(episodes, area, &mut app.list_state.episodes_state);
 
-    render_scrollbar(area, frame, episode_count, app, app.list_state.episodes_state.offset());
+    let border = Block::default()
+        .borders(Borders::ALL)
+        .title("Episodes")
+        .border_style(if app.list_state.selecting_episode {
+            Style::default().fg(app.config.colors().highlight)
+        } else {
+            Style::default()
+        });
+    frame.render_widget(border, area);
+
+    Table::new(
+        &mut app.list_state.episodes_state,
+        episodes,
+        header,
+        inner_layout[0],
+    )
+    .render(frame, app.config.colors());
+
+    render_scrollbar(
+        inner_layout[1],
+        frame,
+        episode_count,
+        app.config.colors(),
+        app.list_state.episodes_state.offset(),
+    );
 }
 
-fn render_scrollbar<B: Backend, T: Service>(area: Rect, frame: &mut Frame<B>, entry_count: usize, app: &mut App<T>, offset: usize) {
-    let inner = area.inner(&Margin {
-        vertical: 1,
-        horizontal: 1,
-    });
-    let scrollbar_area = Layout::default()
-        .direction(Direction::Horizontal)
-        .constraints([Constraint::Min(1), Constraint::Max(1)].as_ref())
-        .split(inner)[1];
-    frame.render_widget(Clear, scrollbar_area);
-    if entry_count > scrollbar_area.height.into() {
-        let area = get_scroll_bar(offset, scrollbar_area, entry_count);
-        let progress = Block::default().style(Style::default().bg(app.config.colors().text));
+fn generate_episode_cells<'a>(
+    episode: &'a Episode,
+    header: &[HeaderType],
+    style: Style,
+    episode_display_name: &str,
+) -> Vec<Cell<'a>> {
+    header
+        .iter()
+        .map(|column| match column {
+            HeaderType::Number(_) => Cell::from(format!(
+                "{:>1$}",
+                episode.number.to_string(),
+                usize::from(get_number_col_width(header))
+            ))
+            .style(style),
+            HeaderType::Title => Cell::from(episode_display_name.to_string()).style(style),
+            HeaderType::Extra(_) => Cell::from(format!(
+                " {} {} ",
+                if episode.filler { "F" } else { "" },
+                if episode.recap { "R" } else { "" }
+            ))
+            .style(style),
+            HeaderType::Score(_) => Cell::from(""),
+        })
+        .collect::<Vec<_>>()
+}
+
+fn get_number_col_width(header: &[HeaderType]) -> u16 {
+    header
+        .iter()
+        .map(|item| match item {
+            HeaderType::Number(width) => Some(width),
+            _ => None,
+        })
+        .find(Option::is_some)
+        .unwrap_or_default()
+        .copied()
+        .unwrap_or_default()
+}
+
+fn try_to_scroll_title(
+    width: u16,
+    header: &Vec<HeaderType>,
+    scroll_progress_u32: &mut u32,
+    episode_display_name: &mut String,
+) {
+    let space = usize::from(width - header.sum_consts() - 2);
+    let mut scroll_progress: usize = (*scroll_progress_u32).try_into().unwrap();
+    *episode_display_name = scroll_text(episode_display_name.clone(), space, &mut scroll_progress);
+    scroll_progress_u32.clone_from(&u32::try_from(scroll_progress).unwrap_or_default());
+}
+
+fn get_selected_show<'a>(episode_state: &TableState, show: &'a Show) -> Option<&'a Episode> {
+    episode_state
+        .selected()
+        .and_then(|index| show.episodes.get(index))
+}
+
+fn get_display_name(episode: &Episode, use_path: bool) -> String {
+    if episode.title.is_empty() || use_path {
+        episode
+            .path
+            .file_name()
+            .unwrap_or_default()
+            .to_string_lossy()
+            .into()
+    } else {
+        episode.title.clone()
+    }
+}
+
+fn get_style(episode: &Episode, show: &Show, colors: &TermColors) -> Style {
+    let mut style = Style::default();
+    if episode.number <= show.progress {
+        style = style.fg(colors.text).add_modifier(Modifier::DIM);
+    }
+    if episode.file_deleted {
+        style = style
+            .fg(colors.text_deleted)
+            .add_modifier(Modifier::CROSSED_OUT | Modifier::DIM);
+    }
+    style
+}
+
+#[derive(PartialEq, Eq)]
+pub enum HeaderType {
+    Number(u16),
+    Title,
+    Score(u16),
+    Extra(u16),
+}
+
+impl HeaderType {
+    const fn get_width(&self) -> Option<u16> {
+        match self {
+            Self::Title => None,
+            Self::Number(width) | Self::Score(width) | Self::Extra(width) => Some(*width),
+        }
+    }
+    pub const fn title() -> Self {
+        Self::Title
+    }
+    pub const fn number() -> Self {
+        Self::Number(3)
+    }
+    pub const fn score() -> Self {
+        Self::Score(5)
+    }
+    pub const fn extra() -> Self {
+        Self::Extra(5)
+    }
+}
+
+trait HeaderAlign {
+    fn align(&self, space: u16) -> Vec<TableHeaderItem>;
+    fn sum_consts(&self) -> u16;
+}
+
+impl HeaderAlign for Vec<HeaderType> {
+    fn align<'a>(&self, space: u16) -> Vec<TableHeaderItem> {
+        let space_of_consts: u16 = self.sum_consts();
+        self.iter()
+            .map(|header_type| match header_type {
+                HeaderType::Number(width) => {
+                    TableHeaderItem::new(const_align("#", *width), Constraint::Min(*width))
+                }
+                HeaderType::Title => TableHeaderItem::new(
+                    const_align("Title", space - space_of_consts),
+                    Constraint::Percentage(100),
+                ),
+                HeaderType::Score(width) => {
+                    TableHeaderItem::new(const_align("Score", *width), Constraint::Min(*width))
+                }
+                HeaderType::Extra(width) => {
+                    TableHeaderItem::new(const_align("Extra", *width), Constraint::Min(*width))
+                }
+            })
+            .collect()
+    }
+    fn sum_consts(&self) -> u16 {
+        self.iter()
+            .map(|header_type| header_type.get_width().map_or(0, |width| width + 1))
+            .sum()
+    }
+}
+fn const_align(text: &str, width: u16) -> String {
+    format!("{:^1$}", text, usize::from(width))
+}
+
+struct TableHeaderItem {
+    text: String,
+    constraint: Constraint,
+}
+
+impl TableHeaderItem {
+    const fn new(text: String, constraint: Constraint) -> Self {
+        Self { text, constraint }
+    }
+}
+
+struct Table<'a> {
+    state: &'a mut TableState,
+    items: Option<Vec<Row<'a>>>,
+    header: &'a Vec<HeaderType>,
+    area: Rect,
+}
+
+impl<'a> Table<'a> {
+    fn new(
+        state: &'a mut TableState,
+        items: Vec<Row<'a>>,
+        header: &'a Vec<HeaderType>,
+        area: Rect,
+    ) -> Self {
+        Self {
+            state,
+            items: Some(items),
+            header,
+            area,
+        }
+    }
+
+    fn render<B: Backend>(&mut self, frame: &mut Frame<'_, B>, colors: &TermColors) {
+        const COLUMN_SPACING: u16 = 1;
+        let mut header_text = Vec::new();
+        let mut header_constraint = Vec::new();
+        let aligned_header: Vec<TableHeaderItem> = self.header.align(self.area.width);
+        for header_item in aligned_header {
+            header_text.push(header_item.text);
+            header_constraint.push(header_item.constraint);
+        }
+        let column_count = header_text.len();
+        if let Some(title_pos) = header_constraint
+            .iter()
+            .position(|constraint| constraint == &Constraint::Percentage(100))
+        {
+            let position_from_end = u16::try_from(column_count - title_pos - 1).unwrap_or_default();
+            header_constraint.push(Constraint::Min(position_from_end));
+        }
+        let widget = TableWidget::new(self.items.take().unwrap_or_default())
+            .header(Row::new(header_text).style(Style::default().fg(colors.secondary)))
+            .widths(&header_constraint)
+            .column_spacing(COLUMN_SPACING)
+            .highlight_style(
+                Style::default()
+                    .fg(colors.highlight)
+                    .add_modifier(Modifier::BOLD),
+            );
+        frame.render_stateful_widget(widget, self.area, self.state);
+    }
+}
+
+fn render_scrollbar<B: Backend>(
+    area: Rect,
+    frame: &mut Frame<B>,
+    entry_count: usize,
+    colors: &TermColors,
+    offset: usize,
+) {
+    frame.render_widget(Clear, area);
+    if entry_count > area.height.into() {
+        let area = get_scroll_bar(offset, area, entry_count);
+        let progress = Block::default().style(Style::default().bg(colors.text));
         frame.render_widget(progress, area);
     }
 }
 
-#[allow(clippy::cast_precision_loss, clippy::cast_possible_truncation, clippy::cast_sign_loss)]
+#[allow(
+    clippy::cast_precision_loss,
+    clippy::cast_possible_truncation,
+    clippy::cast_sign_loss
+)]
 fn get_scroll_bar(offset: usize, scrollbar_area: Rect, episode_count: usize) -> Rect {
     let float_skipped_entries = offset as f64;
-    let float_height =  f64::from(scrollbar_area.height);
+    let float_height = f64::from(scrollbar_area.height);
     let float_episode_count = episode_count as f64;
     let float_bar_height = float_height * float_height / float_episode_count;
     let max_y = float_height - float_bar_height;
     let float_y = (float_skipped_entries / float_episode_count * float_height).clamp(0.0, max_y);
-    Rect { 
+    Rect {
         x: scrollbar_area.x,
         y: float_y as u16 + scrollbar_area.y,
         width: scrollbar_area.width,
@@ -346,58 +600,19 @@ fn scroll_text(full_title: String, space: usize, scroll_progress: &mut usize) ->
         let offset = match *scroll_progress {
             ..=WAIT_OFFSET => 0,
             i if WAIT_OFFSET <= i && i <= WAIT_OFFSET + max_offset => i - WAIT_OFFSET - 1,
-            i if max_offset + WAIT_OFFSET < i && i <= max_offset + 2 * WAIT_OFFSET + 1 => max_offset,
+            i if max_offset + WAIT_OFFSET < i && i <= max_offset + 2 * WAIT_OFFSET + 1 => {
+                max_offset
+            }
             _ => {
-                *scroll_progress = 0; 
+                *scroll_progress = 0;
                 0
             }
         };
         *scroll_progress += 1;
-        let trimmed = &full_title[offset..offset+space];
+        let trimmed = &full_title[offset..offset + space];
         String::from(trimmed)
     } else {
         full_title
-    }
-}
-
-fn append_extra_info(
-    new_episode: &mut ListItem<'_>,
-    space: u16,
-    episode: &Episode,
-    episode_display_name: String,
-    style: Style,
-) {
-    if !episode.recap && !episode.filler {
-        return;
-    }
-    let recap_text = "RECAP";
-    let filler_text = "FILLER";
-    let text = if episode.recap && episode.filler {
-        format!("{recap_text}/{filler_text}")
-    } else if episode.recap {
-        recap_text.to_string()
-    } else {
-        filler_text.to_string()
-    };
-    let trunc_symbol = "... ";
-    let trunc_symbol_len = u16::try_from(trunc_symbol.len()).unwrap_or_default();
-    let episode_width = new_episode.width();
-    let offset = u16::try_from(text.len()).unwrap_or_default()
-        + u16::try_from(episode.number.checked_ilog10().unwrap_or(0) + 1).unwrap_or_default()
-        + 3;
-    if episode_width > (space - offset - trunc_symbol_len + 3).into() {
-        let mut trunc_episode_display_name = episode_display_name;
-        trunc_episode_display_name.truncate((space - offset - trunc_symbol_len).into());
-        trunc_episode_display_name += trunc_symbol;
-        trunc_episode_display_name += text.as_str();
-        *new_episode = ListItem::new(format!("{} {}", episode.number, trunc_episode_display_name))
-            .style(style);
-    } else {
-        let mut trunc_episode_display_name =
-            format!("{:1$}", episode_display_name, (space - offset).into());
-        trunc_episode_display_name += text.as_str();
-        *new_episode = ListItem::new(format!("{} {}", episode.number, trunc_episode_display_name))
-            .style(style);
     }
 }
 
@@ -408,7 +623,7 @@ enum Function {
     Close,
     Delete,
     Quit,
-    EnterInputting,
+    EnterInput,
     NewShow,
     NewEpisode,
     Login,
@@ -447,22 +662,27 @@ fn build_help<'a>(
     focused_window: &FocusedWindow,
     insert_state: &InsertState,
     insert_episode_state: &InsertState,
-    highlight_color: Color,
+    bg_color: Color,
     key_binds: &KeyBinds,
 ) -> Paragraph<'a> {
     // Create help text at the bottom
-    let navigation = HelpItem::new("Navigation", &Function::Navigation, key_binds, highlight_color);
-    let insert = HelpItem::new("Insert new show", &Function::NewShow, key_binds, highlight_color);
-    let delete = HelpItem::new("Delete the entry", &Function::Delete, key_binds, highlight_color);
-    let go_back = HelpItem::new("Go back", &Function::Close, key_binds, highlight_color);
-    let close_window = HelpItem::new("Close the window", &Function::Close, key_binds, highlight_color);
-    let exit_inputting = HelpItem::new("Stop inputting", &Function::Close, key_binds, highlight_color);
-    let start_inputting = HelpItem::new("Start inputting", &Function::EnterInputting, key_binds, highlight_color);
-    let confirm = HelpItem::new("Confirm", &Function::Confirmation, key_binds, highlight_color);
-    let login = HelpItem::new("Login", &Function::Login, key_binds, highlight_color);
-    let progress = HelpItem::new("Progress", &Function::Progress, key_binds, highlight_color);
-    let insert_episode = HelpItem::new("Add episode manually", &Function::NewEpisode, key_binds, highlight_color);
-    let quit = HelpItem::new("Quit", &Function::Quit, key_binds, highlight_color);    
+    let navigation = HelpItem::new("Navigation", &Function::Navigation, key_binds, bg_color);
+    let insert = HelpItem::new("Insert new show", &Function::NewShow, key_binds, bg_color);
+    let delete = HelpItem::new("Delete the entry", &Function::Delete, key_binds, bg_color);
+    let go_back = HelpItem::new("Go back", &Function::Close, key_binds, bg_color);
+    let close_window = HelpItem::new("Close the window", &Function::Close, key_binds, bg_color);
+    let exit_input = HelpItem::new("Stop inputting", &Function::Close, key_binds, bg_color);
+    let start_input = HelpItem::new(
+        "Start inputting",
+        &Function::EnterInput,
+        key_binds,
+        bg_color,
+    );
+    let confirm = HelpItem::new("Confirm", &Function::Confirmation, key_binds, bg_color);
+    let login = HelpItem::new("Login", &Function::Login, key_binds, bg_color);
+    let progress = HelpItem::new("Progress", &Function::Progress, key_binds, bg_color);
+    let insert_episode = HelpItem::new("Add episode", &Function::NewEpisode, key_binds, bg_color);
+    let quit = HelpItem::new("Quit", &Function::Quit, key_binds, bg_color);
 
     let mut information = Vec::new();
     match focused_window {
@@ -480,10 +700,10 @@ fn build_help<'a>(
             match insert_state {
                 InsertState::Inputting | InsertState::Next => {
                     information.extend(confirm.to_span());
-                    information.extend(exit_inputting.to_span());
+                    information.extend(exit_input.to_span());
                 }
                 _ => {
-                    information.extend(start_inputting.to_span());
+                    information.extend(start_input.to_span());
                     information.extend(close_window.to_span());
                 }
             }
@@ -493,10 +713,10 @@ fn build_help<'a>(
             match insert_episode_state {
                 InsertState::Inputting | InsertState::Next => {
                     information.extend(confirm.to_span());
-                    information.extend(exit_inputting.to_span());
+                    information.extend(exit_input.to_span());
                 }
                 _ => {
-                    information.extend(start_inputting.to_span());
+                    information.extend(start_input.to_span());
                     information.extend(close_window.to_span());
                 }
             }
@@ -556,7 +776,7 @@ fn key_to_abbr(key: &KeyBinds, name: &Function) -> String {
         Function::Close => keycode_to_key(key.close),
         Function::Delete => keycode_to_key(key.delete),
         Function::Quit => keycode_to_key(key.quit),
-        Function::EnterInputting => keycode_to_key(key.enter_inputting),
+        Function::EnterInput => keycode_to_key(key.enter_inputting),
         Function::NewShow => keycode_to_key(key.new_show),
         Function::NewEpisode => keycode_to_key(key.new_episode),
         Function::Login => keycode_to_key(key.login),
@@ -595,142 +815,28 @@ fn keycode_to_key(keycode: KeyCode) -> String {
     }
 }
 
-
-
 #[cfg(test)]
 mod tests {
     use super::*;
 
-    // #[test]
-    // fn help_item() {
-    //     let highlight_color = Color::Rgb(0, 0, 0);
-    //     let test_item = HelpItem::new("Testing", "THINGS",  highlight_color);
-
-    //     let text_style = Style::default().bg(highlight_color);
-    //     let key_style = text_style.add_modifier(Modifier::BOLD);
-    //     let expected_span = vec![
-    //         Span::styled("Testing ", text_style),
-    //         Span::styled("[THINGS]", key_style),
-    //         Span::raw(" "),
-    //     ];
-
-    //     assert_eq!(test_item.to_span(), expected_span);
-    // }
-
     #[test]
-    fn append_extra_info_recap_filler_trunc() {
-        let space = 29; // +2 because of the border
-        let episode = create_test_episode(true, true);
-        let episode_display_name = episode.title.clone();
-        let style = Style::default();
-        let mut new_episode =
-            ListItem::new(format!("{} {}", episode.number, episode_display_name)).style(style);
+    fn help_item() {
+        let highlight_color = Color::Rgb(0, 0, 0);
+        let key_binds = KeyBinds {
+            quit: KeyCode::Char('q'),
+            ..Default::default()
+        };
+        let test_item = HelpItem::new("Testing", &Function::Quit, &key_binds, highlight_color);
 
-        append_extra_info(
-            &mut new_episode,
-            space,
-            &episode,
-            episode_display_name,
-            style,
-        );
+        let text_style = Style::default().bg(highlight_color);
+        let key_style = text_style.add_modifier(Modifier::BOLD);
+        let expected_span = vec![
+            Span::styled("Testing ", text_style),
+            Span::styled("[Q]", key_style),
+            Span::raw(" "),
+        ];
 
-        assert_eq!(
-            new_episode,
-            ListItem::new("1 Test Epis... RECAP/FILLER").style(style)
-        );
-    }
-
-    #[test]
-    fn append_extra_info_recap_filler() {
-        let space = 40; // +2 because of the border
-        let episode = create_test_episode(true, true);
-        let episode_display_name = episode.title.clone();
-        let style = Style::default();
-        let mut new_episode =
-            ListItem::new(format!("{} {}", episode.number, episode_display_name)).style(style);
-
-        append_extra_info(
-            &mut new_episode,
-            space,
-            &episode,
-            episode_display_name,
-            style,
-        );
-
-        assert_eq!(
-            new_episode,
-            ListItem::new("1 Test Episode            RECAP/FILLER").style(style)
-        );
-    }
-
-    #[test]
-    fn append_extra_info_filler_trunc() {
-        let space = 24; // +2 because of the border
-        let episode = create_test_episode(false, true);
-        let episode_display_name = episode.title.clone();
-        let style = Style::default();
-        let mut new_episode =
-            ListItem::new(format!("{} {}", episode.number, episode_display_name)).style(style);
-
-        append_extra_info(
-            &mut new_episode,
-            space,
-            &episode,
-            episode_display_name,
-            style,
-        );
-
-        assert_eq!(
-            new_episode,
-            ListItem::new("1 Test Episo... FILLER").style(style)
-        );
-    }
-
-    #[test]
-    fn append_extra_info_filler() {
-        let space = 40; // +2 because of the border
-        let episode = create_test_episode(false, true);
-        let episode_display_name = episode.title.clone();
-        let style = Style::default();
-        let mut new_episode =
-            ListItem::new(format!("{} {}", episode.number, episode_display_name)).style(style);
-
-        append_extra_info(
-            &mut new_episode,
-            space,
-            &episode,
-            episode_display_name,
-            style,
-        );
-
-        assert_eq!(
-            new_episode,
-            ListItem::new("1 Test Episode                  FILLER").style(style)
-        );
-    }
-
-    #[test]
-    fn append_extra_info_long_number() {
-        let space = 24; // +2 because of the border
-        let mut episode = create_test_episode(false, true);
-        episode.number = 420;
-        let episode_display_name = episode.title.clone();
-        let style = Style::default();
-        let mut new_episode =
-            ListItem::new(format!("{} {}", episode.number, episode_display_name)).style(style);
-
-        append_extra_info(
-            &mut new_episode,
-            space,
-            &episode,
-            episode_display_name,
-            style,
-        );
-
-        assert_eq!(
-            new_episode,
-            ListItem::new("420 Test Epi... FILLER").style(style)
-        );
+        assert_eq!(test_item.to_span(), expected_span);
     }
 
     #[test]
@@ -793,28 +899,18 @@ mod tests {
         assert_eq!(show.title, "Test Show 5");
     }
 
-    fn create_test_episode(recap: bool, filler: bool) -> Episode {
-        Episode {
-            title: String::from("Test Episode"),
-            number: 1,
-            path: PathBuf::from("/path/just/for/testing.mp4"),
-            file_deleted: false,
-            recap,
-            filler,
-        }
-    }
-
     fn generate_test_stateful_list(count: i64) -> StatefulList {
         StatefulList {
-            shows_state: ListState::default(),
-            episodes_state: ListState::default(),
+            shows_state: TableState::default(),
+            episodes_state: TableState::default(),
             selecting_episode: false,
             selected_local_id: 0,
             list_cache: generate_test_shows(count),
-            scroll_progress: 0
+            scroll_progress: 0,
         }
     }
 
+    use lma_lib::Episode;
     fn generate_test_episodes(count: i64) -> Vec<Episode> {
         let mut episodes = Vec::new();
         for i in 1..=count {

@@ -4,9 +4,9 @@ use lma_lib::{ServiceType, TitleSort};
 use ratatui::style::Color as TermColor;
 use serde::{Deserialize, Serialize};
 use std::{fs, path::PathBuf};
+use crate::ui::main_menu::HeaderType;
 
 #[allow(clippy::struct_excessive_bools)]
-#[derive(Clone)]
 pub struct Config {
     config_file_path: PathBuf,
     service: ServiceType,
@@ -14,10 +14,70 @@ pub struct Config {
     colors: TermColors,
     title_sort: TitleSort,
     key_binds: KeyBinds,
+    headers: Headers,
     path_instead_of_title: bool,
     autofill_title: bool,
     english_show_titles: bool,
     update_progress_on_start: bool,
+}
+
+pub struct Headers {
+    pub shows: Vec<HeaderType>,
+    pub episodes: Vec<HeaderType>,
+}
+
+impl TryFrom<HeadersFile> for Headers {
+    type Error = String;
+
+    fn try_from(value: HeadersFile) -> Result<Self, String> {
+        macro_rules! get_header_vec {
+            ($s:ident) => {
+                {
+                    let mut header_vec: Vec<HeaderType> = Vec::new();
+                    for header in value.$s.split(',') {
+                        let header: Result<_, String> = match header.trim() {
+                            "title" => Ok(
+                                if header_vec.contains(&HeaderType::Title) {
+                                    None
+                                } else {
+                                    Some(HeaderType::title())
+                                }
+                            ),
+                            "number" => Ok(Some(HeaderType::number())),
+                            "extra" => Ok(Some(HeaderType::extra())),
+                            "score" => Ok(Some(HeaderType::score())),
+                            other => return Err(format!("Tring to parse non-existent header: {other}")),
+                        };
+                        let valid_header = header?;
+                        if let Some(header) = valid_header {
+                            header_vec.push(header);
+                        }
+                    }
+                    header_vec
+                }
+            };
+        }
+    
+        Ok(Self {
+            shows: get_header_vec!(shows),
+            episodes: get_header_vec!(episodes),
+        })  
+    }
+}
+
+#[derive(Serialize, Deserialize, Clone, PartialEq, Debug)]
+struct HeadersFile {
+    shows: String,
+    episodes: String,
+}
+
+impl Default for HeadersFile {
+    fn default() -> Self {
+        Self { 
+            shows: String::from("title"),
+            episodes: String::from("number, title, extra"),
+        }
+    }
 }
 
 #[derive(Serialize, Deserialize, Clone, PartialEq, Debug)]
@@ -27,6 +87,7 @@ struct ConfigFile {
     colors: Option<Colors>,
     title_sort: Option<TitleSort>,
     key_binds: Option<KeyBinds>,
+    headers: Option<HeadersFile>,
     path_instead_of_title: Option<bool>,
     autofill_title: Option<bool>,
     english_show_titles: Option<bool>,
@@ -41,6 +102,7 @@ impl Default for ConfigFile {
             service: Some(ServiceType::MAL),
             title_sort: Some(TitleSort::LocalIdAsc),
             key_binds: Some(KeyBinds::default()),
+            headers: Some(HeadersFile::default()),
             path_instead_of_title: Some(false),
             autofill_title: Some(true),
             english_show_titles: Some(false),
@@ -115,6 +177,7 @@ struct Colors {
     text_deleted: Option<Color>,
     highlight: Option<Color>,
     highlight_dark: Option<Color>,
+    secondary: Option<Color>,
 }
 
 impl Default for Colors {
@@ -124,6 +187,7 @@ impl Default for Colors {
             text_deleted: Some(Color::new("#C1292E")),
             highlight: Some(Color::new("#F2D202")),
             highlight_dark: Some(Color::new("#161925")),
+            secondary: Some(Color::new("#F45D01")),
         }
     }
 }
@@ -134,6 +198,7 @@ pub struct TermColors {
     pub text_deleted: TermColor,
     pub highlight: TermColor,
     pub highlight_dark: TermColor,
+    pub secondary: TermColor,
 }
 
 impl TryFrom<Color> for TermColor {
@@ -183,6 +248,7 @@ impl TermColors {
             text_deleted: get_color_or_default!(text_deleted),
             highlight: get_color_or_default!(highlight),
             highlight_dark: get_color_or_default!(highlight_dark),
+            secondary: get_color_or_default!(secondary),
         })
     }
 }
@@ -266,6 +332,10 @@ impl Config {
     pub const fn config_file_path(&self) -> &PathBuf {
         &self.config_file_path
     }
+
+    pub const fn headers(&self) -> &Headers {
+        &self.headers
+    }
 }
 
 fn parse_config(config_file_path: PathBuf, default_config: ConfigFile) -> Result<Config, String> {
@@ -293,6 +363,7 @@ fn parse_config(config_file_path: PathBuf, default_config: ConfigFile) -> Result
         service: get_setting_or_default!(service),
         title_sort: get_setting_or_default!(title_sort),
         key_binds: get_setting_or_default!(key_binds),
+        headers: get_setting_or_default!(headers).try_into()?,
         path_instead_of_title: get_setting_or_default!(path_instead_of_title),
         autofill_title: get_setting_or_default!(autofill_title),
         english_show_titles: get_setting_or_default!(english_show_titles),
@@ -338,6 +409,9 @@ mod tests {
             autofill_title = true
             english_show_titles = true
             update_progress_on_start = true
+            [headers]
+            shows = \"title\"
+            episodes = \"title\"
             [colors.text]
             hex = \"#DCDCDC\"
             [colors.text_deleted]
@@ -346,6 +420,8 @@ mod tests {
             hex = \"#5BAE24\"
             [colors.highlight_dark]
             hex = \"#19410A\"
+            [colors.secondary]
+            hex = \"#3C87CD\"
             [key_binds]
             move_up = \"Up\"
             move_down = \"Down\"
@@ -386,6 +462,9 @@ mod tests {
                 highlight_dark: Some(Color {
                     hex: String::from("#19410A"),
                 }),
+                secondary: Some(Color {
+                    hex: String::from("#3C87CD"),
+                }),
             }),
             title_sort: Some(TitleSort::LocalIdAsc),
             key_binds: Some(KeyBinds {
@@ -408,6 +487,10 @@ mod tests {
             autofill_title: Some(true),
             english_show_titles: Some(true),
             update_progress_on_start: Some(true),
+            headers: Some(HeadersFile{
+                shows: String::from("title"),
+                episodes: String::from("title"),
+            }),
         };
         assert_eq!(parsed_config_file, expected_config_file);
     }
