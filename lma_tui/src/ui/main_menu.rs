@@ -193,10 +193,7 @@ fn render_help<B: Backend, T: Service>(app: &mut App<T>, area: Rect, frame: &mut
 }
 
 fn render_shows<B: Backend, T: Service>(app: &mut App<T>, area: Rect, frame: &mut Frame<B>) {
-    let header: Vec<HeaderType> = vec![
-        // HeaderType::number(),
-        HeaderType::title(),
-    ];
+    let header = &app.config.headers().shows;
     let inner_area = area.inner(&Margin {
         vertical: 1,
         horizontal: 1,
@@ -205,6 +202,8 @@ fn render_shows<B: Backend, T: Service>(app: &mut App<T>, area: Rect, frame: &mu
         .direction(Direction::Horizontal)
         .constraints([Constraint::Percentage(100), Constraint::Min(1)].as_ref())
         .split(inner_area);
+    let table_area = inner_layout[0];
+    let scrollbar_area = inner_layout[1];
 
     let mut progress = app.list_state.scroll_progress;
     let shows: Vec<Row> = app
@@ -218,11 +217,11 @@ fn render_shows<B: Backend, T: Service>(app: &mut App<T>, area: Rect, frame: &mu
                 .map(|selected_show| selected_show.local_id);
             let mut title = show.title.clone();
             if selected_show_id == Some(show.local_id) && !app.list_state.selecting_episode {
-                try_to_scroll_title(inner_layout[0].width, &header, &mut progress, &mut title);
+                try_to_scroll_title(table_area.width, header, &mut progress, &mut title);
             }
 
             let style = Style::default().fg(app.config.colors().text);
-            let cells = generate_show_cells(show, &header, style, &title);
+            let cells = generate_show_cells(show, header, style, &title);
             Row::new(cells)
         })
         .collect();
@@ -247,15 +246,15 @@ fn render_shows<B: Backend, T: Service>(app: &mut App<T>, area: Rect, frame: &mu
         &mut app.list_state.shows_state,
         shows,
         header,
-        inner_layout[0],
+        table_area,
     )
     .render(frame, app.config.colors());
 
     render_scrollbar(
-        inner_layout[1],
+        scrollbar_area,
         frame,
         show_count,
-        app,
+        app.config.colors(),
         app.list_state.shows_state.offset(),
     );
 }
@@ -282,11 +281,7 @@ fn generate_show_cells<'a>(
 }
 
 fn render_episodes<B: Backend, T: Service>(app: &mut App<T>, area: Rect, frame: &mut Frame<'_, B>) {
-    let header: Vec<HeaderType> = vec![
-        HeaderType::number(),
-        HeaderType::title(),
-        HeaderType::extra(),
-    ];
+    let header = &app.config.headers().episodes;
     let inner_area = area.inner(&Margin {
         vertical: 1,
         horizontal: 1,
@@ -314,13 +309,13 @@ fn render_episodes<B: Backend, T: Service>(app: &mut App<T>, area: Rect, frame: 
                 {
                     try_to_scroll_title(
                         inner_layout[0].width,
-                        &header,
+                        header,
                         &mut app.list_state.scroll_progress,
                         &mut episode_display_name,
                     );
                 }
                 let style = get_style(episode, show, app.config.colors());
-                let cells = generate_episode_cells(episode, &header, style, &episode_display_name);
+                let cells = generate_episode_cells(episode, header, style, &episode_display_name);
                 let new_episode = Row::new(cells);
                 temp.push(new_episode);
             }
@@ -351,7 +346,7 @@ fn render_episodes<B: Backend, T: Service>(app: &mut App<T>, area: Rect, frame: 
         inner_layout[1],
         frame,
         episode_count,
-        app,
+        app.config.colors(),
         app.list_state.episodes_state.offset(),
     );
 }
@@ -440,7 +435,7 @@ fn get_style(episode: &Episode, show: &Show, colors: &TermColors) -> Style {
     style
 }
 
-enum HeaderType {
+pub enum HeaderType {
     Number(u16),
     Title,
     Score(u16),
@@ -454,16 +449,16 @@ impl HeaderType {
             Self::Number(width) | Self::Score(width) | Self::Extra(width) => Some(*width),
         }
     }
-    const fn title() -> Self {
+    pub const fn title() -> Self {
         Self::Title
     }
-    const fn number() -> Self {
+    pub const fn number() -> Self {
         Self::Number(3)
     }
-    const fn score() -> Self {
+    pub const fn score() -> Self {
         Self::Score(5)
     }
-    const fn extra() -> Self {
+    pub const fn extra() -> Self {
         Self::Extra(5)
     }
 }
@@ -518,7 +513,7 @@ impl TableHeaderItem {
 struct Table<'a> {
     state: &'a mut TableState,
     items: Option<Vec<Row<'a>>>,
-    header: Vec<HeaderType>,
+    header: &'a Vec<HeaderType>,
     area: Rect,
 }
 
@@ -526,7 +521,7 @@ impl<'a> Table<'a> {
     fn new(
         state: &'a mut TableState,
         items: Vec<Row<'a>>,
-        header: Vec<HeaderType>,
+        header: &'a Vec<HeaderType>,
         area: Rect,
     ) -> Self {
         Self {
@@ -541,9 +536,9 @@ impl<'a> Table<'a> {
         const COLUMN_SPACING: u16 = 1;
         let mut header_text = Vec::new();
         let mut header_constraint = Vec::new();
-        let aligned_header = &self.header.align(self.area.width);
+        let aligned_header = self.header.align(self.area.width);
         for header_item in aligned_header {
-            header_text.push(header_item.text.clone());
+            header_text.push(header_item.text);
             header_constraint.push(header_item.constraint);
         }
         if header_text.len() > 1 {
@@ -562,17 +557,17 @@ impl<'a> Table<'a> {
     }
 }
 
-fn render_scrollbar<B: Backend, T: Service>(
+fn render_scrollbar<B: Backend>(
     area: Rect,
     frame: &mut Frame<B>,
     entry_count: usize,
-    app: &mut App<T>,
+    colors: &TermColors,
     offset: usize,
 ) {
     frame.render_widget(Clear, area);
     if entry_count > area.height.into() {
         let area = get_scroll_bar(offset, area, entry_count);
-        let progress = Block::default().style(Style::default().bg(app.config.colors().text));
+        let progress = Block::default().style(Style::default().bg(colors.text));
         frame.render_widget(progress, area);
     }
 }
