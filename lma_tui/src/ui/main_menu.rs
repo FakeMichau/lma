@@ -297,7 +297,7 @@ fn render_episodes<B: Backend, T: Service>(app: &mut App<T>, area: Rect, frame: 
     } else {
         None
     };
-    if average_episode_score.is_none() {
+    if average_episode_score.is_none() && app.config.relative_episode_score() {
         if let Some(pos) = header.iter().position(|x| matches!(x, HeaderType::Score(_))) {
             header.remove(pos);
         }
