@@ -242,13 +242,8 @@ fn render_shows<B: Backend, T: Service>(app: &mut App<T>, area: Rect, frame: &mu
 
     frame.render_widget(border, area);
 
-    Table::new(
-        &mut app.list_state.shows_state,
-        shows,
-        header,
-        table_area,
-    )
-    .render(frame, app.config.colors());
+    Table::new(&mut app.list_state.shows_state, shows, header, table_area)
+        .render(frame, app.config.colors());
 
     render_scrollbar(
         scrollbar_area,
@@ -491,7 +486,7 @@ impl HeaderAlign for Vec<HeaderType> {
     }
     fn sum_consts(&self) -> u16 {
         self.iter()
-            .map(|header_type| header_type.get_width().map_or(0, |width| width))
+            .map(|header_type| header_type.get_width().map_or(0, |width| width + 1))
             .sum()
     }
 }
@@ -536,13 +531,18 @@ impl<'a> Table<'a> {
         const COLUMN_SPACING: u16 = 1;
         let mut header_text = Vec::new();
         let mut header_constraint = Vec::new();
-        let aligned_header = self.header.align(self.area.width);
+        let aligned_header: Vec<TableHeaderItem> = self.header.align(self.area.width);
         for header_item in aligned_header {
             header_text.push(header_item.text);
             header_constraint.push(header_item.constraint);
         }
-        if header_text.len() > 1 {
-            header_constraint.push(Constraint::Min(COLUMN_SPACING));
+        let column_count = header_text.len();
+        if let Some(title_pos) = header_constraint
+            .iter()
+            .position(|constraint| constraint == &Constraint::Percentage(100))
+        {
+            let position_from_end = u16::try_from(column_count - title_pos - 1).unwrap_or_default();
+            header_constraint.push(Constraint::Min(position_from_end));
         }
         let widget = TableWidget::new(self.items.take().unwrap_or_default())
             .header(Row::new(header_text).style(Style::default().fg(colors.secondary)))
