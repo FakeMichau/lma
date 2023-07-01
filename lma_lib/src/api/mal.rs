@@ -133,9 +133,9 @@ impl<T: MALClientTrait + Send + Sync> Service for MAL<T> {
                 }
             }))
     }
-    async fn get_episodes(&mut self, id: u32) -> Result<Vec<ServiceEpisodeDetails>, String> {
+    async fn get_episodes(&mut self, id: u32, precise_score: bool) -> Result<Vec<ServiceEpisodeDetails>, String> {
         self.client
-            .get_anime_episodes(id)
+            .get_anime_episodes(id, precise_score)
             .await
             .map(|episodes| episodes.data)
             .map(|vec| {
@@ -148,6 +148,7 @@ impl<T: MALClientTrait + Send + Sync> Service for MAL<T> {
                         title_romanji: episode.title_romanji,
                         duration: episode.duration,
                         aired: episode.aired,
+                        score: episode.score,
                         filler: episode.filler,
                         recap: episode.recap,
                     }
@@ -310,7 +311,7 @@ mod tests {
     #[tokio::test]
     async fn test_get_anime_episodes() {
         let mut client = create_logged_in_client().await;
-        let episodes_result = client.get_episodes(21).await;
+        let episodes_result = client.get_episodes(21, false).await;
         assert!(episodes_result.is_ok());
         let episodes = episodes_result.unwrap();
         // mocked get_anime_episodes returns an empty vector

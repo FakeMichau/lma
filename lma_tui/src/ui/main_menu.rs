@@ -919,6 +919,7 @@ mod tests {
                 number: i,
                 path: PathBuf::from("/path/just/for/testing.mp4"),
                 file_deleted: false,
+                score: 0.0,
                 recap: false,
                 filler: false,
             };

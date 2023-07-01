@@ -140,6 +140,7 @@ fn insert_episode<T: Service + Send>(
         &episode.path.to_string_lossy(),
         &details.title,
         insert_show::generate_extra_info(details.recap, details.filler),
+        details.score.unwrap_or_default()
     ) {
         eprintln!("{why}");
     }

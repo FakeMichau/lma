@@ -39,7 +39,7 @@ pub enum EpisodeStatus {
     PlanToWatch,
 }
 
-#[derive(PartialEq, Eq, Debug)]
+#[derive(PartialEq, Debug)]
 pub struct ServiceEpisodeDetails {
     pub number: Option<u32>,
     pub title: Option<String>,
@@ -47,6 +47,7 @@ pub struct ServiceEpisodeDetails {
     pub title_romanji: Option<String>,
     pub duration: Option<u32>,
     pub aired: Option<String>,
+    pub score: Option<f32>,
     pub filler: Option<bool>,
     pub recap: Option<bool>,
 }
@@ -66,7 +67,7 @@ pub trait Service {
     async fn search_title(&mut self, potential_title: &str) -> Result<Vec<ServiceTitle>, String>;
     async fn get_title(&mut self, id: u32) -> Result<String, String>;
     async fn get_alternative_titles(&mut self, id: u32) -> Result<Option<AlternativeTitles>, String>;
-    async fn get_episodes(&mut self, id: u32) -> Result<Vec<ServiceEpisodeDetails>, String>;
+    async fn get_episodes(&mut self, id: u32, precise_score: bool) -> Result<Vec<ServiceEpisodeDetails>, String>;
     async fn get_episode_count(&mut self, id: u32) -> Result<Option<u32>, String>;
     async fn get_user_entry_details(&mut self, id: u32) -> Result<Option<ServiceEpisodeUser>, String>;
     /// Returns actual progress set on the service

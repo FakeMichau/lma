@@ -219,6 +219,7 @@ fn handle_forth_line<T: Service>(app: &mut App<T>, rt: &Runtime) -> Result<(), S
                 path: path.clone(),
                 title: String::new(),
                 file_deleted: !path.exists(),
+                score: 0.0,
                 recap: false,
                 filler: false,
             })
@@ -330,6 +331,7 @@ fn insert_episodes<T: Service + Send>(
             &episode.path.to_string_lossy(),
             &details.title,
             generate_extra_info(details.recap, details.filler),
+            details.score.unwrap_or_default()
         ) {
             eprintln!("{why}");
         }
@@ -342,13 +344,14 @@ pub struct EpisodeDetails {
     pub title: String,
     pub recap: bool,
     pub filler: bool,
+    pub score: Option<f32>,
 }
 
 pub async fn get_episodes_info<T: Service + Send>(
     service: &mut T,
     id: u32,
 ) -> Result<HashMap<u32, EpisodeDetails>, String> {
-    let episodes_details = service.get_episodes(id).await?;
+    let episodes_details = service.get_episodes(id, true).await?;
     Ok(episodes_details
         .iter()
         .map(|episode| {
@@ -358,6 +361,7 @@ pub async fn get_episodes_info<T: Service + Send>(
                     title: episode.title.clone().unwrap_or_default(),
                     recap: episode.recap.unwrap_or_default(),
                     filler: episode.filler.unwrap_or_default(),
+                    score: episode.score,
                 }),
             )
         })

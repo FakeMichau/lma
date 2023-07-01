@@ -38,7 +38,7 @@ impl Service for Local {
     async fn get_user_entry_details(&mut self, _id: u32) -> Result<Option<ServiceEpisodeUser>, String> {
         Ok(None)
     }
-    async fn get_episodes(&mut self, _id: u32) -> Result<Vec<ServiceEpisodeDetails>, String> {
+    async fn get_episodes(&mut self, _id: u32, _precise_score: bool) -> Result<Vec<ServiceEpisodeDetails>, String> {
         Ok(Vec::new())
     }
     async fn set_progress(&mut self, _id: u32, progress: u32) -> Result<u32, String> {
@@ -87,7 +87,7 @@ mod tests {
         let result = local_service.get_user_entry_details(111).await;
         assert_eq!(result, Ok(None));
         
-        let result = local_service.get_episodes(222).await;
+        let result = local_service.get_episodes(222, false).await;
         assert_eq!(result, Ok(Vec::new()));
         
         let result = local_service.set_progress(333, 50).await;
