@@ -263,10 +263,10 @@ fn generate_show_cells<'a>(
     header
         .iter()
         .map(|column| match column {
-            HeaderType::Number(_) => Cell::from(format!(
+            HeaderType::Number(width) => Cell::from(format!(
                 "{:>1$}",
                 show.local_id.to_string(),
-                usize::from(get_number_col_width(header))
+                usize::from(*width)
             ))
             .style(style),
             HeaderType::Title => Cell::from(String::from(title)).style(style),
@@ -355,10 +355,10 @@ fn generate_episode_cells<'a>(
     header
         .iter()
         .map(|column| match column {
-            HeaderType::Number(_) => Cell::from(format!(
+            HeaderType::Number(width) => Cell::from(format!(
                 "{:>1$}",
                 episode.number.to_string(),
-                usize::from(get_number_col_width(header))
+                usize::from(*width)
             ))
             .style(style),
             HeaderType::Title => Cell::from(episode_display_name.to_string()).style(style),
@@ -368,22 +368,14 @@ fn generate_episode_cells<'a>(
                 if episode.recap { "R" } else { "" }
             ))
             .style(style),
-            HeaderType::Score(_) => Cell::from(""),
+            HeaderType::Score(width) => Cell::from(format!(
+                "{:>1$.2}",
+                episode.score,
+                usize::from(*width)
+            ))
+            .style(style),
         })
         .collect::<Vec<_>>()
-}
-
-fn get_number_col_width(header: &[HeaderType]) -> u16 {
-    header
-        .iter()
-        .map(|item| match item {
-            HeaderType::Number(width) => Some(width),
-            _ => None,
-        })
-        .find(Option::is_some)
-        .unwrap_or_default()
-        .copied()
-        .unwrap_or_default()
 }
 
 fn try_to_scroll_title(
@@ -392,7 +384,7 @@ fn try_to_scroll_title(
     scroll_progress_u32: &mut u32,
     episode_display_name: &mut String,
 ) {
-    let space = usize::from(width - header.sum_consts() - 2);
+    let space = usize::from(width - header.sum_consts());
     let mut scroll_progress: usize = (*scroll_progress_u32).try_into().unwrap();
     *episode_display_name = scroll_text(episode_display_name.clone(), space, &mut scroll_progress);
     scroll_progress_u32.clone_from(&u32::try_from(scroll_progress).unwrap_or_default());

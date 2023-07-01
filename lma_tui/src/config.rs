@@ -75,7 +75,7 @@ impl Default for HeadersFile {
     fn default() -> Self {
         Self { 
             shows: String::from("title"),
-            episodes: String::from("number, title, extra"),
+            episodes: String::from("number, title, score, extra"),
         }
     }
 }
