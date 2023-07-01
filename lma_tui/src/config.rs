@@ -19,6 +19,7 @@ pub struct Config {
     autofill_title: bool,
     english_show_titles: bool,
     update_progress_on_start: bool,
+    relative_episode_score: bool,
 }
 
 pub struct Headers {
@@ -92,6 +93,7 @@ struct ConfigFile {
     autofill_title: Option<bool>,
     english_show_titles: Option<bool>,
     update_progress_on_start: Option<bool>,
+    relative_episode_score: Option<bool>,
 }
 
 impl Default for ConfigFile {
@@ -107,6 +109,7 @@ impl Default for ConfigFile {
             autofill_title: Some(true),
             english_show_titles: Some(false),
             update_progress_on_start: Some(false),
+            relative_episode_score: Some(false),
         }
     }
 }
@@ -336,6 +339,10 @@ impl Config {
     pub const fn headers(&self) -> &Headers {
         &self.headers
     }
+
+    pub const fn relative_episode_score(&self) -> bool {
+        self.relative_episode_score
+    }
 }
 
 fn parse_config(config_file_path: PathBuf, default_config: ConfigFile) -> Result<Config, String> {
@@ -368,6 +375,7 @@ fn parse_config(config_file_path: PathBuf, default_config: ConfigFile) -> Result
         autofill_title: get_setting_or_default!(autofill_title),
         english_show_titles: get_setting_or_default!(english_show_titles),
         update_progress_on_start: get_setting_or_default!(update_progress_on_start),
+        relative_episode_score: get_setting_or_default!(relative_episode_score),
     })
 }
 
@@ -409,6 +417,7 @@ mod tests {
             autofill_title = true
             english_show_titles = true
             update_progress_on_start = true
+            relative_episode_score = true
             [headers]
             shows = \"title\"
             episodes = \"title\"
@@ -487,6 +496,7 @@ mod tests {
             autofill_title: Some(true),
             english_show_titles: Some(true),
             update_progress_on_start: Some(true),
+            relative_episode_score: Some(true),
             headers: Some(HeadersFile{
                 shows: String::from("title"),
                 episodes: String::from("title"),

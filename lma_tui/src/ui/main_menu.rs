@@ -276,7 +276,7 @@ fn generate_show_cells<'a>(
 }
 
 fn render_episodes<B: Backend, T: Service>(app: &mut App<T>, area: Rect, frame: &mut Frame<'_, B>) {
-    let header = &app.config.headers().episodes;
+    let mut header = app.config.headers().episodes.clone();
     let inner_area = area.inner(&Margin {
         vertical: 1,
         horizontal: 1,
@@ -286,11 +286,23 @@ fn render_episodes<B: Backend, T: Service>(app: &mut App<T>, area: Rect, frame: 
         .constraints([Constraint::Percentage(100), Constraint::Min(1)].as_ref())
         .split(inner_area);
 
-    let episodes: Vec<Row> = app
+    let selected_show = app
         .list_state
         .list_cache
-        .iter()
-        .filter(|show| show.local_id == app.list_state.selected_local_id)
+        .iter().find(|show| show.local_id == app.list_state.selected_local_id);
+    #[allow(clippy::cast_precision_loss)]
+    let average_episode_score = if app.config.relative_episode_score() {
+        // TODO: fix episodes without a score skewing the average
+        selected_show.map(|show| show.episodes.iter().map(|e| e.score).sum::<f32>() / show.episodes.len() as f32).filter(|avg| avg > &0.0)
+    } else {
+        None
+    };
+    if average_episode_score.is_none() {
+        if let Some(pos) = header.iter().position(|x| matches!(x, HeaderType::Score(_))) {
+            header.remove(pos);
+        }
+    }
+    let episodes: Vec<Row> = selected_show.iter()
         .flat_map(|show| {
             let mut temp: Vec<Row> = Vec::new();
             for episode in &show.episodes {
@@ -304,13 +316,20 @@ fn render_episodes<B: Backend, T: Service>(app: &mut App<T>, area: Rect, frame: 
                 {
                     try_to_scroll_title(
                         inner_layout[0].width,
-                        header,
+                        &header,
                         &mut app.list_state.scroll_progress,
                         &mut episode_display_name,
                     );
                 }
                 let style = get_style(episode, show, app.config.colors());
-                let cells = generate_episode_cells(episode, header, style, &episode_display_name);
+                let cells = generate_episode_cells(
+                    episode,
+                    &header,
+                    style,
+                    &episode_display_name,
+                    average_episode_score,
+                    app.config.colors(),
+                );
                 let new_episode = Row::new(cells);
                 temp.push(new_episode);
             }
@@ -318,10 +337,11 @@ fn render_episodes<B: Backend, T: Service>(app: &mut App<T>, area: Rect, frame: 
         })
         .collect();
     let episode_count = episodes.len();
-
+    let extra_title = 
+        average_episode_score.map_or_else(String::new, |avg| format!(" - Average score: {avg:.2}"));
     let border = Block::default()
         .borders(Borders::ALL)
-        .title("Episodes")
+        .title(format!("Episodes{extra_title}"))
         .border_style(if app.list_state.selecting_episode {
             Style::default().fg(app.config.colors().highlight)
         } else {
@@ -332,7 +352,7 @@ fn render_episodes<B: Backend, T: Service>(app: &mut App<T>, area: Rect, frame: 
     Table::new(
         &mut app.list_state.episodes_state,
         episodes,
-        header,
+        &header,
         inner_layout[0],
     )
     .render(frame, app.config.colors());
@@ -351,6 +371,8 @@ fn generate_episode_cells<'a>(
     header: &[HeaderType],
     style: Style,
     episode_display_name: &str,
+    average_episode_score: Option<f32>,
+    colors: &TermColors,
 ) -> Vec<Cell<'a>> {
     header
         .iter()
@@ -368,12 +390,23 @@ fn generate_episode_cells<'a>(
                 if episode.recap { "R" } else { "" }
             ))
             .style(style),
-            HeaderType::Score(width) => Cell::from(format!(
-                "{:>1$.2}",
-                episode.score,
-                usize::from(*width)
-            ))
-            .style(style),
+            HeaderType::Score(width) => average_episode_score.map_or_else(
+                || Cell::from(format!("{:>1$.2}", episode.score, usize::from(*width))).style(style),
+                |avg| {
+                    let diff = episode.score - avg;
+                    let style = if diff.is_sign_negative() {
+                        style.fg(colors.text_deleted)
+                    } else {
+                        style
+                    };
+                    Cell::from(format!(
+                        "{:>1$.2}",
+                        diff,
+                        usize::from(*width)
+                    ))
+                    .style(style)
+                },
+            ),
         })
         .collect::<Vec<_>>()
 }
@@ -422,7 +455,7 @@ fn get_style(episode: &Episode, show: &Show, colors: &TermColors) -> Style {
     style
 }
 
-#[derive(PartialEq, Eq)]
+#[derive(PartialEq, Eq, Clone, Copy)]
 pub enum HeaderType {
     Number(u16),
     Title,
@@ -431,10 +464,10 @@ pub enum HeaderType {
 }
 
 impl HeaderType {
-    const fn get_width(&self) -> Option<u16> {
+    const fn get_width(self) -> Option<u16> {
         match self {
             Self::Title => None,
-            Self::Number(width) | Self::Score(width) | Self::Extra(width) => Some(*width),
+            Self::Number(width) | Self::Score(width) | Self::Extra(width) => Some(width),
         }
     }
     pub const fn title() -> Self {
