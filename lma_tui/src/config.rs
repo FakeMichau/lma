@@ -32,16 +32,29 @@ impl TryFrom<HeadersFile> for Headers {
     fn try_from(value: HeadersFile) -> Result<Self, String> {
         macro_rules! get_header_vec {
             ($s:ident) => {
-                value.$s.split(',').map(|header| {
-                    match header.trim() {
-                        "title" => Ok(HeaderType::title()),
-                        "number" => Ok(HeaderType::number()),
-                        "extra" => Ok(HeaderType::extra()),
-                        "score" => Ok(HeaderType::score()),
-                        other => return Err(format!("Try to parse non-existant header: {other}")),
+                {
+                    let mut header_vec: Vec<HeaderType> = Vec::new();
+                    for header in value.$s.split(',') {
+                        let header: Result<_, String> = match header.trim() {
+                            "title" => Ok(
+                                if header_vec.contains(&HeaderType::Title) {
+                                    None
+                                } else {
+                                    Some(HeaderType::title())
+                                }
+                            ),
+                            "number" => Ok(Some(HeaderType::number())),
+                            "extra" => Ok(Some(HeaderType::extra())),
+                            "score" => Ok(Some(HeaderType::score())),
+                            other => return Err(format!("Tring to parse non-existent header: {other}")),
+                        };
+                        let valid_header = header?;
+                        if let Some(header) = valid_header {
+                            header_vec.push(header);
+                        }
                     }
-                })
-                .collect::<Result<Vec<HeaderType>, String>>()?
+                    header_vec
+                }
             };
         }
     

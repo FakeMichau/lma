@@ -430,6 +430,7 @@ fn get_style(episode: &Episode, show: &Show, colors: &TermColors) -> Style {
     style
 }
 
+#[derive(PartialEq, Eq)]
 pub enum HeaderType {
     Number(u16),
     Title,
