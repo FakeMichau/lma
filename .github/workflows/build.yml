@@ -23,3 +23,7 @@ jobs:
           use-cross: true
           command: build
           args: --release --target=${{ matrix.target }}
+      - uses: actions/upload-artifact@v3
+        with:
+          path: |
+            target/${{ matrix.target }}/release/lma*
