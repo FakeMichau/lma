@@ -3,30 +3,65 @@ on: [push, pull_request]
 name: Cross-compile
 
 jobs:
-  build:
-    name: Build
+  build_linux:
+    name: Build Linux
     runs-on: ubuntu-latest
-    strategy:
-      matrix:
-        target:
-          - x86_64-unknown-linux-gnu
-          - x86_64-pc-windows-gnu
     steps:
       - uses: actions/checkout@v2
       - uses: actions-rs/toolchain@v1
         with:
           toolchain: stable
-          target: ${{ matrix.target }}
+          target: x86_64-unknown-linux-gnu
           override: true
       - uses: actions-rs/cargo@v1
         with:
           use-cross: true
           command: build
-          args: --release --target=${{ matrix.target }}
+          args: --release --target=x86_64-unknown-linux-gnu
+      - uses: actions/upload-artifact@v3
+        with:
+          name: linux
+          path: |
+            target/x86_64-unknown-linux-gnu/release/lma
+            
+  build_windows:
+    name: Build Windows
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v2
+      - uses: actions-rs/toolchain@v1
+        with:
+          toolchain: stable
+          target: x86_64-pc-windows-gnu
+          override: true
+      - uses: actions-rs/cargo@v1
+        with:
+          use-cross: true
+          command: build
+          args: --release --target=x86_64-pc-windows-gnu
+      - uses: actions/upload-artifact@v3
+        with:
+          name: windows
+          path: |
+            target/x86_64-pc-windows-gnu/release/lma.exe
+
+  publish:
+    needs: [build_linux, build_linux]
+    runs-on: ubuntu-latest
+    steps:
+      - name: Download windows artifact
+        uses: actions/download-artifact@v3
+        with:
+          name: windows
+      - name: Download linux artifact
+        uses: actions/download-artifact@v3
+        with:
+          name: linux
       - name: Release
         uses: softprops/action-gh-release@v1
         with:
           prerelease: true
-          path: |
-            target/x86_64-unknown-linux-gnu/release/lma
-            target/x86_64-pc-windows-gnu/release/lma.exe
+          tag_name: ${{ github.head_ref }}
+          files: |
+            lma
+            lma.exe  
