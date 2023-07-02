@@ -54,6 +54,6 @@ jobs:
         uses: actions/download-artifact@v3
 
       - name: 'Create Release'
-        run: hub release create ${{ github.ref }} -p -m Prerelease -a linux/lma#lma-linux -a windows/lma.exe#lma-windows
+        run: hub release create build_${{github.run_number}} -m build_${{github.run_number}} -p -a linux/lma#lma-linux -a windows/lma.exe#lma-windows
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
