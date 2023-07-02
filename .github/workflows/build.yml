@@ -44,3 +44,19 @@ jobs:
           name: windows
           path: |
             target/x86_64-pc-windows-gnu/release/lma.exe
+
+  publish:
+    name: Publish as a prerelease
+    needs: [build_linux, build_windows]
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v3
+
+      - name: Download artifacts
+        uses: actions/download-artifact@v3
+
+      - name: 'Create Release'
+        run: hub release create pre-release_${{github.run_number}} -p -m pre-release -a linux/lma#lma-linux -a windows/lma.exe#lma-windows
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
