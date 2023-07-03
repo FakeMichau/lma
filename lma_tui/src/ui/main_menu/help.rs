@@ -52,55 +52,55 @@ fn build_help<'a>(
     let mut information = Vec::new();
     match focused_window {
         FocusedWindow::MainMenu => {
-            information.extend(navigation.to_span());
-            information.extend(insert.to_span());
-            information.extend(delete.to_span());
-            information.extend(login.to_span());
-            information.extend(insert_episode.to_span());
-            information.extend(progress.to_span());
-            information.extend(quit.to_span());
+            information.extend(navigation);
+            information.extend(insert);
+            information.extend(delete);
+            information.extend(login);
+            information.extend(insert_episode);
+            information.extend(progress);
+            information.extend(quit);
         }
         FocusedWindow::InsertPopup => {
-            information.extend(navigation.to_span());
+            information.extend(navigation);
             match insert_state {
                 InsertState::Inputting | InsertState::Next => {
-                    information.extend(confirm.to_span());
-                    information.extend(exit_input.to_span());
+                    information.extend(confirm);
+                    information.extend(exit_input);
                 }
                 _ => {
-                    information.extend(start_input.to_span());
-                    information.extend(close_window.to_span());
+                    information.extend(start_input);
+                    information.extend(close_window);
                 }
             }
         }
         FocusedWindow::InsertEpisodePopup => {
-            information.extend(navigation.to_span());
+            information.extend(navigation);
             match insert_episode_state {
                 InsertState::Inputting | InsertState::Next => {
-                    information.extend(confirm.to_span());
-                    information.extend(exit_input.to_span());
+                    information.extend(confirm);
+                    information.extend(exit_input);
                 }
                 _ => {
-                    information.extend(start_input.to_span());
-                    information.extend(close_window.to_span());
+                    information.extend(start_input);
+                    information.extend(close_window);
                 }
             }
         }
         FocusedWindow::Login => {
-            information.extend(close_window.to_span());
+            information.extend(close_window);
         }
         FocusedWindow::FirstSetup => {
-            information.extend(navigation.to_span());
-            information.extend(go_back.to_span());
-            information.extend(confirm.to_span());
+            information.extend(navigation);
+            information.extend(go_back);
+            information.extend(confirm);
         }
         FocusedWindow::TitleSelection => {
-            information.extend(navigation.to_span());
-            information.extend(close_window.to_span());
+            information.extend(navigation);
+            information.extend(close_window);
         }
         FocusedWindow::EpisodeMismatch | FocusedWindow::Error => {
-            information.extend(confirm.to_span());
-            information.extend(close_window.to_span());
+            information.extend(confirm);
+            information.extend(close_window);
         }
     };
 
@@ -139,13 +139,19 @@ impl<'a> HelpItem<'a> {
             key_style,
         }
     }
+}
 
-    fn to_span<'b>(&self) -> Vec<Span<'b>> {
+impl<'a> IntoIterator for HelpItem<'a> {
+    type Item = Span<'a>;
+    type IntoIter = <Vec<Span<'a>> as IntoIterator>::IntoIter;
+
+    fn into_iter(self) -> Self::IntoIter {
         vec![
             Span::styled(format!("{} ", self.text), self.text_style),
             Span::styled(format!("[{}]", self.key), self.key_style),
             Span::raw(" "),
         ]
+        .into_iter()
     }
 }
 
@@ -233,16 +239,18 @@ mod tests {
             quit: KeyCode::Char('q'),
             ..Default::default()
         };
-        let test_item = HelpItem::new("Testing", &Function::Quit, &key_binds, highlight_color);
+        let mut test_item = HelpItem::new("Testing", &Function::Quit, &key_binds, highlight_color).into_iter();
 
         let text_style = Style::default().bg(highlight_color);
         let key_style = text_style.add_modifier(Modifier::BOLD);
-        let expected_span = vec![
+        let mut expected_span = vec![
             Span::styled("Testing ", text_style),
             Span::styled("[Q]", key_style),
             Span::raw(" "),
-        ];
-
-        assert_eq!(test_item.to_span(), expected_span);
+        ]
+        .into_iter();
+        assert_eq!(test_item.next(), expected_span.next());
+        assert_eq!(test_item.next(), expected_span.next());
+        assert_eq!(test_item.next(), expected_span.next());
     }
 }
