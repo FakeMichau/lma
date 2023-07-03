@@ -38,36 +38,37 @@ pub fn render<B: Backend, T: Service>(app: &mut App<T>, area: Rect, frame: &mut 
     let episodes: Vec<Row> = selected_show
         .into_iter()
         .flat_map(|show| {
-            let mut temp: Vec<Row> = Vec::new();
             let selected_episode_number =
                 get_selected_episode_number(&app.list_state.episodes_state, &show);
-            for episode in show.episodes {
-                let mut episode_display_name =
-                    get_display_name(&episode, app.config.path_instead_of_title());
 
-                if app.list_state.selecting_episode
-                    && selected_episode_number == Some(episode.number)
-                {
-                    try_to_scroll_title(
-                        table_area.width,
+            show.episodes
+                .into_iter()
+                .map(|episode| {
+                    let mut episode_display_name =
+                        get_display_name(&episode, app.config.path_instead_of_title());
+
+                    if app.list_state.selecting_episode
+                        && selected_episode_number == Some(episode.number)
+                    {
+                        try_to_scroll_title(
+                            table_area.width,
+                            &header,
+                            &mut app.list_state.scroll_progress,
+                            &mut episode_display_name,
+                        );
+                    }
+                    let style = get_episode_style(&episode, show.progress, app.config.colors());
+                    let cells = generate_episode_cells(
+                        &episode,
                         &header,
-                        &mut app.list_state.scroll_progress,
-                        &mut episode_display_name,
+                        style,
+                        &episode_display_name,
+                        average_episode_score,
+                        app.config.colors(),
                     );
-                }
-                let style = get_episode_style(&episode, show.progress, app.config.colors());
-                let cells = generate_episode_cells(
-                    &episode,
-                    &header,
-                    style,
-                    &episode_display_name,
-                    average_episode_score,
-                    app.config.colors(),
-                );
-                let new_episode = Row::new(cells);
-                temp.push(new_episode);
-            }
-            temp
+                    Row::new(cells)
+                })
+                .collect::<Vec<Row>>()
         })
         .collect();
 
