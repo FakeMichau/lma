@@ -229,28 +229,20 @@ fn split_hex(chars: &[char], size: usize) -> Result<Vec<u8>, String> {
         .map_err(|err| format!("Couldn't split hex: {err}"))
 }
 
-impl TermColors {
-    fn from_colors(
-        default_colors: Option<Colors>,
-        config_file_colors: Option<Colors>,
-    ) -> Result<Self, String> {
-        let default_colors = default_colors.expect("Default config has values");
-        let colors = config_file_colors.unwrap_or_else(|| default_colors.clone());
-        macro_rules! get_color_or_default {
-            ($s:ident) => {
-                colors
-                    .$s
-                    .or(default_colors.$s)
-                    .expect("Default config has values")
-                    .try_into()?
-            };
-        }
+impl TryFrom<Colors> for TermColors {
+    type Error = String;
+
+    fn try_from(colors: Colors) -> Result<Self, String> {
+        let unwrap_and_try_into = |color: Option<Color>| -> Result<TermColor, String> {
+            color.ok_or("No value")?.try_into()
+        };
+
         Ok(Self {
-            text: get_color_or_default!(text),
-            text_deleted: get_color_or_default!(text_deleted),
-            highlight: get_color_or_default!(highlight),
-            highlight_dark: get_color_or_default!(highlight_dark),
-            secondary: get_color_or_default!(secondary),
+            text: unwrap_and_try_into(colors.text)?,
+            text_deleted: unwrap_and_try_into(colors.text_deleted)?,
+            highlight: unwrap_and_try_into(colors.highlight)?,
+            highlight_dark: unwrap_and_try_into(colors.highlight_dark)?,
+            secondary: unwrap_and_try_into(colors.secondary)?,
         })
     }
 }
@@ -364,7 +356,7 @@ fn parse_config(config_file_path: PathBuf, default_config: ConfigFile) -> Result
 
     Ok(Config {
         config_file_path,
-        colors: TermColors::from_colors(default_config.colors, config_file.colors)?,
+        colors: get_setting_or_default!(colors).try_into()?,
         data_dir: get_setting_or_default!(data_dir),
         service: get_setting_or_default!(service),
         title_sort: get_setting_or_default!(title_sort),
