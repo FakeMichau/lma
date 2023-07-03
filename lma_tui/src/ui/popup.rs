@@ -1,11 +1,11 @@
+pub mod episode_mismatch;
+pub mod error;
+pub mod first_setup;
 #[allow(clippy::module_name_repetitions)]
 pub mod insert_episode;
 pub mod insert_show;
 pub mod login;
 pub mod title_selection;
-pub mod episode_mismatch;
-pub mod error;
-pub mod first_setup;
 use ratatui::layout::{Constraint, Direction, Layout, Rect};
 
 fn centered_rect(percent_x: u16, percent_y: u16, r: Rect) -> Rect {

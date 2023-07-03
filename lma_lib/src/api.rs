@@ -1,13 +1,13 @@
-pub mod mal;
 pub mod local;
-use std::{path::PathBuf, collections::HashMap};
-use serde::{Serialize, Deserialize};
+pub mod mal;
 use async_trait::async_trait;
+use serde::{Deserialize, Serialize};
+use std::{collections::HashMap, path::PathBuf};
 
 #[derive(Serialize, Deserialize, PartialEq, Eq, Clone, Debug)]
 pub enum ServiceType {
     MAL,
-    Local
+    Local,
 }
 
 #[derive(Clone, PartialEq, Eq, Debug)]
@@ -60,16 +60,28 @@ pub struct AlternativeTitles {
 
 #[async_trait]
 pub trait Service {
-    async fn new(cache_dir: PathBuf) -> Result<Self, String> where Self: Sized;
+    async fn new(cache_dir: PathBuf) -> Result<Self, String>
+    where
+        Self: Sized;
     async fn login(&mut self) -> Result<(), String>;
     async fn auth(&mut self);
     async fn init_show(&mut self, id: usize) -> Result<(), String>;
     async fn search_title(&mut self, potential_title: &str) -> Result<Vec<ServiceTitle>, String>;
     async fn get_title(&mut self, id: usize) -> Result<String, String>;
-    async fn get_alternative_titles(&mut self, id: usize) -> Result<Option<AlternativeTitles>, String>;
-    async fn get_episodes(&mut self, id: usize, precise_score: bool) -> Result<Vec<ServiceEpisodeDetails>, String>;
+    async fn get_alternative_titles(
+        &mut self,
+        id: usize,
+    ) -> Result<Option<AlternativeTitles>, String>;
+    async fn get_episodes(
+        &mut self,
+        id: usize,
+        precise_score: bool,
+    ) -> Result<Vec<ServiceEpisodeDetails>, String>;
     async fn get_episode_count(&mut self, id: usize) -> Result<Option<usize>, String>;
-    async fn get_user_entry_details(&mut self, id: usize) -> Result<Option<ServiceEpisodeUser>, String>;
+    async fn get_user_entry_details(
+        &mut self,
+        id: usize,
+    ) -> Result<Option<ServiceEpisodeUser>, String>;
     /// Returns actual progress set on the service
     async fn set_progress(&mut self, id: usize, progress: usize) -> Result<usize, String>;
     fn get_service_type(&self) -> ServiceType;

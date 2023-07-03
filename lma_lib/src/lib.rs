@@ -1,14 +1,17 @@
 mod api;
 pub use api::{local::Local, mal::MAL};
-pub use api::{ServiceTitle, Service, ServiceType, ServiceEpisodeUser, EpisodeStatus, ServiceEpisodeDetails, AlternativeTitles};
+pub use api::{
+    AlternativeTitles, EpisodeStatus, Service, ServiceEpisodeDetails, ServiceEpisodeUser,
+    ServiceTitle, ServiceType,
+};
 pub use lib_mal::*;
+use rusqlite::{params, Connection, Result};
 use serde::{Deserialize, Serialize};
+use std::cmp::Ordering;
+use std::collections::HashMap;
 use std::ffi::OsStr;
 use std::fs;
-use std::collections::HashMap;
-use std::path::{PathBuf, Path};
-use std::cmp::Ordering;
-use rusqlite::{params, Connection, Result};
+use std::path::{Path, PathBuf};
 use tokio::runtime::Runtime;
 
 pub struct AnimeList<T: Service> {
@@ -29,7 +32,8 @@ pub enum TitleSort {
 
 impl<T: Service> AnimeList<T> {
     pub fn get_list(&self) -> Result<Vec<Show>, rusqlite::Error> {
-        let mut stmt = self.db_connection.prepare("
+        let mut stmt = self.db_connection.prepare(
+            "
             SELECT Shows.id, Shows.title, Shows.sync_service_id, Shows.progress,
             COALESCE(Episodes.episode_number, -1) AS episode_number, 
                 COALESCE(Episodes.path, '') AS path, 
@@ -38,7 +42,8 @@ impl<T: Service> AnimeList<T> {
                 COALESCE(Episodes.score, 0.0) AS episode_score
             FROM Shows
             LEFT JOIN Episodes ON Shows.id = Episodes.show_id;
-        ")?;
+        ",
+        )?;
         let mut shows: HashMap<usize, Show> = HashMap::new();
         let mut rows = stmt.query([])?;
         while let Some(row) = rows.next()? {
@@ -75,15 +80,13 @@ impl<T: Service> AnimeList<T> {
             }
         }
         let mut shows: Vec<Show> = shows.into_values().collect();
-        shows.sort_by(|show1, show2| {
-            match self.title_sort {
-                TitleSort::LocalIdAsc => show1.local_id.cmp(&show2.local_id),
-                TitleSort::LocalIdDesc => show2.local_id.cmp(&show1.local_id),
-                TitleSort::TitleAsc => show1.title.cmp(&show2.title),
-                TitleSort::TitleDesc => show2.title.cmp(&show1.title),
-                TitleSort::ServiceIdAsc => show1.service_id.cmp(&show2.service_id),
-                TitleSort::ServiceIdDesc => show2.service_id.cmp(&show1.service_id),
-            }
+        shows.sort_by(|show1, show2| match self.title_sort {
+            TitleSort::LocalIdAsc => show1.local_id.cmp(&show2.local_id),
+            TitleSort::LocalIdDesc => show2.local_id.cmp(&show1.local_id),
+            TitleSort::TitleAsc => show1.title.cmp(&show2.title),
+            TitleSort::TitleDesc => show2.title.cmp(&show1.title),
+            TitleSort::ServiceIdAsc => show1.service_id.cmp(&show2.service_id),
+            TitleSort::ServiceIdDesc => show2.service_id.cmp(&show1.service_id),
         });
         for show in &mut shows {
             show.episodes.sort_by_key(|episode| episode.number);
@@ -92,7 +95,12 @@ impl<T: Service> AnimeList<T> {
     }
 
     /// Returns local id of the added show
-    pub fn add_show(&self, title: &str, sync_service_id: usize, progress: usize) -> Result<usize, String> {
+    pub fn add_show(
+        &self,
+        title: &str,
+        sync_service_id: usize,
+        progress: usize,
+    ) -> Result<usize, String> {
         let mut stmt = self
             .db_connection
             .prepare(
@@ -106,7 +114,10 @@ impl<T: Service> AnimeList<T> {
             .query(params![title, sync_service_id, progress])
             .map_err(|e| e.to_string())?;
 
-        let row = rows.next().map_err(|e| e.to_string())?.ok_or("Can't get row")?;
+        let row = rows
+            .next()
+            .map_err(|e| e.to_string())?
+            .ok_or("Can't get row")?;
         let local_id: usize = row.get(0).map_err(|e| e.to_string())?;
         Ok(local_id)
     }
@@ -120,29 +131,37 @@ impl<T: Service> AnimeList<T> {
             )
             .map_err(|e| e.to_string())?;
 
-        let mut rows = stmt
-            .query(params![title])
-            .map_err(|e| e.to_string())?;
+        let mut rows = stmt.query(params![title]).map_err(|e| e.to_string())?;
 
-        let row = rows.next().map_err(|e| e.to_string())?.ok_or("Can't get row")?;
+        let row = rows
+            .next()
+            .map_err(|e| e.to_string())?
+            .ok_or("Can't get row")?;
         let local_id: usize = row.get(0).map_err(|e| e.to_string())?;
         Ok(local_id)
     }
 
     pub fn set_progress(&self, id: usize, progress: usize) -> Result<(), String> {
-        self.db_connection.execute(
-            "UPDATE Shows
+        self.db_connection
+            .execute(
+                "UPDATE Shows
             SET progress = ?2
-            WHERE id = ?1", 
-            params![
-                id,
-                progress,
-            ]
-        ).map_err(|e| e.to_string())?;
+            WHERE id = ?1",
+                params![id, progress,],
+            )
+            .map_err(|e| e.to_string())?;
         Ok(())
     }
 
-    pub fn add_episode(&self, show_id: usize, episode_number: usize, path: &str, title: &str, extra_info: usize, score: f32) -> Result<(), String> {
+    pub fn add_episode(
+        &self,
+        show_id: usize,
+        episode_number: usize,
+        path: &str,
+        title: &str,
+        extra_info: usize,
+        score: f32,
+    ) -> Result<(), String> {
         self.db_connection
             .execute(
                 "REPLACE INTO Episodes (show_id, episode_number, path, title, extra_info, score) VALUES (?1, ?2, ?3, ?4, ?5, ?6)",
@@ -167,22 +186,23 @@ impl<T: Service> AnimeList<T> {
 
             let local_progress_current = show.progress;
             match user_service_progress_current.cmp(&local_progress_current) {
-                Ordering::Greater => {
-                    self.set_progress(show.local_id, user_service_progress_current)
-                        .map_err(|e| format!("Can't set progress: {e}"))
-                }
+                Ordering::Greater => self
+                    .set_progress(show.local_id, user_service_progress_current)
+                    .map_err(|e| format!("Can't set progress: {e}")),
                 Ordering::Less => {
-                    let actual_progress = rt.block_on(
-                    self.service
-                        .set_progress(service_id, local_progress_current),
-                    ).unwrap_or(local_progress_current);
+                    let actual_progress = rt
+                        .block_on(
+                            self.service
+                                .set_progress(service_id, local_progress_current),
+                        )
+                        .unwrap_or(local_progress_current);
                     // in case of going beyond number of episodes
                     if actual_progress < local_progress_current {
                         self.set_progress(show.local_id, actual_progress)
                             .map_err(|e| format!("Can't set progress: {e}"))?;
                     }
                     Ok(())
-                },
+                }
                 Ordering::Equal => Ok(()),
             }?;
         }
@@ -191,7 +211,7 @@ impl<T: Service> AnimeList<T> {
 
     pub fn get_video_file_paths(path: &PathBuf) -> Result<Vec<PathBuf>, std::io::Error> {
         if is_video_file(path) {
-            return Ok(vec![path.clone()])
+            return Ok(vec![path.clone()]);
         }
         let mut files = Vec::new();
         for entry in fs::read_dir(path)? {
@@ -216,7 +236,7 @@ impl<T: Service> AnimeList<T> {
             })
             .next()
             .map_or(String::new(), |str| Self::remove_after_last_dash(&str));
-        
+
         Ok(if guessed_title.is_empty() {
             fname
         } else {
@@ -267,9 +287,12 @@ impl<T: Service> AnimeList<T> {
     }
 }
 
+#[must_use]
 pub fn is_video_file(r: &Path) -> bool {
-    r.is_file() &&
-    ["webm", "mkv", "vob", "ogg", "gif", "avi", "mov", "wmv", "mp4", "m4v", "3gp"]
+    r.is_file()
+        && [
+            "webm", "mkv", "vob", "ogg", "gif", "avi", "mov", "wmv", "mp4", "m4v", "3gp",
+        ]
         .into_iter()
         .any(|ext| {
             r.extension()
@@ -299,11 +322,16 @@ pub struct Episode {
     pub filler: bool,
 }
 
-pub fn create<T: Service>(service: T, data_path: &Path, title_sort: &TitleSort) -> Result<AnimeList<T>, String> {
+pub fn create<T: Service>(
+    service: T,
+    data_path: &Path,
+    title_sort: &TitleSort,
+) -> Result<AnimeList<T>, String> {
     let path = data_path.join("database.db3");
-    let db_connection = Connection::open(path)
-        .map_err(|err| format!("Can't create db connection {err}"))?;
-    db_connection.is_readonly(rusqlite::DatabaseName::Main)
+    let db_connection =
+        Connection::open(path).map_err(|err| format!("Can't create db connection {err}"))?;
+    db_connection
+        .is_readonly(rusqlite::DatabaseName::Main)
         .map_err(|err| format!("Can't check if db is read only {err}"))?;
     match db_connection.execute_batch(
         "

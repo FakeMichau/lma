@@ -1,10 +1,13 @@
 pub mod main_menu;
 pub mod popup;
+use self::popup::{
+    insert_episode::InsertEpisodePopup,
+    insert_show::{InsertPopup, InsertState},
+};
+use crate::app;
 use lma_lib::Service;
 use ratatui::{backend::Backend, Frame};
 use tokio::runtime::Runtime;
-use crate::app;
-use self::popup::{insert_show::{InsertPopup, InsertState}, insert_episode::InsertEpisodePopup};
 
 #[derive(PartialEq, Eq)]
 pub enum FocusedWindow {

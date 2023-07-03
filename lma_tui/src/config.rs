@@ -1,10 +1,10 @@
+use crate::ui::main_menu::HeaderType;
 use crossterm::event::KeyCode;
 use directories::ProjectDirs;
 use lma_lib::{ServiceType, TitleSort};
 use ratatui::style::Color as TermColor;
 use serde::{Deserialize, Serialize};
 use std::{fs, path::PathBuf};
-use crate::ui::main_menu::HeaderType;
 
 #[allow(clippy::struct_excessive_bools)]
 pub struct Config {
@@ -32,37 +32,35 @@ impl TryFrom<HeadersFile> for Headers {
 
     fn try_from(value: HeadersFile) -> Result<Self, String> {
         macro_rules! get_header_vec {
-            ($s:ident) => {
-                {
-                    let mut header_vec: Vec<HeaderType> = Vec::new();
-                    for header in value.$s.split(',') {
-                        let header: Result<_, String> = match header.trim() {
-                            "title" => Ok(
-                                if header_vec.contains(&HeaderType::Title) {
-                                    None
-                                } else {
-                                    Some(HeaderType::title())
-                                }
-                            ),
-                            "number" => Ok(Some(HeaderType::number())),
-                            "extra" => Ok(Some(HeaderType::extra())),
-                            "score" => Ok(Some(HeaderType::score())),
-                            other => return Err(format!("Tring to parse non-existent header: {other}")),
-                        };
-                        let valid_header = header?;
-                        if let Some(header) = valid_header {
-                            header_vec.push(header);
+            ($s:ident) => {{
+                let mut header_vec: Vec<HeaderType> = Vec::new();
+                for header in value.$s.split(',') {
+                    let header: Result<_, String> = match header.trim() {
+                        "title" => Ok(if header_vec.contains(&HeaderType::Title) {
+                            None
+                        } else {
+                            Some(HeaderType::title())
+                        }),
+                        "number" => Ok(Some(HeaderType::number())),
+                        "extra" => Ok(Some(HeaderType::extra())),
+                        "score" => Ok(Some(HeaderType::score())),
+                        other => {
+                            return Err(format!("Tring to parse non-existent header: {other}"))
                         }
+                    };
+                    let valid_header = header?;
+                    if let Some(header) = valid_header {
+                        header_vec.push(header);
                     }
-                    header_vec
                 }
-            };
+                header_vec
+            }};
         }
-    
+
         Ok(Self {
             shows: get_header_vec!(shows),
             episodes: get_header_vec!(episodes),
-        })  
+        })
     }
 }
 
@@ -74,7 +72,7 @@ struct HeadersFile {
 
 impl Default for HeadersFile {
     fn default() -> Self {
-        Self { 
+        Self {
             shows: String::from("title"),
             episodes: String::from("number, title, score, extra"),
         }
@@ -220,10 +218,15 @@ impl TryFrom<Color> for TermColor {
 }
 
 fn split_hex(chars: &[char], size: usize) -> Result<Vec<u8>, String> {
-    chars.chunks(size)
+    chars
+        .chunks(size)
         .map(|chunk| {
             let color = chunk.iter().collect::<String>();
-            let hex_color = if size == 1 { format!("{color}{color}") } else { color };
+            let hex_color = if size == 1 {
+                format!("{color}{color}")
+            } else {
+                color
+            };
             u8::from_str_radix(&hex_color, 16)
         })
         .collect::<Result<Vec<u8>, _>>()
@@ -497,7 +500,7 @@ mod tests {
             english_show_titles: Some(true),
             update_progress_on_start: Some(true),
             relative_episode_score: Some(true),
-            headers: Some(HeadersFile{
+            headers: Some(HeadersFile {
                 shows: String::from("title"),
                 episodes: String::from("title"),
             }),
@@ -566,7 +569,9 @@ mod tests {
 
     #[test]
     fn try_from_valid_color() {
-        let color = Color { hex: "#FF0000".to_string() };
+        let color = Color {
+            hex: "#FF0000".to_string(),
+        };
         let term_color: Result<TermColor, String> = color.try_into();
         assert!(term_color.is_ok());
         assert_eq!(term_color.unwrap(), TermColor::Rgb(255, 0, 0));
@@ -574,7 +579,9 @@ mod tests {
 
     #[test]
     fn try_from_color_no_hash() {
-        let color = Color { hex: "420072".to_string() };
+        let color = Color {
+            hex: "420072".to_string(),
+        };
         let term_color: Result<TermColor, String> = color.try_into();
         assert!(term_color.is_ok());
         assert_eq!(term_color.unwrap(), TermColor::Rgb(66, 0, 114));
@@ -582,7 +589,9 @@ mod tests {
 
     #[test]
     fn try_from_invalid_hex() {
-        let color = Color { hex: "#FF00".to_string() };
+        let color = Color {
+            hex: "#FF00".to_string(),
+        };
         let term_color: Result<TermColor, String> = color.try_into();
         assert!(term_color.is_err());
         assert_eq!(term_color.unwrap_err(), "Wrong hex value: #FF00");

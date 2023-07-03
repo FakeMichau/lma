@@ -1,12 +1,12 @@
+use super::centered_rect;
+use crate::app::App;
+use lma_lib::Service;
 use ratatui::backend::Backend;
-use ratatui::layout::{Margin, Alignment};
-use ratatui::style::{Modifier, Style, Color};
+use ratatui::layout::{Alignment, Margin};
+use ratatui::style::{Color, Modifier, Style};
 use ratatui::text::{Line, Span};
 use ratatui::widgets::{Block, Borders, Clear, Paragraph, Wrap};
 use ratatui::Frame;
-use lma_lib::Service;
-use crate::app::App;
-use super::centered_rect;
 
 pub fn build<B: Backend, T: Service>(frame: &mut Frame<B>, app: &mut App<T>) {
     let area = centered_rect(70, 70, frame.size());
@@ -23,7 +23,7 @@ pub fn build<B: Backend, T: Service>(frame: &mut Frame<B>, app: &mut App<T>) {
             ))]
         },
         |url| {
-            _=open::that(url.clone());
+            _ = open::that(url.clone());
             vec![
                 Line::from(Span::raw("Login using the link below")),
                 Line::from(Span::styled(

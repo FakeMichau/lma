@@ -1,12 +1,12 @@
+use super::centered_rect;
+use crate::app::App;
+use lma_lib::Service;
 use ratatui::backend::Backend;
-use ratatui::layout::{Margin, Alignment};
+use ratatui::layout::{Alignment, Margin};
 use ratatui::style::{Modifier, Style};
 use ratatui::text::{Line, Span};
 use ratatui::widgets::{Block, Borders, Clear, Paragraph, Wrap};
 use ratatui::Frame;
-use lma_lib::Service;
-use crate::app::App;
-use super::centered_rect;
 
 pub fn build<B: Backend, T: Service + Send>(frame: &mut Frame<B>, app: &mut App<T>) {
     let area = centered_rect(70, 70, frame.size());

@@ -1,12 +1,12 @@
-mod shows;
 mod episodes;
 mod help;
+mod shows;
 use super::SelectionDirection;
 use crate::app::App;
 use crate::config::TermColors;
 use lma_lib::{AnimeList, Service, Show};
 use ratatui::backend::Backend;
-use ratatui::layout::{Constraint, Direction, Layout, Rect, Margin};
+use ratatui::layout::{Constraint, Direction, Layout, Margin, Rect};
 use ratatui::style::{Modifier, Style};
 use ratatui::widgets::{Block, Clear};
 use ratatui::widgets::{Row, Table as TableWidget, TableState};
@@ -104,11 +104,15 @@ impl StatefulList {
             SelectionDirection::Next => 1,
             SelectionDirection::Previous => -1,
         };
-        let progress = selected_show.progress.checked_add_signed(offset).unwrap_or_default();
-        let actual_progress = rt.block_on(shows.service.set_progress(
-            selected_show.service_id,
-            progress,
-        ))?;
+        let progress = selected_show
+            .progress
+            .checked_add_signed(offset)
+            .unwrap_or_default();
+        let actual_progress = rt.block_on(
+            shows
+                .service
+                .set_progress(selected_show.service_id, progress),
+        )?;
         shows
             .set_progress(selected_show.local_id, actual_progress)
             .expect("Set local progress");
@@ -185,7 +189,12 @@ pub fn render<B: Backend, T: Service>(frame: &mut Frame<'_, B>, app: &mut App<T>
     help::render(app, top_bottom[1], frame);
 }
 
-fn try_to_scroll_title(width: u16, header: &Vec<HeaderType>, scroll_progress: &mut usize, title: &mut String) {
+fn try_to_scroll_title(
+    width: u16,
+    header: &Vec<HeaderType>,
+    scroll_progress: &mut usize,
+    title: &mut String,
+) {
     let space = usize::from(width - header.sum_consts());
     *title = scroll_text(title.clone(), space, scroll_progress);
 }

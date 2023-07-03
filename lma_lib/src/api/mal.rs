@@ -1,11 +1,14 @@
-use std::path::PathBuf;
+use crate::{
+    AlternativeTitles, EpisodeStatus, Service, ServiceEpisodeDetails, ServiceEpisodeUser,
+    ServiceTitle, ServiceType,
+};
 use async_trait::async_trait;
-use time::OffsetDateTime;
 use lib_mal::prelude::fields::AnimeFields;
 use lib_mal::prelude::options::{Status, StatusUpdate};
 use lib_mal::prelude::ListStatus;
 use lib_mal::{ClientBuilder, MALClientTrait};
-use crate::{ServiceTitle, Service, ServiceType, ServiceEpisodeUser, EpisodeStatus, ServiceEpisodeDetails, AlternativeTitles};
+use std::path::PathBuf;
+use time::OffsetDateTime;
 
 pub struct MAL<T> {
     client: T,
@@ -92,56 +95,63 @@ impl<T: MALClientTrait + Send + Sync> Service for MAL<T> {
             .show
             .title)
     }
-    async fn get_alternative_titles(&mut self, id: usize) -> Result<Option<AlternativeTitles>, String> {
+    async fn get_alternative_titles(
+        &mut self,
+        id: usize,
+    ) -> Result<Option<AlternativeTitles>, String> {
         Ok(self
             .client
             .get_anime_details(id, AnimeFields::AlternativeTitles)
             .await
             .map_err(|err| format!("Alternative anime titles: {err}"))?
             .alternative_titles
-            .map(|titles| {
-                AlternativeTitles {
-                    synonyms: titles.synonyms,
-                    languages: titles.languages,
-                }
+            .map(|titles| AlternativeTitles {
+                synonyms: titles.synonyms,
+                languages: titles.languages,
             }))
     }
     async fn get_episode_count(&mut self, id: usize) -> Result<Option<usize>, String> {
-        Ok(self.client
+        Ok(self
+            .client
             .get_anime_details(id, AnimeFields::NumEpisodes)
             .await
             .map_err(|err| format!("Anime episode count: {err}"))?
             .num_episodes)
     }
-    async fn get_user_entry_details(&mut self, id: usize) -> Result<Option<ServiceEpisodeUser>, String> {
-        Ok(self.client
+    async fn get_user_entry_details(
+        &mut self,
+        id: usize,
+    ) -> Result<Option<ServiceEpisodeUser>, String> {
+        Ok(self
+            .client
             .get_anime_details(id, AnimeFields::MyListStatus)
             .await
             .map_err(|err| format!("Anime details: {err}"))?
             .my_list_status
-            .map(|episode_status| {
-                ServiceEpisodeUser {
-                    status: to_episode_status(episode_status.status),
-                    progress: episode_status.num_episodes_watched,
-                    score: episode_status.score,
-                    is_rewatching: episode_status.is_rewatching,
-                    rewatch_count: episode_status.num_times_rewatched,
-                    updated_at: episode_status.updated_at,
-                    start_date: episode_status.start_date,
-                    finish_date: episode_status.finish_date,
-                    comments: episode_status.comments,
-                }
+            .map(|episode_status| ServiceEpisodeUser {
+                status: to_episode_status(episode_status.status),
+                progress: episode_status.num_episodes_watched,
+                score: episode_status.score,
+                is_rewatching: episode_status.is_rewatching,
+                rewatch_count: episode_status.num_times_rewatched,
+                updated_at: episode_status.updated_at,
+                start_date: episode_status.start_date,
+                finish_date: episode_status.finish_date,
+                comments: episode_status.comments,
             }))
     }
-    async fn get_episodes(&mut self, id: usize, precise_score: bool) -> Result<Vec<ServiceEpisodeDetails>, String> {
+    async fn get_episodes(
+        &mut self,
+        id: usize,
+        precise_score: bool,
+    ) -> Result<Vec<ServiceEpisodeDetails>, String> {
         self.client
             .get_anime_episodes(id, precise_score)
             .await
             .map(|episodes| episodes.data)
             .map(|vec| {
                 vec.into_iter()
-                .map(|episode| {
-                    ServiceEpisodeDetails {
+                    .map(|episode| ServiceEpisodeDetails {
                         number: episode.mal_id,
                         title: episode.title,
                         title_japanese: episode.title_japanese,
@@ -151,9 +161,8 @@ impl<T: MALClientTrait + Send + Sync> Service for MAL<T> {
                         score: episode.score,
                         filler: episode.filler,
                         recap: episode.recap,
-                    }
-                })
-                .collect::<Vec<_>>()
+                    })
+                    .collect::<Vec<_>>()
             })
             .map_err(|err| format!("Get episodes: {err}"))
     }
@@ -174,18 +183,22 @@ impl<T: MALClientTrait + Send + Sync> Service for MAL<T> {
             update.start_date(&format!("{local_date}"));
             self.update_status(id, update).await?;
         }
-        let episode_count = self.client
+        let episode_count = self
+            .client
             .get_anime_details(id, AnimeFields::NumEpisodes)
             .await
             .map_err(|err| format!("Anime details: {err}"))?
             .num_episodes
-            .map_or(usize::MAX, |count| {
-                if count == 0 {
-                    usize::MAX
-                } else {
-                    count
-                }
-            });
+            .map_or(
+                usize::MAX,
+                |count| {
+                    if count == 0 {
+                        usize::MAX
+                    } else {
+                        count
+                    }
+                },
+            );
         let actual_progress = updated_status.num_episodes_watched.unwrap_or(progress);
         if actual_progress >= episode_count {
             let mut update = StatusUpdate::new();
@@ -210,7 +223,11 @@ impl<T: MALClientTrait + Send + Sync> Service for MAL<T> {
 }
 
 impl<T: MALClientTrait + Send + Sync> MAL<T> {
-    async fn update_status(&mut self, id: usize, update: StatusUpdate) -> Result<ListStatus, String> {
+    async fn update_status(
+        &mut self,
+        id: usize,
+        update: StatusUpdate,
+    ) -> Result<ListStatus, String> {
         self.client
             .update_user_anime_status(id, update)
             .await
@@ -219,15 +236,13 @@ impl<T: MALClientTrait + Send + Sync> MAL<T> {
 }
 
 fn to_episode_status(status: Option<String>) -> Option<EpisodeStatus> {
-    status.map(|status_str| {
-        match status_str.as_str() {
-            "watching" => EpisodeStatus::Watching,
-            "completed" => EpisodeStatus::Completed,
-            "on_hold" => EpisodeStatus::OnHold,
-            "dropped" => EpisodeStatus::Dropped,
-            "plan_to_watch" => EpisodeStatus::PlanToWatch,
-            _ => EpisodeStatus::None,
-        }
+    status.map(|status_str| match status_str.as_str() {
+        "watching" => EpisodeStatus::Watching,
+        "completed" => EpisodeStatus::Completed,
+        "on_hold" => EpisodeStatus::OnHold,
+        "dropped" => EpisodeStatus::Dropped,
+        "plan_to_watch" => EpisodeStatus::PlanToWatch,
+        _ => EpisodeStatus::None,
     })
 }
 
@@ -305,7 +320,10 @@ mod tests {
         assert_eq!(details.score, Some(0));
         assert_eq!(details.rewatch_count, Some(0));
         assert_eq!(details.is_rewatching, Some(false));
-        assert_eq!(details.updated_at, Some(String::from("2017-11-11T19:51:22+00:00")));
+        assert_eq!(
+            details.updated_at,
+            Some(String::from("2017-11-11T19:51:22+00:00"))
+        );
     }
 
     #[tokio::test]
@@ -334,21 +352,21 @@ mod tests {
         assert!(url.is_none());
     }
 
-    async fn create_logged_in_client() -> MAL::<MockMALClient> {
+    async fn create_logged_in_client() -> MAL<MockMALClient> {
         let mut client = generate_test_client();
-        _=client.login().await;
+        _ = client.login().await;
         client
     }
 
-    fn generate_test_client() -> MAL::<MockMALClient> {
+    fn generate_test_client() -> MAL<MockMALClient> {
         MAL::<MockMALClient> {
             client: MockMALClient::new(
-                String::from("client_secret"), 
-                PathBuf::new(), 
-                String::new(), 
-                Client::new(), 
-                false, 
-                true
+                String::from("client_secret"),
+                PathBuf::new(),
+                String::new(),
+                Client::new(),
+                false,
+                true,
             ),
             challenge: String::new(),
             state: String::new(),
