@@ -1,12 +1,12 @@
 use crate::app::App;
 use crate::config::KeyBinds;
-use crate::ui::FocusedWindow;
 use crate::ui::popup::insert_show::InsertState;
+use crate::ui::FocusedWindow;
 use crossterm::event::KeyCode;
 use lma_lib::Service;
 use ratatui::backend::Backend;
 use ratatui::layout::Rect;
-use ratatui::style::{Color, Style, Modifier};
+use ratatui::style::{Color, Modifier, Style};
 use ratatui::text::Span;
 use ratatui::widgets::Paragraph;
 use ratatui::{text::Line, Frame};
@@ -22,32 +22,25 @@ pub fn render<B: Backend, T: Service>(app: &mut App<T>, area: Rect, frame: &mut 
     frame.render_widget(help, area);
 }
 
-
 fn build_help<'a>(
     focused_window: &FocusedWindow,
-    insert_state: &InsertState,
+    insert_show_state: &InsertState,
     insert_episode_state: &InsertState,
     bg_color: Color,
     key_binds: &KeyBinds,
 ) -> Paragraph<'a> {
-    // Create help text at the bottom
-    let navigation = HelpItem::new("Navigation", &Function::Navigation, key_binds, bg_color);
-    let insert = HelpItem::new("Insert new show", &Function::NewShow, key_binds, bg_color);
-    let delete = HelpItem::new("Delete the entry", &Function::Delete, key_binds, bg_color);
-    let go_back = HelpItem::new("Go back", &Function::Close, key_binds, bg_color);
-    let close_window = HelpItem::new("Close the window", &Function::Close, key_binds, bg_color);
-    let exit_input = HelpItem::new("Stop inputting", &Function::Close, key_binds, bg_color);
-    let start_input = HelpItem::new(
-        "Start inputting",
-        &Function::EnterInput,
-        key_binds,
-        bg_color,
-    );
-    let confirm = HelpItem::new("Confirm", &Function::Confirmation, key_binds, bg_color);
-    let login = HelpItem::new("Login", &Function::Login, key_binds, bg_color);
-    let progress = HelpItem::new("Progress", &Function::Progress, key_binds, bg_color);
-    let insert_episode = HelpItem::new("Add episode", &Function::NewEpisode, key_binds, bg_color);
-    let quit = HelpItem::new("Quit", &Function::Quit, key_binds, bg_color);
+    let navigation = HelpItem::new("Navigation", &Action::Navigation, key_binds, bg_color);
+    let insert = HelpItem::new("Insert new show", &Action::NewShow, key_binds, bg_color);
+    let delete = HelpItem::new("Delete the entry", &Action::Delete, key_binds, bg_color);
+    let go_back = HelpItem::new("Go back", &Action::Close, key_binds, bg_color);
+    let close_window = HelpItem::new("Close the window", &Action::Close, key_binds, bg_color);
+    let exit_input = HelpItem::new("Stop inputting", &Action::Close, key_binds, bg_color);
+    let start_input = HelpItem::new("Start inputting", &Action::EnterInput, key_binds, bg_color);
+    let confirm = HelpItem::new("Confirm", &Action::Confirmation, key_binds, bg_color);
+    let login = HelpItem::new("Login", &Action::Login, key_binds, bg_color);
+    let progress = HelpItem::new("Progress", &Action::Progress, key_binds, bg_color);
+    let insert_episode = HelpItem::new("Add episode", &Action::NewEpisode, key_binds, bg_color);
+    let quit = HelpItem::new("Quit", &Action::Quit, key_binds, bg_color);
 
     let mut information = Vec::new();
     match focused_window {
@@ -62,7 +55,7 @@ fn build_help<'a>(
         }
         FocusedWindow::InsertPopup => {
             information.extend(navigation);
-            match insert_state {
+            match insert_show_state {
                 InsertState::Inputting | InsertState::Next => {
                     information.extend(confirm);
                     information.extend(exit_input);
@@ -107,7 +100,7 @@ fn build_help<'a>(
     Paragraph::new(Line::from(information))
 }
 
-enum Function {
+enum Action {
     Navigation,
     Progress,
     Confirmation,
@@ -128,7 +121,7 @@ struct HelpItem<'a> {
 }
 
 impl<'a> HelpItem<'a> {
-    fn new(text: &'a str, name: &Function, key_binds: &KeyBinds, highlight_color: Color) -> Self {
+    fn new(text: &'a str, name: &Action, key_binds: &KeyBinds, highlight_color: Color) -> Self {
         let text_style = Style::default().bg(highlight_color);
         let key_style = text_style.add_modifier(Modifier::BOLD);
         let key = key_to_abbr(key_binds, name);
@@ -155,9 +148,9 @@ impl<'a> IntoIterator for HelpItem<'a> {
     }
 }
 
-fn key_to_abbr(key: &KeyBinds, name: &Function) -> String {
+fn key_to_abbr(key: &KeyBinds, name: &Action) -> String {
     match name {
-        Function::Navigation => {
+        Action::Navigation => {
             if key.move_up == KeyCode::Up
                 && key.move_down == KeyCode::Down
                 && key.backwards == KeyCode::Left
@@ -174,7 +167,7 @@ fn key_to_abbr(key: &KeyBinds, name: &Function) -> String {
                 )
             }
         }
-        Function::Progress => {
+        Action::Progress => {
             if key.progress_inc == KeyCode::Char('.') && key.progress_dec == KeyCode::Char(',') {
                 String::from("< >")
             } else {
@@ -185,14 +178,14 @@ fn key_to_abbr(key: &KeyBinds, name: &Function) -> String {
                 )
             }
         }
-        Function::Confirmation => keycode_to_key(key.confirmation),
-        Function::Close => keycode_to_key(key.close),
-        Function::Delete => keycode_to_key(key.delete),
-        Function::Quit => keycode_to_key(key.quit),
-        Function::EnterInput => keycode_to_key(key.enter_inputting),
-        Function::NewShow => keycode_to_key(key.new_show),
-        Function::NewEpisode => keycode_to_key(key.new_episode),
-        Function::Login => keycode_to_key(key.login),
+        Action::Confirmation => keycode_to_key(key.confirmation),
+        Action::Close => keycode_to_key(key.close),
+        Action::Delete => keycode_to_key(key.delete),
+        Action::Quit => keycode_to_key(key.quit),
+        Action::EnterInput => keycode_to_key(key.enter_inputting),
+        Action::NewShow => keycode_to_key(key.new_show),
+        Action::NewEpisode => keycode_to_key(key.new_episode),
+        Action::Login => keycode_to_key(key.login),
     }
 }
 
@@ -231,7 +224,7 @@ fn keycode_to_key(keycode: KeyCode) -> String {
 #[cfg(test)]
 mod tests {
     use super::*;
-    
+
     #[test]
     fn help_item() {
         let highlight_color = Color::Rgb(0, 0, 0);
@@ -239,7 +232,8 @@ mod tests {
             quit: KeyCode::Char('q'),
             ..Default::default()
         };
-        let mut test_item = HelpItem::new("Testing", &Function::Quit, &key_binds, highlight_color).into_iter();
+        let mut test_item =
+            HelpItem::new("Testing", &Action::Quit, &key_binds, highlight_color).into_iter();
 
         let text_style = Style::default().bg(highlight_color);
         let key_style = text_style.add_modifier(Modifier::BOLD);
