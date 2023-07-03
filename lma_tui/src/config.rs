@@ -31,35 +31,31 @@ impl TryFrom<HeadersFile> for Headers {
     type Error = String;
 
     fn try_from(value: HeadersFile) -> Result<Self, String> {
-        macro_rules! get_header_vec {
-            ($s:ident) => {{
-                let mut header_vec: Vec<HeaderType> = Vec::new();
-                for header in value.$s.split(',') {
-                    let header: Result<_, String> = match header.trim() {
-                        "title" => Ok(if header_vec.contains(&HeaderType::Title) {
-                            None
-                        } else {
-                            Some(HeaderType::title())
-                        }),
-                        "number" => Ok(Some(HeaderType::number())),
-                        "extra" => Ok(Some(HeaderType::extra())),
-                        "score" => Ok(Some(HeaderType::score())),
-                        other => {
-                            return Err(format!("Trying to parse non-existent header: {other}"))
-                        }
-                    };
-                    let valid_header = header?;
-                    if let Some(header) = valid_header {
-                        header_vec.push(header);
-                    }
+        let get_header_vec = |str: &str| -> Result<Vec<HeaderType>, String> {
+            let mut header_vec: Vec<HeaderType> = Vec::new();
+            for header in str.split(',') {
+                let header: Result<_, String> = match header.trim() {
+                    "title" => Ok(if header_vec.contains(&HeaderType::Title) {
+                        None
+                    } else {
+                        Some(HeaderType::title())
+                    }),
+                    "number" => Ok(Some(HeaderType::number())),
+                    "extra" => Ok(Some(HeaderType::extra())),
+                    "score" => Ok(Some(HeaderType::score())),
+                    other => Err(format!("Trying to parse non-existent header: {other}"))?,
+                };
+                let valid_header = header?;
+                if let Some(header) = valid_header {
+                    header_vec.push(header);
                 }
-                header_vec
-            }};
-        }
+            }
+            Ok(header_vec)
+        };
 
         Ok(Self {
-            shows: get_header_vec!(shows),
-            episodes: get_header_vec!(episodes),
+            shows: get_header_vec(&value.shows)?,
+            episodes: get_header_vec(&value.episodes)?,
         })
     }
 }
