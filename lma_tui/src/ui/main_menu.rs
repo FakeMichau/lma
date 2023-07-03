@@ -146,7 +146,7 @@ impl StatefulList {
                         .map_or(0, |pos| (pos + 1) % show.episodes.len());
 
                     self.episodes_state.select(Some(index));
-                    self.selecting_episode = true;
+                    self.set_selecting_episode(true);
                 }
             }
         }
@@ -154,12 +154,17 @@ impl StatefulList {
     }
     pub fn unselect(&mut self) {
         self.episodes_state.select(None);
-        self.selecting_episode = false;
+        self.set_selecting_episode(false);
     }
 
     pub fn update_cache<T: Service>(&mut self, shows: &AnimeList<T>) -> Result<(), String> {
         self.list_cache = shows.get_list().map_err(|e| e.to_string())?;
         Ok(())
+    }
+
+    fn set_selecting_episode(&mut self, selecting_episode: bool) {
+        self.scroll_progress = 0;
+        self.selecting_episode = selecting_episode;
     }
 }
 
