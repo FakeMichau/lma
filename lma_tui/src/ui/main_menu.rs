@@ -219,8 +219,10 @@ fn render_shows<B: Backend, T: Service>(app: &mut App<T>, area: Rect, frame: &mu
             if selected_show_id == Some(show.local_id) && !app.list_state.selecting_episode {
                 try_to_scroll_title(table_area.width, header, &mut progress, &mut title);
             }
-
-            let style = Style::default().fg(app.config.colors().text);
+            let mut style = Style::default().fg(app.config.colors().text);
+            if show.progress >= show.episodes.len() as i64 {
+                style = style.add_modifier(Modifier::DIM);
+            }
             let cells = generate_show_cells(show, header, style, &title);
             Row::new(cells)
         })
@@ -321,7 +323,7 @@ fn render_episodes<B: Backend, T: Service>(app: &mut App<T>, area: Rect, frame: 
                         &mut episode_display_name,
                     );
                 }
-                let style = get_style(episode, show, app.config.colors());
+                let style = get_episode_style(episode, show, app.config.colors());
                 let cells = generate_episode_cells(
                     episode,
                     &header,
@@ -442,7 +444,7 @@ fn get_display_name(episode: &Episode, use_path: bool) -> String {
     }
 }
 
-fn get_style(episode: &Episode, show: &Show, colors: &TermColors) -> Style {
+fn get_episode_style(episode: &Episode, show: &Show, colors: &TermColors) -> Style {
     let mut style = Style::default();
     if episode.number <= show.progress {
         style = style.fg(colors.text).add_modifier(Modifier::DIM);
