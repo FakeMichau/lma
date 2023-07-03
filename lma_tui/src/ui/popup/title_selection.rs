@@ -1,10 +1,13 @@
+use crate::{
+    app::App,
+    ui::{self, SelectionDirection},
+};
+use lma_lib::{Service, ServiceTitle};
 use ratatui::backend::Backend;
 use ratatui::layout::Margin;
 use ratatui::style::{Modifier, Style};
 use ratatui::widgets::{Block, Borders, Clear, List, ListItem, ListState};
 use ratatui::Frame;
-use lma_lib::{ServiceTitle, Service};
-use crate::{ui::{SelectionDirection, self}, app::App};
 
 #[derive(Default)]
 pub struct TitlesPopup {
@@ -53,7 +56,10 @@ pub fn build<B: Backend, T: Service>(frame: &mut Frame<B>, app: &mut App<T>) {
         .titles_popup
         .service_titles
         .iter()
-        .map(|service_title| ListItem::new(service_title.title.clone()).style(Style::default().fg(app.config.colors().text)))
+        .map(|service_title| {
+            ListItem::new(service_title.title.clone())
+                .style(Style::default().fg(app.config.colors().text))
+        })
         .collect();
 
     let items = List::new(items)
@@ -112,11 +118,11 @@ mod tests {
         assert_eq!(selected_show.service_id, 1);
     }
 
-    fn generate_title_popup(count: u32) -> TitlesPopup {
+    fn generate_title_popup(count: usize) -> TitlesPopup {
         TitlesPopup::new(generate_title_services(count))
     }
 
-    fn generate_title_services(count: u32) -> Vec<ServiceTitle> {
+    fn generate_title_services(count: usize) -> Vec<ServiceTitle> {
         let mut service_titles = Vec::new();
         for i in 1..=count {
             service_titles.push(ServiceTitle {

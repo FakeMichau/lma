@@ -51,7 +51,7 @@ impl<T: MALClientTrait + Send + Sync> Service for MAL<T> {
             None
         }
     }
-    async fn init_show(&mut self, id: u32) -> Result<(), String> {
+    async fn init_show(&mut self, id: usize) -> Result<(), String> {
         if self.get_user_entry_details(id).await?.is_none() {
             // add to plan to watch
             let mut update = StatusUpdate::new();
@@ -83,7 +83,7 @@ impl<T: MALClientTrait + Send + Sync> Service for MAL<T> {
             })
             .collect())
     }
-    async fn get_title(&mut self, id: u32) -> Result<String, String> {
+    async fn get_title(&mut self, id: usize) -> Result<String, String> {
         Ok(self
             .client
             .get_anime_details(id, AnimeFields::Title)
@@ -92,7 +92,7 @@ impl<T: MALClientTrait + Send + Sync> Service for MAL<T> {
             .show
             .title)
     }
-    async fn get_alternative_titles(&mut self, id: u32) -> Result<Option<AlternativeTitles>, String> {
+    async fn get_alternative_titles(&mut self, id: usize) -> Result<Option<AlternativeTitles>, String> {
         Ok(self
             .client
             .get_anime_details(id, AnimeFields::AlternativeTitles)
@@ -106,14 +106,14 @@ impl<T: MALClientTrait + Send + Sync> Service for MAL<T> {
                 }
             }))
     }
-    async fn get_episode_count(&mut self, id: u32) -> Result<Option<u32>, String> {
+    async fn get_episode_count(&mut self, id: usize) -> Result<Option<usize>, String> {
         Ok(self.client
             .get_anime_details(id, AnimeFields::NumEpisodes)
             .await
             .map_err(|err| format!("Anime episode count: {err}"))?
             .num_episodes)
     }
-    async fn get_user_entry_details(&mut self, id: u32) -> Result<Option<ServiceEpisodeUser>, String> {
+    async fn get_user_entry_details(&mut self, id: usize) -> Result<Option<ServiceEpisodeUser>, String> {
         Ok(self.client
             .get_anime_details(id, AnimeFields::MyListStatus)
             .await
@@ -133,7 +133,7 @@ impl<T: MALClientTrait + Send + Sync> Service for MAL<T> {
                 }
             }))
     }
-    async fn get_episodes(&mut self, id: u32, precise_score: bool) -> Result<Vec<ServiceEpisodeDetails>, String> {
+    async fn get_episodes(&mut self, id: usize, precise_score: bool) -> Result<Vec<ServiceEpisodeDetails>, String> {
         self.client
             .get_anime_episodes(id, precise_score)
             .await
@@ -157,7 +157,7 @@ impl<T: MALClientTrait + Send + Sync> Service for MAL<T> {
             })
             .map_err(|err| format!("Get episodes: {err}"))
     }
-    async fn set_progress(&mut self, id: u32, progress: u32) -> Result<u32, String> {
+    async fn set_progress(&mut self, id: usize, progress: usize) -> Result<usize, String> {
         let mut update = StatusUpdate::new();
         update.num_watched_episodes(progress);
         if progress == 0 {
@@ -179,9 +179,9 @@ impl<T: MALClientTrait + Send + Sync> Service for MAL<T> {
             .await
             .map_err(|err| format!("Anime details: {err}"))?
             .num_episodes
-            .map_or(u32::MAX, |count| {
+            .map_or(usize::MAX, |count| {
                 if count == 0 {
-                    u32::MAX
+                    usize::MAX
                 } else {
                     count
                 }
@@ -210,7 +210,7 @@ impl<T: MALClientTrait + Send + Sync> Service for MAL<T> {
 }
 
 impl<T: MALClientTrait + Send + Sync> MAL<T> {
-    async fn update_status(&mut self, id: u32, update: StatusUpdate) -> Result<ListStatus, String> {
+    async fn update_status(&mut self, id: usize, update: StatusUpdate) -> Result<ListStatus, String> {
         self.client
             .update_user_anime_status(id, update)
             .await

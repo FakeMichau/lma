@@ -1,15 +1,15 @@
+use super::insert_show::InsertState;
+use super::{centered_rect, insert_show};
+use crate::app::App;
+use crate::ui::{FocusedWindow, SelectionDirection};
+use lma_lib::{is_video_file, Episode, Service};
 use ratatui::backend::Backend;
-use ratatui::layout::{Margin, Layout, Direction, Constraint, Alignment};
+use ratatui::layout::{Alignment, Constraint, Direction, Layout, Margin};
 use ratatui::style::{Modifier, Style};
 use ratatui::text::{Line, Span};
 use ratatui::widgets::{Block, Borders, Clear, Paragraph, Wrap};
 use ratatui::Frame;
 use tokio::runtime::Runtime;
-use lma_lib::{Episode, Service, is_video_file};
-use super::insert_show::InsertState;
-use super::{centered_rect, insert_show};
-use crate::app::App;
-use crate::ui::{FocusedWindow, SelectionDirection};
 
 #[derive(Default)]
 pub struct InsertEpisodePopup {
@@ -48,12 +48,11 @@ pub fn build<B: Backend, T: Service + Send>(
         .map(|show| show.title.clone())
         .unwrap_or_default();
     let title_line = vec![
-        Line::from(vec![
-            Span::raw("Adding episodes to:"),
-        ]),
-        Line::from(vec![
-            Span::styled(title, Style::default().add_modifier(Modifier::BOLD)),
-        ])
+        Line::from(vec![Span::raw("Adding episodes to:")]),
+        Line::from(vec![Span::styled(
+            title,
+            Style::default().add_modifier(Modifier::BOLD),
+        )]),
     ];
 
     let input_form = Line::from(vec![
@@ -73,7 +72,7 @@ pub fn build<B: Backend, T: Service + Send>(
     // .wrap(Wrap { trim: true }); messes up the cursor position
     let title = Paragraph::new(title_line)
         .alignment(Alignment::Center)
-        .wrap( Wrap { trim: true } );
+        .wrap(Wrap { trim: true });
     let form = Paragraph::new(input_form);
     frame.render_widget(Clear, area);
     frame.render_widget(block, area);
@@ -119,18 +118,17 @@ fn handle_save_state<T: Service + Send>(app: &mut App<T>, rt: &Runtime) -> Resul
 fn insert_episode<T: Service + Send>(
     rt: &Runtime,
     app: &mut App<T>,
-    local_id: i64,
-    service_id: i64,
+    local_id: usize,
+    service_id: usize,
 ) -> Result<(), String> {
     // service_id is fine because hashmap can be empty here
     let episodes_details_hash = rt.block_on(insert_show::get_episodes_info(
         &mut app.anime_list.service,
-        u32::try_from(service_id).map_err(|e| e.to_string())?,
+        service_id,
     ))?;
     let episode = &app.insert_episode_popup.episode;
     let details = episodes_details_hash
-        .get(&u32::try_from(episode.number)
-        .map_err(|e| e.to_string())?)
+        .get(&episode.number)
         .cloned()
         .unwrap_or_default();
 
@@ -140,7 +138,7 @@ fn insert_episode<T: Service + Send>(
         &episode.path.to_string_lossy(),
         &details.title,
         insert_show::generate_extra_info(details.recap, details.filler),
-        details.score.unwrap_or_default()
+        details.score.unwrap_or_default(),
     ) {
         eprintln!("{why}");
     }

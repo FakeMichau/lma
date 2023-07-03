@@ -1,22 +1,22 @@
-use std::collections::HashMap;
-use std::path::PathBuf;
+use super::{centered_rect, episode_mismatch::MismatchPopup, title_selection::TitlesPopup};
+use crate::app::App;
+use crate::ui::{FocusedWindow, SelectionDirection};
+use lma_lib::{AnimeList, Episode, Service, ServiceType};
 use ratatui::backend::Backend;
 use ratatui::layout::Margin;
 use ratatui::text::{Line, Span};
 use ratatui::widgets::{Block, Borders, Clear, Paragraph};
 use ratatui::Frame;
+use std::collections::HashMap;
+use std::path::PathBuf;
 use tokio::runtime::Runtime;
-use lma_lib::{AnimeList, Episode, Service, ServiceType};
-use super::{centered_rect, episode_mismatch::MismatchPopup, title_selection::TitlesPopup};
-use crate::app::App;
-use crate::ui::{FocusedWindow, SelectionDirection};
 
 #[derive(Default)]
 pub struct InsertPopup {
     pub path: PathBuf,
     title: String,
-    pub service_id: i64,
-    episode_count: i64,
+    pub service_id: usize,
+    episode_count: usize,
     pub state: InsertState,
     pub data: String,
     pub episodes: Vec<Episode>,
@@ -195,18 +195,18 @@ fn handle_forth_line<T: Service>(app: &mut App<T>, rt: &Runtime) -> Result<(), S
     }
     // compare number of video files with the retrieved number of episodes
     let episode_count = rt
-        .block_on(app.anime_list.service.get_episode_count(
-            u32::try_from(app.insert_popup.service_id).map_err(|e| e.to_string())?,
-        ))?
+        .block_on(
+            app.anime_list
+                .service
+                .get_episode_count(app.insert_popup.service_id),
+        )?
         .unwrap_or_default();
-    let video_files_count = u32::try_from(
-        app.anime_list
-            .count_video_files(&app.insert_popup.path)
-            .unwrap_or_default(),
-    )
-    .map_err(|e| e.to_string())?;
+    let video_files_count = app
+        .anime_list
+        .count_video_files(&app.insert_popup.path)
+        .unwrap_or_default();
 
-    app.insert_popup.episode_count = episode_count.into();
+    app.insert_popup.episode_count = episode_count;
     if episode_count == video_files_count
         || app.anime_list.service.get_service_type() == ServiceType::Local
     {
@@ -215,7 +215,7 @@ fn handle_forth_line<T: Service>(app: &mut App<T>, rt: &Runtime) -> Result<(), S
             .into_iter()
             .enumerate()
             .map(|(k, path)| Episode {
-                number: k as i64 + 1,
+                number: k + 1,
                 path: path.clone(),
                 title: String::new(),
                 file_deleted: !path.exists(),
@@ -236,18 +236,24 @@ fn handle_forth_line<T: Service>(app: &mut App<T>, rt: &Runtime) -> Result<(), S
 
 fn fill_title<T: Service>(app: &mut App<T>, rt: &Runtime) -> Result<(), String> {
     let mut title = if app.config.english_show_titles() {
-        let titles = rt.block_on(app.anime_list.service.get_alternative_titles(
-            u32::try_from(app.insert_popup.service_id).map_err(|e| e.to_string())?,
-        ))?;
+        let titles = rt.block_on(
+            app.anime_list
+                .service
+                .get_alternative_titles(app.insert_popup.service_id),
+        )?;
         let title_languages = titles.map(|options| options.languages).unwrap_or_default();
         title_languages.get("en").cloned()
     } else {
         None
     };
     if title.is_none() {
-        title = Some(rt.block_on(app.anime_list.service.get_title(
-            u32::try_from(app.insert_popup.service_id).map_err(|e| e.to_string())?,
-        ))?);
+        title = Some(
+            rt.block_on(
+                app.anime_list
+                    .service
+                    .get_title(app.insert_popup.service_id),
+            )?,
+        );
     }
     if app.anime_list.service.get_service_type() != ServiceType::Local {
         app.insert_popup.title = title.expect("Has to be set at this point");
@@ -265,9 +271,7 @@ fn handle_save_state<T: Service + Send>(app: &mut App<T>, rt: &Runtime) -> Resul
             rt.block_on(async {
                 app.anime_list
                     .service
-                    .init_show(
-                        u32::try_from(app.insert_popup.service_id).map_err(|e| e.to_string())?,
-                    )
+                    .init_show(app.insert_popup.service_id)
                     .await
             })
         }
@@ -298,12 +302,12 @@ fn handle_save_state<T: Service + Send>(app: &mut App<T>, rt: &Runtime) -> Resul
 fn insert_episodes<T: Service + Send>(
     rt: &Runtime,
     app: &mut App<T>,
-    local_id: i64,
+    local_id: usize,
 ) -> Result<(), String> {
     // service_id is fine because hashmap can be empty here
     let episodes_details_hash = rt.block_on(get_episodes_info(
         &mut app.anime_list.service,
-        u32::try_from(app.insert_popup.service_id).map_err(|e| e.to_string())?,
+        app.insert_popup.service_id,
     ))?;
     // surely I can be smarter about it
     let episode_offset = if app.anime_list.service.get_service_type() == ServiceType::Local {
@@ -316,13 +320,13 @@ fn insert_episodes<T: Service + Send>(
                     .map(|show| show.episodes.len())
                     .unwrap_or_default()
             })
-            .unwrap_or_default() as i64
+            .unwrap_or_default()
     } else {
         0
     };
     app.insert_popup.episodes.iter().for_each(|episode| {
         let details = episodes_details_hash
-            .get(&u32::try_from(episode.number).unwrap_or_default())
+            .get(&episode.number)
             .cloned()
             .unwrap_or_default();
         if let Err(why) = app.anime_list.add_episode(
@@ -331,7 +335,7 @@ fn insert_episodes<T: Service + Send>(
             &episode.path.to_string_lossy(),
             &details.title,
             generate_extra_info(details.recap, details.filler),
-            details.score.unwrap_or_default()
+            details.score.unwrap_or_default(),
         ) {
             eprintln!("{why}");
         }
@@ -349,8 +353,8 @@ pub struct EpisodeDetails {
 
 pub async fn get_episodes_info<T: Service + Send>(
     service: &mut T,
-    id: u32,
-) -> Result<HashMap<u32, EpisodeDetails>, String> {
+    id: usize,
+) -> Result<HashMap<usize, EpisodeDetails>, String> {
     let episodes_details = service.get_episodes(id, true).await?;
     Ok(episodes_details
         .iter()
@@ -368,8 +372,8 @@ pub async fn get_episodes_info<T: Service + Send>(
         .collect())
 }
 
-pub const fn generate_extra_info(recap: bool, filler: bool) -> i64 {
-    let mut extra_info: i64 = 0;
+pub const fn generate_extra_info(recap: bool, filler: bool) -> usize {
+    let mut extra_info: usize = 0;
     if recap {
         extra_info |= 1 << 0;
     }
@@ -380,7 +384,7 @@ pub const fn generate_extra_info(recap: bool, filler: bool) -> i64 {
 }
 
 /// Clears the string on an invalid number
-fn parse_number(str: &mut String) -> i64 {
+fn parse_number(str: &mut String) -> usize {
     str.trim().parse().map_or_else(
         |_| {
             *str = String::new();

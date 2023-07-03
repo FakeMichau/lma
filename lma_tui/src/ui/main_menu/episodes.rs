@@ -144,7 +144,7 @@ fn generate_cells<'a>(
         .collect::<Vec<_>>()
 }
 
-fn get_style(episode: &Episode, progress: i64, colors: &TermColors) -> Style {
+fn get_style(episode: &Episode, progress: usize, colors: &TermColors) -> Style {
     let mut style = Style::default();
     if episode.number <= progress {
         style = style.fg(colors.text).add_modifier(Modifier::DIM);
@@ -157,7 +157,7 @@ fn get_style(episode: &Episode, progress: i64, colors: &TermColors) -> Style {
     style
 }
 
-fn get_selected_episode_number(episode_state: &TableState, show: &Show) -> Option<i64> {
+fn get_selected_episode_number(episode_state: &TableState, show: &Show) -> Option<usize> {
     episode_state
         .selected()
         .and_then(|index| show.episodes.get(index))

@@ -20,28 +20,28 @@ impl Service for Local {
     }
     async fn auth(&mut self) {
     }
-    async fn init_show(&mut self, _id: u32) -> Result<(), String> {
+    async fn init_show(&mut self, _id: usize) -> Result<(), String> {
         Ok(())
     }
     async fn search_title(&mut self, _potential_title: &str) -> Result<Vec<ServiceTitle>, String> {
         Ok(Vec::new())
     }
-    async fn get_title(&mut self, _id: u32) -> Result<String, String> {
+    async fn get_title(&mut self, _id: usize) -> Result<String, String> {
         Ok(String::new())
     }
-    async fn get_alternative_titles(&mut self, _id: u32) -> Result<Option<AlternativeTitles>, String> {
+    async fn get_alternative_titles(&mut self, _id: usize) -> Result<Option<AlternativeTitles>, String> {
         Ok(None)
     }
-    async fn get_episode_count(&mut self, _id: u32) -> Result<Option<u32>, String> {
+    async fn get_episode_count(&mut self, _id: usize) -> Result<Option<usize>, String> {
         Ok(None)
     }
-    async fn get_user_entry_details(&mut self, _id: u32) -> Result<Option<ServiceEpisodeUser>, String> {
+    async fn get_user_entry_details(&mut self, _id: usize) -> Result<Option<ServiceEpisodeUser>, String> {
         Ok(None)
     }
-    async fn get_episodes(&mut self, _id: u32, _precise_score: bool) -> Result<Vec<ServiceEpisodeDetails>, String> {
+    async fn get_episodes(&mut self, _id: usize, _precise_score: bool) -> Result<Vec<ServiceEpisodeDetails>, String> {
         Ok(Vec::new())
     }
-    async fn set_progress(&mut self, _id: u32, progress: u32) -> Result<u32, String> {
+    async fn set_progress(&mut self, _id: usize, progress: usize) -> Result<usize, String> {
         Ok(progress)
     }
     fn get_service_type(&self) -> ServiceType {

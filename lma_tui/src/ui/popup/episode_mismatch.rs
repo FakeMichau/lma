@@ -1,23 +1,23 @@
-use std::collections::BTreeSet;
-use std::path::PathBuf;
+use crate::app::App;
+use lma_lib::{AnimeList, Episode, Service};
 use ratatui::backend::Backend;
-use ratatui::layout::{Alignment, Margin, Layout, Direction, Constraint};
+use ratatui::layout::{Alignment, Constraint, Direction, Layout, Margin};
 use ratatui::style::{Modifier, Style};
 use ratatui::text::{Line, Span};
 use ratatui::widgets::{Block, Borders, Clear, Paragraph};
 use ratatui::Frame;
-use lma_lib::{AnimeList, Episode, Service};
-use crate::app::App;
+use std::collections::BTreeSet;
+use std::path::PathBuf;
 
 #[derive(Default)]
 pub struct MismatchPopup {
-    episodes_count: u32,
-    video_files_count: u32,
+    episodes_count: usize,
+    video_files_count: usize,
     pub owned_episodes: String,
 }
 
 impl MismatchPopup {
-    pub const fn new(episodes_count: u32, video_files_count: u32) -> Self {
+    pub const fn new(episodes_count: usize, video_files_count: usize) -> Self {
         Self {
             episodes_count,
             video_files_count,
@@ -33,8 +33,7 @@ impl MismatchPopup {
             .map(|path| Episode {
                 number: episodes_iter
                     .next()
-                    .expect("Number of episodes doesn't line up")
-                    .into(),
+                    .expect("Number of episodes doesn't line up"),
                 path: path.clone(),
                 title: String::new(),
                 file_deleted: !path.exists(),
@@ -45,7 +44,7 @@ impl MismatchPopup {
             .collect())
     }
 
-    fn parse_owned(&self) -> Result<BTreeSet<u32>, String> {
+    fn parse_owned(&self) -> Result<BTreeSet<usize>, String> {
         self.owned_episodes
             .split(',')
             .map(|slice| {
@@ -57,14 +56,14 @@ impl MismatchPopup {
                         .and_then(|str| if str.is_empty() { None } else { Some(str) })
                         .ok_or("Can't find minimum value from the range")?
                         .trim()
-                        .parse::<u32>()
+                        .parse::<usize>()
                         .map_err(|err| format!("Value from range must be a number: {err}"))?;
                     let max = range
                         .next()
                         .and_then(|str| if str.is_empty() { None } else { Some(str) })
                         .ok_or("Can't find maximum value from the range")?
                         .trim()
-                        .parse::<u32>()
+                        .parse::<usize>()
                         .map_err(|err| format!("Value from range must be a number: {err}"))?;
                     (min..=max).for_each(|value| episodes_from_slice.push(value));
                 } else {
@@ -72,7 +71,7 @@ impl MismatchPopup {
                     if !episode.is_empty() {
                         episodes_from_slice.push(
                             episode
-                                .parse::<u32>()
+                                .parse::<usize>()
                                 .map_err(|err| format!("Episode must be a number: {err}"))?,
                         );
                     }
@@ -83,7 +82,7 @@ impl MismatchPopup {
                 Ok(vec) => vec.into_iter().map(Ok).collect(),
                 Err(er) => vec![Err(er)],
             })
-            .collect::<Result<BTreeSet<u32>, String>>()
+            .collect::<Result<BTreeSet<usize>, String>>()
     }
 }
 
@@ -114,12 +113,12 @@ pub fn build<B: Backend, T: Service>(frame: &mut Frame<B>, app: &mut App<T>) {
                 Style::default().add_modifier(Modifier::BOLD),
             ),
         ]),
-        Line::from(vec![
-            Span::raw("Type out exact episodes you have, e.g. 8,10-12"),
-        ]),
-        Line::from(vec![
-            Span::raw("Ignoring this window will give you a show with no episodes"),
-        ]),
+        Line::from(vec![Span::raw(
+            "Type out exact episodes you have, e.g. 8,10-12",
+        )]),
+        Line::from(vec![Span::raw(
+            "Ignoring this window will give you a show with no episodes",
+        )]),
     ];
 
     let user_input = Line::from(Span::raw(app.mismatch_popup.owned_episodes.clone()));
@@ -152,7 +151,7 @@ mod tests {
         let result = mismatch_popup.parse_owned();
         assert!(result.is_ok());
         let parsed_owned = result.unwrap();
-        let expected_owned: BTreeSet<u32> = vec![1, 3, 5, 7].into_iter().collect();
+        let expected_owned: BTreeSet<usize> = vec![1, 3, 5, 7].into_iter().collect();
         assert_eq!(parsed_owned, expected_owned);
     }
 
@@ -164,7 +163,7 @@ mod tests {
         let result = mismatch_popup.parse_owned();
         assert!(result.is_ok());
         let parsed_owned = result.unwrap();
-        let expected_owned: BTreeSet<u32> = vec![1, 2, 3, 4, 5, 8, 9, 10].into_iter().collect();
+        let expected_owned: BTreeSet<usize> = vec![1, 2, 3, 4, 5, 8, 9, 10].into_iter().collect();
         assert_eq!(parsed_owned, expected_owned);
     }
 
@@ -176,7 +175,8 @@ mod tests {
         let result = mismatch_popup.parse_owned();
         assert!(result.is_ok());
         let parsed_owned = result.unwrap();
-        let expected_owned: BTreeSet<u32> = vec![1, 2, 3, 4, 6, 8, 9, 10, 12].into_iter().collect();
+        let expected_owned: BTreeSet<usize> =
+            vec![1, 2, 3, 4, 6, 8, 9, 10, 12].into_iter().collect();
         assert_eq!(parsed_owned, expected_owned);
     }
 

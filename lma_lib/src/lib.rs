@@ -39,17 +39,17 @@ impl<T: Service> AnimeList<T> {
             FROM Shows
             LEFT JOIN Episodes ON Shows.id = Episodes.show_id;
         ")?;
-        let mut shows: HashMap<i64, Show> = HashMap::new();
+        let mut shows: HashMap<usize, Show> = HashMap::new();
         let mut rows = stmt.query([])?;
         while let Some(row) = rows.next()? {
-            let show_id: i64 = row.get(0)?;
+            let show_id: usize = row.get(0)?;
             let title: String = row.get(1)?;
-            let sync_service_id: i64 = row.get(2)?;
-            let progress: i64 = row.get(3)?;
-            let episode_number: i64 = row.get(4)?;
+            let sync_service_id: usize = row.get(2)?;
+            let progress: usize = row.get(3)?;
+            let episode_number: isize = row.get(4)?;
             let path: String = row.get(5)?;
             let episode_title: String = row.get(6)?;
-            let extra_info: i64 = row.get(7)?;
+            let extra_info: usize = row.get(7)?;
             let episode_score: f32 = row.get(8)?;
             let recap = extra_info & (1 << 0) != 0;
             let filler = extra_info & (1 << 1) != 0;
@@ -64,7 +64,7 @@ impl<T: Service> AnimeList<T> {
             });
             if episode_number != -1 {
                 show.episodes.push(Episode {
-                    number: episode_number,
+                    number: episode_number.try_into().unwrap_or_default(),
                     path: PathBuf::from(&path),
                     title: episode_title,
                     file_deleted: !PathBuf::from(path).exists(),
@@ -92,7 +92,7 @@ impl<T: Service> AnimeList<T> {
     }
 
     /// Returns local id of the added show
-    pub fn add_show(&self, title: &str, sync_service_id: i64, progress: i64) -> Result<i64, String> {
+    pub fn add_show(&self, title: &str, sync_service_id: usize, progress: usize) -> Result<usize, String> {
         let mut stmt = self
             .db_connection
             .prepare(
@@ -107,11 +107,11 @@ impl<T: Service> AnimeList<T> {
             .map_err(|e| e.to_string())?;
 
         let row = rows.next().map_err(|e| e.to_string())?.ok_or("Can't get row")?;
-        let local_id: i64 = row.get(0).map_err(|e| e.to_string())?;
+        let local_id: usize = row.get(0).map_err(|e| e.to_string())?;
         Ok(local_id)
     }
 
-    pub fn get_local_show_id(&self, title: &str) -> Result<i64, String> {
+    pub fn get_local_show_id(&self, title: &str) -> Result<usize, String> {
         let mut stmt = self
             .db_connection
             .prepare(
@@ -125,11 +125,11 @@ impl<T: Service> AnimeList<T> {
             .map_err(|e| e.to_string())?;
 
         let row = rows.next().map_err(|e| e.to_string())?.ok_or("Can't get row")?;
-        let local_id: i64 = row.get(0).map_err(|e| e.to_string())?;
+        let local_id: usize = row.get(0).map_err(|e| e.to_string())?;
         Ok(local_id)
     }
 
-    pub fn set_progress(&self, id: i64, progress: i64) -> Result<(), String> {
+    pub fn set_progress(&self, id: usize, progress: usize) -> Result<(), String> {
         self.db_connection.execute(
             "UPDATE Shows
             SET progress = ?2
@@ -142,7 +142,7 @@ impl<T: Service> AnimeList<T> {
         Ok(())
     }
 
-    pub fn add_episode(&self, show_id: i64, episode_number: i64, path: &str, title: &str, extra_info: i64, score: f32) -> Result<(), String> {
+    pub fn add_episode(&self, show_id: usize, episode_number: usize, path: &str, title: &str, extra_info: usize, score: f32) -> Result<(), String> {
         self.db_connection
             .execute(
                 "REPLACE INTO Episodes (show_id, episode_number, path, title, extra_info, score) VALUES (?1, ?2, ?3, ?4, ?5, ?6)",
@@ -157,8 +157,7 @@ impl<T: Service> AnimeList<T> {
             return Err(String::from("Can't progress, user not logged in"));
         }
         for show in self.get_list().map_err(|e| e.to_string())? {
-            let service_id = u32::try_from(show.service_id)
-                .map_err(|e: std::num::TryFromIntError| e.to_string())?;
+            let service_id = show.service_id;
             let user_entry_details =
                 rt.block_on(self.service.get_user_entry_details(service_id))?;
             let user_service_progress_current = user_entry_details
@@ -166,11 +165,10 @@ impl<T: Service> AnimeList<T> {
                 .unwrap_or_default()
                 .unwrap_or_default();
 
-            let local_progress_current = u32::try_from(show.progress)
-                .map_err(|e: std::num::TryFromIntError| e.to_string())?;
+            let local_progress_current = show.progress;
             match user_service_progress_current.cmp(&local_progress_current) {
                 Ordering::Greater => {
-                    self.set_progress(show.local_id, i64::from(user_service_progress_current))
+                    self.set_progress(show.local_id, user_service_progress_current)
                         .map_err(|e| format!("Can't set progress: {e}"))
                 }
                 Ordering::Less => {
@@ -180,7 +178,7 @@ impl<T: Service> AnimeList<T> {
                     ).unwrap_or(local_progress_current);
                     // in case of going beyond number of episodes
                     if actual_progress < local_progress_current {
-                        self.set_progress(show.local_id, i64::from(actual_progress))
+                        self.set_progress(show.local_id, actual_progress)
                             .map_err(|e| format!("Can't set progress: {e}"))?;
                     }
                     Ok(())
@@ -258,7 +256,7 @@ impl<T: Service> AnimeList<T> {
         input.to_string()
     }
 
-    pub fn remove_entry(&self, show_id: i64) -> Result<(), String> {
+    pub fn remove_entry(&self, show_id: usize) -> Result<(), String> {
         self.db_connection
             .execute("DELETE FROM Episodes WHERE show_id = ?1", params![show_id])
             .map_err(|e| e.to_string())?;
@@ -283,17 +281,17 @@ pub fn is_video_file(r: &Path) -> bool {
 
 #[derive(Clone)]
 pub struct Show {
-    pub local_id: i64,
+    pub local_id: usize,
     pub title: String,
-    pub service_id: i64,
+    pub service_id: usize,
     pub episodes: Vec<Episode>,
-    pub progress: i64,
+    pub progress: usize,
 }
 
 #[derive(Default, Clone)]
 pub struct Episode {
     pub title: String,
-    pub number: i64,
+    pub number: usize,
     pub path: PathBuf,
     pub file_deleted: bool,
     pub score: f32,

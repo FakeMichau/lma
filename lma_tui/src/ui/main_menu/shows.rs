@@ -53,13 +53,13 @@ pub fn render<B: Backend, T: Service>(app: &mut App<T>, area: Rect, frame: &mut 
 
 fn get_style(show: &Show, colors: &TermColors) -> Style {
     let mut style = Style::default().fg(colors.text);
-    if show.progress >= show.episodes.len() as i64 {
+    if show.progress >= show.episodes.len() {
         style = style.add_modifier(Modifier::DIM);
     }
     style
 }
 
-fn get_selected_show_id<T: Service>(app: &App<T>) -> Option<i64> {
+fn get_selected_show_id<T: Service>(app: &App<T>) -> Option<usize> {
     app.list_state
         .selected_show()
         .map(|selected_show| selected_show.local_id)

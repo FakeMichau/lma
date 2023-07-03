@@ -18,7 +18,7 @@ pub struct StatefulList {
     shows_state: TableState,
     episodes_state: TableState,
     selecting_episode: bool,
-    selected_local_id: i64,
+    selected_local_id: usize,
     list_cache: Vec<Show>,
     scroll_progress: usize,
 }
@@ -100,17 +100,17 @@ impl StatefulList {
         let Some(selected_show) = self.selected_show() else {
             return Ok(())
         };
-        let offset = match direction {
+        let offset: isize = match direction {
             SelectionDirection::Next => 1,
             SelectionDirection::Previous => -1,
         };
-        let progress = u32::try_from(selected_show.progress + offset).unwrap_or_default();
+        let progress = selected_show.progress.checked_add_signed(offset).unwrap_or_default();
         let actual_progress = rt.block_on(shows.service.set_progress(
-            u32::try_from(selected_show.service_id).map_err(|e| e.to_string())?,
+            selected_show.service_id,
             progress,
         ))?;
         shows
-            .set_progress(selected_show.local_id, i64::from(actual_progress))
+            .set_progress(selected_show.local_id, actual_progress)
             .expect("Set local progress");
         self.update_cache(shows)?;
         Ok(())
@@ -452,7 +452,7 @@ mod tests {
         assert_eq!(show.title, "Test Show 5");
     }
 
-    fn generate_test_stateful_list(count: i64) -> StatefulList {
+    fn generate_test_stateful_list(count: usize) -> StatefulList {
         StatefulList {
             shows_state: TableState::default(),
             episodes_state: TableState::default(),
@@ -464,7 +464,7 @@ mod tests {
     }
 
     use lma_lib::Episode;
-    fn generate_test_episodes(count: i64) -> Vec<Episode> {
+    fn generate_test_episodes(count: usize) -> Vec<Episode> {
         let mut episodes = Vec::new();
         for i in 1..=count {
             let episode = Episode {
@@ -481,7 +481,7 @@ mod tests {
         episodes
     }
 
-    fn generate_test_shows(count: i64) -> Vec<Show> {
+    fn generate_test_shows(count: usize) -> Vec<Show> {
         let mut shows = Vec::new();
         for i in 1..=count {
             let show = Show {
