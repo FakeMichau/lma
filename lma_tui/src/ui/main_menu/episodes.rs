@@ -1,55 +1,55 @@
+use super::{get_inner_layout, render_scrollbar, try_to_scroll_title, HeaderType, Table};
 use crate::app::App;
 use crate::config::TermColors;
 use lma_lib::{Episode, Service, Show};
 use ratatui::backend::Backend;
-use ratatui::layout::{Constraint, Direction, Layout, Margin, Rect};
-use ratatui::style::{Style, Modifier};
+use ratatui::layout::Rect;
+use ratatui::style::{Modifier, Style};
 use ratatui::widgets::{Block, Borders, TableState};
 use ratatui::widgets::{Cell, Row};
 use ratatui::Frame;
-use super::{HeaderType, Table, render_scrollbar, try_to_scroll_title};
 
 pub fn render<B: Backend, T: Service>(app: &mut App<T>, area: Rect, frame: &mut Frame<'_, B>) {
     let mut header = app.config.headers().episodes.clone();
-    let inner_area = area.inner(&Margin {
-        vertical: 1,
-        horizontal: 1,
-    });
-    let inner_layout = Layout::default()
-        .direction(Direction::Horizontal)
-        .constraints([Constraint::Percentage(100), Constraint::Min(1)].as_ref())
-        .split(inner_area);
 
-    let selected_show = app
-        .list_state
-        .list_cache
-        .iter().find(|show| show.local_id == app.list_state.selected_local_id);
+    let (table_area, scrollbar_area) = get_inner_layout(area);
+
+    let selected_show = app.list_state.selected_show().cloned();
     #[allow(clippy::cast_precision_loss)]
     let average_episode_score = if app.config.relative_episode_score() {
         // TODO: fix episodes without a score skewing the average
-        selected_show.map(|show| show.episodes.iter().map(|e| e.score).sum::<f32>() / show.episodes.len() as f32).filter(|avg| avg > &0.0)
+        selected_show
+            .clone()
+            .map(|show| {
+                show.episodes.iter().map(|e| e.score).sum::<f32>() / show.episodes.len() as f32
+            })
+            .filter(|avg| avg > &0.0)
     } else {
         None
     };
     if average_episode_score.is_none() && app.config.relative_episode_score() {
-        if let Some(pos) = header.iter().position(|x| matches!(x, HeaderType::Score(_))) {
+        if let Some(pos) = header
+            .iter()
+            .position(|x| matches!(x, HeaderType::Score(_)))
+        {
             header.remove(pos);
         }
     }
-    let episodes: Vec<Row> = selected_show.iter()
+    let episodes: Vec<Row> = selected_show
+        .iter()
         .flat_map(|show| {
             let mut temp: Vec<Row> = Vec::new();
             for episode in &show.episodes {
                 let mut episode_display_name =
                     get_display_name(episode, app.config.path_instead_of_title());
 
-                let selected_episode = get_selected_show(&app.list_state.episodes_state, show);
+                let selected_episode = get_selected_episode(&app.list_state.episodes_state, show);
 
                 if app.list_state.selecting_episode
                     && selected_episode.map(|e| e.number) == Some(episode.number)
                 {
                     try_to_scroll_title(
-                        inner_layout[0].width,
+                        table_area.width,
                         &header,
                         &mut app.list_state.scroll_progress,
                         &mut episode_display_name,
@@ -70,34 +70,38 @@ pub fn render<B: Backend, T: Service>(app: &mut App<T>, area: Rect, frame: &mut 
             temp
         })
         .collect();
-    let episode_count = episodes.len();
-    let extra_title = 
+
+    let border = generate_border(average_episode_score, app);
+    frame.render_widget(border, area);
+
+    render_scrollbar(
+        scrollbar_area,
+        frame,
+        episodes.len(),
+        app.config.colors(),
+        app.list_state.episodes_state.offset(),
+    );
+
+    Table::new(
+        &mut app.list_state.episodes_state,
+        episodes,
+        &header,
+        table_area,
+    )
+    .render(frame, app.config.colors());
+}
+
+fn generate_border<T: Service>(average_episode_score: Option<f32>, app: &App<T>) -> Block<'_> {
+    let extra_title =
         average_episode_score.map_or_else(String::new, |avg| format!(" - Average score: {avg:.2}"));
-    let border = Block::default()
+    Block::default()
         .borders(Borders::ALL)
         .title(format!("Episodes{extra_title}"))
         .border_style(if app.list_state.selecting_episode {
             Style::default().fg(app.config.colors().highlight)
         } else {
             Style::default()
-        });
-    frame.render_widget(border, area);
-
-    Table::new(
-        &mut app.list_state.episodes_state,
-        episodes,
-        &header,
-        inner_layout[0],
-    )
-    .render(frame, app.config.colors());
-
-    render_scrollbar(
-        inner_layout[1],
-        frame,
-        episode_count,
-        app.config.colors(),
-        app.list_state.episodes_state.offset(),
-    );
+        })
 }
 
 fn generate_episode_cells<'a>(
@@ -133,12 +137,7 @@ fn generate_episode_cells<'a>(
                     } else {
                         style
                     };
-                    Cell::from(format!(
-                        "{:>1$.2}",
-                        diff,
-                        usize::from(*width)
-                    ))
-                    .style(style)
+                    Cell::from(format!("{:>1$.2}", diff, usize::from(*width))).style(style)
                 },
             ),
         })
@@ -158,7 +157,7 @@ fn get_episode_style(episode: &Episode, show: &Show, colors: &TermColors) -> Sty
     style
 }
 
-fn get_selected_show<'a>(episode_state: &TableState, show: &'a Show) -> Option<&'a Episode> {
+fn get_selected_episode<'a>(episode_state: &TableState, show: &'a Show) -> Option<&'a Episode> {
     episode_state
         .selected()
         .and_then(|index| show.episodes.get(index))

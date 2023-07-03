@@ -1,25 +1,17 @@
+use super::{get_inner_layout, render_scrollbar, try_to_scroll_title, HeaderType, Table};
 use crate::app::App;
 use lma_lib::{Service, Show};
 use ratatui::backend::Backend;
-use ratatui::layout::{Constraint, Direction, Layout, Margin, Rect};
+use ratatui::layout::Rect;
 use ratatui::style::{Modifier, Style};
 use ratatui::widgets::{Block, Borders};
 use ratatui::widgets::{Cell, Row};
 use ratatui::Frame;
-use super::{HeaderType, Table, render_scrollbar, try_to_scroll_title};
 
 pub fn render<B: Backend, T: Service>(app: &mut App<T>, area: Rect, frame: &mut Frame<B>) {
     let header = &app.config.headers().shows;
-    let inner_area = area.inner(&Margin {
-        vertical: 1,
-        horizontal: 1,
-    });
-    let inner_layout = Layout::default()
-        .direction(Direction::Horizontal)
-        .constraints([Constraint::Percentage(100), Constraint::Min(1)].as_ref())
-        .split(inner_area);
-    let table_area = inner_layout[0];
-    let scrollbar_area = inner_layout[1];
+
+    let (table_area, scrollbar_area) = get_inner_layout(area);
 
     let mut progress = app.list_state.scroll_progress;
     let shows: Vec<Row> = app
@@ -45,9 +37,24 @@ pub fn render<B: Backend, T: Service>(app: &mut App<T>, area: Rect, frame: &mut 
         .collect();
     app.list_state.scroll_progress = progress;
 
-    let show_count = shows.len();
+    let border = generate_border(app);
 
-    let border = Block::default()
+    frame.render_widget(border, area);
+
+    render_scrollbar(
+        scrollbar_area,
+        frame,
+        shows.len(),
+        app.config.colors(),
+        app.list_state.shows_state.offset(),
+    );
+
+    Table::new(&mut app.list_state.shows_state, shows, header, table_area)
+        .render(frame, app.config.colors());
+}
+
+fn generate_border<T: Service>(app: &App<T>) -> Block<'_> {
+    Block::default()
         .borders(Borders::ALL)
         .title("Shows")
         .border_style(
@@ -56,20 +63,7 @@ pub fn render<B: Backend, T: Service>(app: &mut App<T>, area: Rect, frame: &mut 
             } else {
                 Style::default().fg(app.config.colors().highlight)
             },
-        );
-
-    frame.render_widget(border, area);
-
-    Table::new(&mut app.list_state.shows_state, shows, header, table_area)
-        .render(frame, app.config.colors());
-
-    render_scrollbar(
-        scrollbar_area,
-        frame,
-        show_count,
-        app.config.colors(),
-        app.list_state.shows_state.offset(),
-    );
+        )
 }
 
 fn generate_show_cells<'a>(

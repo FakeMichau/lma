@@ -281,6 +281,7 @@ pub fn is_video_file(r: &Path) -> bool {
         })
 }
 
+#[derive(Clone)]
 pub struct Show {
     pub local_id: i64,
     pub title: String,
@@ -289,7 +290,7 @@ pub struct Show {
     pub progress: i64,
 }
 
-#[derive(Default)]
+#[derive(Default, Clone)]
 pub struct Episode {
     pub title: String,
     pub number: i64,

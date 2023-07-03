@@ -6,7 +6,7 @@ use crate::app::App;
 use crate::config::TermColors;
 use lma_lib::{AnimeList, Service, Show};
 use ratatui::backend::Backend;
-use ratatui::layout::{Constraint, Direction, Layout, Rect};
+use ratatui::layout::{Constraint, Direction, Layout, Rect, Margin};
 use ratatui::style::{Modifier, Style};
 use ratatui::widgets::{Block, Clear};
 use ratatui::widgets::{Row, Table as TableWidget, TableState};
@@ -190,6 +190,18 @@ fn try_to_scroll_title(
     let mut scroll_progress: usize = (*scroll_progress_u32).try_into().unwrap();
     *episode_display_name = scroll_text(episode_display_name.clone(), space, &mut scroll_progress);
     scroll_progress_u32.clone_from(&u32::try_from(scroll_progress).unwrap_or_default());
+}
+
+fn get_inner_layout(area: Rect) -> (Rect, Rect) {
+    let inner_area = area.inner(&Margin {
+        vertical: 1,
+        horizontal: 1,
+    });
+    let inner_layout = Layout::default()
+        .direction(Direction::Horizontal)
+        .constraints([Constraint::Percentage(100), Constraint::Min(1)].as_ref())
+        .split(inner_area);
+    (inner_layout[0], inner_layout[1])
 }
 
 #[derive(PartialEq, Eq, Clone, Copy)]
