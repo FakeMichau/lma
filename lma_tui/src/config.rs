@@ -45,7 +45,7 @@ impl TryFrom<HeadersFile> for Headers {
                         "extra" => Ok(Some(HeaderType::extra())),
                         "score" => Ok(Some(HeaderType::score())),
                         other => {
-                            return Err(format!("Tring to parse non-existent header: {other}"))
+                            return Err(format!("Trying to parse non-existent header: {other}"))
                         }
                     };
                     let valid_header = header?;
