@@ -13,19 +13,20 @@ pub fn render<B: Backend, T: Service>(app: &mut App<T>, area: Rect, frame: &mut 
 
     let (table_area, scrollbar_area) = get_inner_layout(area);
 
-    let mut progress = app.list_state.scroll_progress;
+    let selected_show_id = get_selected_show_id(app);
     let shows: Vec<Row> = app
         .list_state
         .list_cache
         .iter()
         .map(|show| {
-            let selected_show_id = app
-                .list_state
-                .selected_show()
-                .map(|selected_show| selected_show.local_id);
             let mut title = show.title.clone();
             if selected_show_id == Some(show.local_id) && !app.list_state.selecting_episode {
-                try_to_scroll_title(table_area.width, header, &mut progress, &mut title);
+                try_to_scroll_title(
+                    table_area.width,
+                    header,
+                    &mut app.list_state.scroll_progress,
+                    &mut title,
+                );
             }
             let mut style = Style::default().fg(app.config.colors().text);
             if show.progress >= show.episodes.len() as i64 {
@@ -35,7 +36,6 @@ pub fn render<B: Backend, T: Service>(app: &mut App<T>, area: Rect, frame: &mut 
             Row::new(cells)
         })
         .collect();
-    app.list_state.scroll_progress = progress;
 
     let border = generate_border(app);
 
@@ -51,6 +51,12 @@ pub fn render<B: Backend, T: Service>(app: &mut App<T>, area: Rect, frame: &mut 
 
     Table::new(&mut app.list_state.shows_state, shows, header, table_area)
         .render(frame, app.config.colors());
+}
+
+fn get_selected_show_id<T: Service>(app: &App<T>) -> Option<i64> {
+    app.list_state
+        .selected_show()
+        .map(|selected_show| selected_show.local_id)
 }
 
 fn generate_border<T: Service>(app: &App<T>) -> Block<'_> {
