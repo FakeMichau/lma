@@ -57,11 +57,10 @@ pub fn render<B: Backend, T: Service>(app: &mut App<T>, area: Rect, frame: &mut 
                             &mut episode_display_name,
                         );
                     }
-                    let style = get_episode_style(&episode, show.progress, app.config.colors());
-                    let cells = generate_episode_cells(
+                    let cells = generate_cells(
                         &episode,
                         &header,
-                        style,
+                        get_style(&episode, show.progress, app.config.colors()),
                         &episode_display_name,
                         average_episode_score,
                         app.config.colors(),
@@ -105,7 +104,7 @@ fn generate_border<T: Service>(average_episode_score: Option<f32>, app: &App<T>)
         })
 }
 
-fn generate_episode_cells<'a>(
+fn generate_cells<'a>(
     episode: &Episode,
     header: &[HeaderType],
     style: Style,
@@ -145,7 +144,7 @@ fn generate_episode_cells<'a>(
         .collect::<Vec<_>>()
 }
 
-fn get_episode_style(episode: &Episode, progress: i64, colors: &TermColors) -> Style {
+fn get_style(episode: &Episode, progress: i64, colors: &TermColors) -> Style {
     let mut style = Style::default();
     if episode.number <= progress {
         style = style.fg(colors.text).add_modifier(Modifier::DIM);

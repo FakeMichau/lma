@@ -20,7 +20,7 @@ pub struct StatefulList {
     selecting_episode: bool,
     selected_local_id: i64,
     list_cache: Vec<Show>,
-    scroll_progress: u32,
+    scroll_progress: usize,
 }
 
 impl StatefulList {
@@ -169,32 +169,25 @@ impl StatefulList {
 }
 
 pub fn render<B: Backend, T: Service>(frame: &mut Frame<'_, B>, app: &mut App<T>) {
-    let chunks = Layout::default()
+    let top_bottom = Layout::default()
         .direction(Direction::Vertical)
         .constraints([Constraint::Min(1), Constraint::Max(1)].as_ref())
         .split(frame.size());
 
     // Split the bigger chunk into halves
-    let main_chunks = Layout::default()
+    let left_right = Layout::default()
         .direction(Direction::Horizontal)
         .constraints([Constraint::Percentage(45), Constraint::Percentage(55)].as_ref())
-        .split(chunks[0]);
+        .split(top_bottom[0]);
 
-    shows::render(app, main_chunks[0], frame);
-    episodes::render(app, main_chunks[1], frame);
-    help::render(app, chunks[1], frame);
+    shows::render(app, left_right[0], frame);
+    episodes::render(app, left_right[1], frame);
+    help::render(app, top_bottom[1], frame);
 }
 
-fn try_to_scroll_title(
-    width: u16,
-    header: &Vec<HeaderType>,
-    scroll_progress_u32: &mut u32,
-    episode_display_name: &mut String,
-) {
+fn try_to_scroll_title(width: u16, header: &Vec<HeaderType>, scroll_progress: &mut usize, title: &mut String) {
     let space = usize::from(width - header.sum_consts());
-    let mut scroll_progress: usize = (*scroll_progress_u32).try_into().unwrap();
-    *episode_display_name = scroll_text(episode_display_name.clone(), space, &mut scroll_progress);
-    scroll_progress_u32.clone_from(&u32::try_from(scroll_progress).unwrap_or_default());
+    *title = scroll_text(title.clone(), space, scroll_progress);
 }
 
 fn get_inner_layout(area: Rect) -> (Rect, Rect) {

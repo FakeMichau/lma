@@ -1,5 +1,6 @@
 use super::{get_inner_layout, render_scrollbar, try_to_scroll_title, HeaderType, Table};
 use crate::app::App;
+use crate::config::TermColors;
 use lma_lib::{Service, Show};
 use ratatui::backend::Backend;
 use ratatui::layout::Rect;
@@ -28,11 +29,8 @@ pub fn render<B: Backend, T: Service>(app: &mut App<T>, area: Rect, frame: &mut 
                     &mut title,
                 );
             }
-            let mut style = Style::default().fg(app.config.colors().text);
-            if show.progress >= show.episodes.len() as i64 {
-                style = style.add_modifier(Modifier::DIM);
-            }
-            let cells = generate_show_cells(show, header, style, &title);
+            let style = get_style(show, app.config.colors());
+            let cells = generate_cells(show, header, style, &title);
             Row::new(cells)
         })
         .collect();
@@ -51,6 +49,14 @@ pub fn render<B: Backend, T: Service>(app: &mut App<T>, area: Rect, frame: &mut 
 
     Table::new(&mut app.list_state.shows_state, shows, header, table_area)
         .render(frame, app.config.colors());
+}
+
+fn get_style(show: &Show, colors: &TermColors) -> Style {
+    let mut style = Style::default().fg(colors.text);
+    if show.progress >= show.episodes.len() as i64 {
+        style = style.add_modifier(Modifier::DIM);
+    }
+    style
 }
 
 fn get_selected_show_id<T: Service>(app: &App<T>) -> Option<i64> {
@@ -72,7 +78,7 @@ fn generate_border<T: Service>(app: &App<T>) -> Block<'_> {
         )
 }
 
-fn generate_show_cells<'a>(
+fn generate_cells<'a>(
     show: &'a Show,
     header: &[HeaderType],
     style: Style,
