@@ -36,17 +36,17 @@ pub fn render<B: Backend, T: Service>(app: &mut App<T>, area: Rect, frame: &mut 
         }
     }
     let episodes: Vec<Row> = selected_show
-        .iter()
+        .into_iter()
         .flat_map(|show| {
             let mut temp: Vec<Row> = Vec::new();
-            for episode in &show.episodes {
+            let selected_episode_number =
+                get_selected_episode_number(&app.list_state.episodes_state, &show);
+            for episode in show.episodes {
                 let mut episode_display_name =
-                    get_display_name(episode, app.config.path_instead_of_title());
-
-                let selected_episode = get_selected_episode(&app.list_state.episodes_state, show);
+                    get_display_name(&episode, app.config.path_instead_of_title());
 
                 if app.list_state.selecting_episode
-                    && selected_episode.map(|e| e.number) == Some(episode.number)
+                    && selected_episode_number == Some(episode.number)
                 {
                     try_to_scroll_title(
                         table_area.width,
@@ -55,9 +55,9 @@ pub fn render<B: Backend, T: Service>(app: &mut App<T>, area: Rect, frame: &mut 
                         &mut episode_display_name,
                     );
                 }
-                let style = get_episode_style(episode, show, app.config.colors());
+                let style = get_episode_style(&episode, show.progress, app.config.colors());
                 let cells = generate_episode_cells(
-                    episode,
+                    &episode,
                     &header,
                     style,
                     &episode_display_name,
@@ -105,7 +105,7 @@ fn generate_border<T: Service>(average_episode_score: Option<f32>, app: &App<T>)
 }
 
 fn generate_episode_cells<'a>(
-    episode: &'a Episode,
+    episode: &Episode,
     header: &[HeaderType],
     style: Style,
     episode_display_name: &str,
@@ -144,9 +144,9 @@ fn generate_episode_cells<'a>(
         .collect::<Vec<_>>()
 }
 
-fn get_episode_style(episode: &Episode, show: &Show, colors: &TermColors) -> Style {
+fn get_episode_style(episode: &Episode, progress: i64, colors: &TermColors) -> Style {
     let mut style = Style::default();
-    if episode.number <= show.progress {
+    if episode.number <= progress {
         style = style.fg(colors.text).add_modifier(Modifier::DIM);
     }
     if episode.file_deleted {
@@ -157,10 +157,11 @@ fn get_episode_style(episode: &Episode, show: &Show, colors: &TermColors) -> Sty
     style
 }
 
-fn get_selected_episode<'a>(episode_state: &TableState, show: &'a Show) -> Option<&'a Episode> {
+fn get_selected_episode_number(episode_state: &TableState, show: &Show) -> Option<i64> {
     episode_state
         .selected()
         .and_then(|index| show.episodes.get(index))
+        .map(|e| e.number)
 }
 
 fn get_display_name(episode: &Episode, use_path: bool) -> String {
