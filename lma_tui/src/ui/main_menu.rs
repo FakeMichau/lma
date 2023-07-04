@@ -21,6 +21,7 @@ pub struct StatefulList {
     selected_local_id: usize,
     list_cache: Vec<Show>,
     scroll_progress: usize,
+    pub last_height: u16,
 }
 
 impl StatefulList {
@@ -33,6 +34,7 @@ impl StatefulList {
             selected_local_id: 0,
             list_cache,
             scroll_progress: 0,
+            last_height: 0,
         })
     }
 
@@ -120,7 +122,7 @@ impl StatefulList {
         Ok(())
     }
 
-    pub fn select(&mut self) -> Result<(), String> {
+    pub fn select(&mut self, height: u16) -> Result<(), String> {
         if self.selecting_episode {
             // navigating inside the episodes tab
             let selected_episode = self.episodes_state.selected().unwrap_or_default();
@@ -150,12 +152,18 @@ impl StatefulList {
                         .map_or(0, |pos| (pos + 1) % show.episodes.len());
 
                     self.episodes_state.select(Some(index));
+                    let height = height.checked_sub(1).unwrap_or_default() as usize;
+                    if show.episodes.len() > height {
+                        *self.episodes_state.offset_mut() =
+                            index.checked_sub(height / 2).unwrap_or_default();
+                    }
                     self.set_selecting_episode(true);
                 }
             }
         }
         Ok(())
     }
+
     pub fn unselect(&mut self) {
         self.episodes_state.select(None);
         self.set_selecting_episode(false);
@@ -469,6 +477,7 @@ mod tests {
             selected_local_id: 0,
             list_cache: generate_test_shows(count),
             scroll_progress: 0,
+            last_height: 0,
         }
     }
 

@@ -13,6 +13,7 @@ pub fn render<B: Backend, T: Service>(app: &mut App<T>, area: Rect, frame: &mut 
     let mut header = app.config.headers().episodes.clone();
 
     let (table_area, scrollbar_area) = get_inner_layout(area);
+    app.list_state.last_height = table_area.height;
 
     let selected_show = app.list_state.selected_show().cloned();
     #[allow(clippy::cast_precision_loss)]
