@@ -165,13 +165,17 @@ fn handle_next_state<T: Service>(app: &mut App<T>, rt: &Runtime) -> Result<(), S
 fn handle_second_line<T: Service>(app: &mut App<T>) -> Result<(), String> {
     // trim path
     let matches: &[_] = &['"', '\''];
-    app.insert_popup.path = app
-        .insert_popup
-        .path
-        .to_str()
-        .map_or(app.insert_popup.path.clone(), |str| {
-            PathBuf::from(str.trim_matches(matches))
-        });
+    app.insert_popup.path =
+        app.insert_popup
+            .path
+            .to_str()
+            .map_or(app.insert_popup.path.clone(), |str| {
+                if str.starts_with('\"') | str.starts_with('\'') {
+                    PathBuf::from(str.trim_matches(matches))
+                } else {
+                    PathBuf::from(str)
+                }
+            });
     app.insert_popup.title = app.anime_list.guess_shows_title(&app.insert_popup.path)?;
     Ok(())
 }

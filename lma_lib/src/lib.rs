@@ -35,7 +35,7 @@ impl<T: Service> AnimeList<T> {
         let mut stmt = self.db_connection.prepare(
             "
             SELECT Shows.id, Shows.title, Shows.sync_service_id, Shows.progress,
-            COALESCE(Episodes.episode_number, -1) AS episode_number, 
+            COALESCE(Episodes.episode_number, 0) AS episode_number, 
                 COALESCE(Episodes.path, '') AS path, 
                 COALESCE(Episodes.title, '') AS episode_title, 
                 COALESCE(Episodes.extra_info, 0) AS extra_info,
@@ -49,9 +49,9 @@ impl<T: Service> AnimeList<T> {
         while let Some(row) = rows.next()? {
             let show_id: usize = row.get(0)?;
             let title: String = row.get(1)?;
-            let sync_service_id: usize = row.get(2)?;
+            let service_id: usize = row.get(2)?;
             let progress: usize = row.get(3)?;
-            let episode_number: isize = row.get(4)?;
+            let episode_number: usize = row.get(4)?;
             let path: String = row.get(5)?;
             let episode_title: String = row.get(6)?;
             let extra_info: usize = row.get(7)?;
@@ -65,11 +65,11 @@ impl<T: Service> AnimeList<T> {
                 title,
                 progress,
                 episodes: Vec::new(),
-                service_id: sync_service_id,
+                service_id,
             });
-            if episode_number != -1 {
+            if episode_number != 0 {
                 show.episodes.push(Episode {
-                    number: episode_number.try_into().unwrap_or_default(),
+                    number: episode_number,
                     path: PathBuf::from(&path),
                     title: episode_title,
                     file_deleted: !PathBuf::from(path).exists(),

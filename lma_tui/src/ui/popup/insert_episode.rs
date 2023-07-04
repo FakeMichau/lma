@@ -9,6 +9,7 @@ use ratatui::style::{Modifier, Style};
 use ratatui::text::{Line, Span};
 use ratatui::widgets::{Block, Borders, Clear, Paragraph, Wrap};
 use ratatui::Frame;
+use std::path::PathBuf;
 use tokio::runtime::Runtime;
 
 #[derive(Default)]
@@ -86,6 +87,12 @@ fn handle_inputting_state<T: Service>(app: &mut App<T>) {
 }
 
 fn handle_save_state<T: Service + Send>(app: &mut App<T>, rt: &Runtime) -> Result<(), String> {
+    let path = app.insert_episode_popup.episode.path.clone();
+    if path.starts_with("\"") | path.starts_with("'") {
+        let matches: &[_] = &['"', '\''];
+        let path_str = path.to_string_lossy().to_string();
+        app.insert_episode_popup.episode.path = PathBuf::from(path_str.trim_matches(matches));
+    }
     if is_video_file(&app.insert_episode_popup.episode.path) {
         if let Some(show) = app.list_state.selected_show() {
             // always append episodes
