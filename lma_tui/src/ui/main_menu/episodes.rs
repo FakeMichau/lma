@@ -75,14 +75,7 @@ pub fn render<B: Backend, T: Service>(app: &mut App<T>, area: Rect, frame: &mut 
     let border = generate_border(average_episode_score, app);
     frame.render_widget(border, area);
 
-    render_scrollbar(
-        scrollbar_area,
-        frame,
-        episodes.len(),
-        &app.config.colors,
-        app.list_state.episodes_state.offset(),
-    );
-
+    let episodes_number = episodes.len();
     Table::new(
         &mut app.list_state.episodes_state,
         episodes,
@@ -90,6 +83,14 @@ pub fn render<B: Backend, T: Service>(app: &mut App<T>, area: Rect, frame: &mut 
         table_area,
     )
     .render(frame, &app.config.colors);
+
+    render_scrollbar(
+        scrollbar_area,
+        frame,
+        episodes_number,
+        &app.config.colors,
+        app.list_state.episodes_state.offset(),
+    );
 }
 
 fn generate_border<T: Service>(average_episode_score: Option<f32>, app: &App<T>) -> Block<'_> {

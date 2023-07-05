@@ -39,16 +39,17 @@ pub fn render<B: Backend, T: Service>(app: &mut App<T>, area: Rect, frame: &mut 
 
     frame.render_widget(border, area);
 
+    let shows_number = shows.len();
+    Table::new(&mut app.list_state.shows_state, shows, header, table_area)
+        .render(frame, &app.config.colors);
+
     render_scrollbar(
         scrollbar_area,
         frame,
-        shows.len(),
+        shows_number,
         &app.config.colors,
         app.list_state.shows_state.offset(),
     );
-
-    Table::new(&mut app.list_state.shows_state, shows, header, table_area)
-        .render(frame, &app.config.colors);
 }
 
 fn get_style(show: &Show, colors: &TermColors) -> Style {
