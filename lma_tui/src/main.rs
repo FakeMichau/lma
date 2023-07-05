@@ -1,5 +1,6 @@
 mod app;
 mod config;
+mod handle_input;
 mod ui;
 use config::Config;
 use crossterm::execute;
