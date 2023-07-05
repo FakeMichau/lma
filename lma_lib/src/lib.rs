@@ -169,8 +169,8 @@ impl<T: Service> AnimeList<T> {
                 "REPLACE INTO Episodes (show_id, episode_number, path, title, extra_info, score) VALUES (?1, ?2, ?3, ?4, ?5, ?6)",
                 params![show_id, episode_number, path, title, extra_info, score],
             )
-            .map(|_| ())
-            .map_err(|e| e.to_string())
+            .map_err(|e| e.to_string())?;
+        Ok(())
     }
 
     pub fn update_progress(&mut self, rt: &Runtime) -> Result<(), String> {
