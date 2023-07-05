@@ -8,7 +8,6 @@ pub use lib_mal::*;
 use rusqlite::{params, Connection, Result};
 use serde::{Deserialize, Serialize};
 use std::cmp::Ordering;
-use std::collections::HashMap;
 use std::ffi::OsStr;
 use std::fs;
 use std::path::{Path, PathBuf};
@@ -36,15 +35,15 @@ impl<T: Service> AnimeList<T> {
             "
             SELECT Shows.id, Shows.title, Shows.sync_service_id, Shows.progress,
             COALESCE(Episodes.episode_number, 0) AS episode_number, 
-                COALESCE(Episodes.path, '') AS path, 
-                COALESCE(Episodes.title, '') AS episode_title, 
-                COALESCE(Episodes.extra_info, 0) AS extra_info,
-                COALESCE(Episodes.score, 0.0) AS episode_score
+                Episodes.path, 
+                Episodes.title, 
+                Episodes.extra_info,
+                Episodes.score
             FROM Shows
             LEFT JOIN Episodes ON Shows.id = Episodes.show_id;
         ",
         )?;
-        let mut shows: HashMap<usize, Show> = HashMap::new();
+        let mut shows: Vec<Show> = Vec::new();
         let mut rows = stmt.query([])?;
         while let Some(row) = rows.next()? {
             let show_id: usize = row.get(0)?;
@@ -52,34 +51,37 @@ impl<T: Service> AnimeList<T> {
             let service_id: usize = row.get(2)?;
             let progress: usize = row.get(3)?;
             let episode_number: usize = row.get(4)?;
-            let path: String = row.get(5)?;
-            let episode_title: String = row.get(6)?;
-            let extra_info: usize = row.get(7)?;
-            let episode_score: f32 = row.get(8)?;
+            let path: String = row.get(5).unwrap_or_default();
+            let episode_title: String = row.get(6).unwrap_or_default();
+            let extra_info: usize = row.get(7).unwrap_or_default();
+            let episode_score: f32 = row.get(8).unwrap_or_default();
             let recap = extra_info & (1 << 0) != 0;
             let filler = extra_info & (1 << 1) != 0;
 
-            // I'm using a hashmap just for this step, find a way to avoid it?
-            let show = shows.entry(show_id).or_insert_with(|| Show {
+            let show_with_no_episodes = Show {
                 local_id: show_id,
                 title,
                 progress,
                 episodes: Vec::new(),
                 service_id,
-            });
+            };
+            if episode_number == 0 || !shows.iter().any(|s| s.local_id == show_id) {
+                shows.push(show_with_no_episodes);
+            }
             if episode_number != 0 {
-                show.episodes.push(Episode {
-                    number: episode_number,
-                    path: PathBuf::from(&path),
-                    title: episode_title,
-                    file_deleted: !PathBuf::from(path).exists(),
-                    score: episode_score,
-                    recap,
-                    filler,
-                });
+                if let Some(show) = shows.iter_mut().find(|s| s.local_id == show_id) {
+                    show.episodes.push(Episode {
+                        number: episode_number,
+                        path: PathBuf::from(&path),
+                        title: episode_title,
+                        file_deleted: !PathBuf::from(path).exists(),
+                        score: episode_score,
+                        recap,
+                        filler,
+                    });
+                }
             }
         }
-        let mut shows: Vec<Show> = shows.into_values().collect();
         shows.sort_by(|show1, show2| match self.title_sort {
             TitleSort::LocalIdAsc => show1.local_id.cmp(&show2.local_id),
             TitleSort::LocalIdDesc => show2.local_id.cmp(&show1.local_id),
@@ -287,7 +289,6 @@ impl<T: Service> AnimeList<T> {
     }
 }
 
-#[must_use]
 pub fn is_video_file(r: &Path) -> bool {
     r.is_file()
         && [
