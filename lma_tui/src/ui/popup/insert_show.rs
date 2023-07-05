@@ -312,6 +312,7 @@ fn insert_episodes<T: Service + Send>(
     let episodes_details_hash = rt.block_on(get_episodes_info(
         &mut app.anime_list.service,
         app.insert_popup.service_id,
+        app.config.precise_score,
     ))?;
     // surely I can be smarter about it
     let episode_offset = if app.anime_list.service.get_service_type() == ServiceType::Local {
@@ -358,8 +359,9 @@ pub struct EpisodeDetails {
 pub async fn get_episodes_info<T: Service + Send>(
     service: &mut T,
     id: usize,
+    precise_score: bool,
 ) -> Result<HashMap<usize, EpisodeDetails>, String> {
-    let episodes_details = service.get_episodes(id, true).await?;
+    let episodes_details = service.get_episodes(id, precise_score).await?;
     Ok(episodes_details
         .iter()
         .map(|episode| {

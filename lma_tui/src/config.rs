@@ -15,17 +15,12 @@ pub struct Config {
     pub title_sort: TitleSort,
     pub key_binds: KeyBinds,
     pub headers: Headers,
-    pub mal: MalConfigs,
     pub path_instead_of_title: bool,
-    pub autofill_title: bool,
-    pub english_show_titles: bool,
     pub update_progress_on_start: bool,
     pub relative_episode_score: bool,
-}
-
-#[derive(Serialize, Deserialize, Clone, PartialEq, Eq, Debug)]
-pub struct MalConfigs {
-    precise_score: bool,
+    pub precise_score: bool,
+    pub autofill_title: bool,
+    pub english_show_titles: bool,
 }
 
 pub struct Headers {
@@ -89,12 +84,12 @@ struct ConfigFile {
     title_sort: Option<TitleSort>,
     key_binds: Option<KeyBinds>,
     headers: Option<HeadersFile>,
-    mal: Option<MalConfigs>,
     path_instead_of_title: Option<bool>,
-    autofill_title: Option<bool>,
-    english_show_titles: Option<bool>,
     update_progress_on_start: Option<bool>,
     relative_episode_score: Option<bool>,
+    precise_score: Option<bool>,
+    autofill_title: Option<bool>,
+    english_show_titles: Option<bool>,
 }
 
 impl Default for ConfigFile {
@@ -106,12 +101,10 @@ impl Default for ConfigFile {
             title_sort: Some(TitleSort::LocalIdAsc),
             key_binds: Some(KeyBinds::default()),
             headers: Some(HeadersFile::default()),
-            mal: Some(MalConfigs {
-                precise_score: true,
-            }),
-            path_instead_of_title: Some(false),
-            autofill_title: Some(true),
+            precise_score: Some(true),
             english_show_titles: Some(false),
+            autofill_title: Some(true),
+            path_instead_of_title: Some(false),
             update_progress_on_start: Some(false),
             relative_episode_score: Some(false),
         }
@@ -297,7 +290,7 @@ impl Config {
         };
     }
 
-    pub fn service(&self) -> &ServiceType {
+    pub const fn service(&self) -> &ServiceType {
         &self.service
     }
 }
@@ -328,10 +321,10 @@ fn parse_config(config_file_path: PathBuf, default_config: ConfigFile) -> Result
         title_sort: get_setting_or_default!(title_sort),
         key_binds: get_setting_or_default!(key_binds),
         headers: get_setting_or_default!(headers).try_into()?,
-        mal: get_setting_or_default!(mal),
-        path_instead_of_title: get_setting_or_default!(path_instead_of_title),
+        precise_score: get_setting_or_default!(precise_score),
         autofill_title: get_setting_or_default!(autofill_title),
         english_show_titles: get_setting_or_default!(english_show_titles),
+        path_instead_of_title: get_setting_or_default!(path_instead_of_title),
         update_progress_on_start: get_setting_or_default!(update_progress_on_start),
         relative_episode_score: get_setting_or_default!(relative_episode_score),
     })
@@ -372,15 +365,14 @@ mod tests {
             data_dir = \"\"
             title_sort = \"LocalIdAsc\"
             path_instead_of_title = false
-            autofill_title = true
-            english_show_titles = true
             update_progress_on_start = true
             relative_episode_score = true
+            autofill_title = true
+            english_show_titles = true
+            precise_score = true
             [headers]
             shows = \"title\"
             episodes = \"title\"
-            [mal]
-            precise_score = true
             [colors.text]
             hex = \"#DCDCDC\"
             [colors.text_deleted]
@@ -453,16 +445,14 @@ mod tests {
                 login: KeyCode::Char('l'),
             }),
             path_instead_of_title: Some(false),
-            autofill_title: Some(true),
-            english_show_titles: Some(true),
             update_progress_on_start: Some(true),
             relative_episode_score: Some(true),
+            english_show_titles: Some(true),
+            autofill_title: Some(true),
+            precise_score: Some(true),
             headers: Some(HeadersFile {
                 shows: String::from("title"),
                 episodes: String::from("title"),
-            }),
-            mal: Some(MalConfigs {
-                precise_score: true,
             }),
         };
         assert_eq!(parsed_config_file, expected_config_file);

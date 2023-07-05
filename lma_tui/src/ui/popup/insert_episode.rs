@@ -132,6 +132,7 @@ fn insert_episode<T: Service + Send>(
     let episodes_details_hash = rt.block_on(insert_show::get_episodes_info(
         &mut app.anime_list.service,
         service_id,
+        app.config.precise_score,
     ))?;
     let episode = &app.insert_episode_popup.episode;
     let details = episodes_details_hash
