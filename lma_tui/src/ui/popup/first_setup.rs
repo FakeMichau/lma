@@ -95,7 +95,7 @@ pub fn build<B: Backend, T: Service>(frame: &mut Frame<B>, app: &mut App<T>) {
     match app.first_setup_popup.page() {
         0 => render_first_page(frame, inner_area),
         1 => render_second_page(frame, inner_area, app),
-        2 => render_third_page(frame, inner_area, app.config.config_file_path()),
+        2 => render_third_page(frame, inner_area, &app.config.config_file_path),
         _ => {}
     };
 }
@@ -159,14 +159,14 @@ fn render_second_page<B: Backend, T: Service>(frame: &mut Frame<B>, area: Rect, 
         .services
         .clone()
         .into_iter()
-        .map(|service| ListItem::new(service).style(Style::default().fg(app.config.colors().text)))
+        .map(|service| ListItem::new(service).style(Style::default().fg(app.config.colors.text)))
         .collect();
 
     let shows = List::new(services)
         .block(Block::default().borders(Borders::ALL).title("Services"))
         .highlight_style(
             Style::default()
-                .fg(app.config.colors().highlight)
+                .fg(app.config.colors.highlight)
                 .add_modifier(Modifier::BOLD),
         );
     frame.render_stateful_widget(

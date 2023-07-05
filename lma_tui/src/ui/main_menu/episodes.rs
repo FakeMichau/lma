@@ -10,14 +10,14 @@ use ratatui::widgets::{Cell, Row};
 use ratatui::Frame;
 
 pub fn render<B: Backend, T: Service>(app: &mut App<T>, area: Rect, frame: &mut Frame<'_, B>) {
-    let mut header = app.config.headers().episodes.clone();
+    let mut header = app.config.headers.episodes.clone();
 
     let (table_area, scrollbar_area) = get_inner_layout(area);
     app.list_state.last_height = table_area.height;
 
     let selected_show = app.list_state.selected_show().cloned();
     #[allow(clippy::cast_precision_loss)]
-    let average_episode_score = if app.config.relative_episode_score() {
+    let average_episode_score = if app.config.relative_episode_score {
         // TODO: fix episodes without a score skewing the average
         selected_show
             .clone()
@@ -28,7 +28,7 @@ pub fn render<B: Backend, T: Service>(app: &mut App<T>, area: Rect, frame: &mut 
     } else {
         None
     };
-    if average_episode_score.is_none() && app.config.relative_episode_score() {
+    if average_episode_score.is_none() && app.config.relative_episode_score {
         if let Some(pos) = header
             .iter()
             .position(|x| matches!(x, HeaderType::Score(_)))
@@ -46,7 +46,7 @@ pub fn render<B: Backend, T: Service>(app: &mut App<T>, area: Rect, frame: &mut 
                 .into_iter()
                 .map(|episode| {
                     let mut episode_display_name =
-                        get_display_name(&episode, app.config.path_instead_of_title());
+                        get_display_name(&episode, app.config.path_instead_of_title);
 
                     if app.list_state.selecting_episode
                         && selected_episode_number == Some(episode.number)
@@ -61,10 +61,10 @@ pub fn render<B: Backend, T: Service>(app: &mut App<T>, area: Rect, frame: &mut 
                     let cells = generate_cells(
                         &episode,
                         &header,
-                        get_style(&episode, show.progress, app.config.colors()),
+                        get_style(&episode, show.progress, &app.config.colors),
                         &episode_display_name,
                         average_episode_score,
-                        app.config.colors(),
+                        &app.config.colors,
                     );
                     Row::new(cells)
                 })
@@ -79,7 +79,7 @@ pub fn render<B: Backend, T: Service>(app: &mut App<T>, area: Rect, frame: &mut 
         scrollbar_area,
         frame,
         episodes.len(),
-        app.config.colors(),
+        &app.config.colors,
         app.list_state.episodes_state.offset(),
     );
 
@@ -89,7 +89,7 @@ pub fn render<B: Backend, T: Service>(app: &mut App<T>, area: Rect, frame: &mut 
         &header,
         table_area,
     )
-    .render(frame, app.config.colors());
+    .render(frame, &app.config.colors);
 }
 
 fn generate_border<T: Service>(average_episode_score: Option<f32>, app: &App<T>) -> Block<'_> {
@@ -99,7 +99,7 @@ fn generate_border<T: Service>(average_episode_score: Option<f32>, app: &App<T>)
         .borders(Borders::ALL)
         .title(format!("Episodes{extra_title}"))
         .border_style(if app.list_state.selecting_episode {
-            Style::default().fg(app.config.colors().highlight)
+            Style::default().fg(app.config.colors.highlight)
         } else {
             Style::default()
         })

@@ -29,8 +29,8 @@ pub struct App<T: Service> {
 
 impl<T: Service + Send> App<T> {
     pub fn build(rt: &Runtime, config: Config) -> Result<Self, String> {
-        let service = rt.block_on(lma_lib::Service::new(config.data_dir().clone()))?;
-        let anime_list = lma_lib::create(service, config.data_dir(), config.title_sort())?;
+        let service = rt.block_on(lma_lib::Service::new(config.data_dir.clone()))?;
+        let anime_list = lma_lib::create(service, &config.data_dir, &config.title_sort)?;
         Ok(Self {
             list_state: StatefulList::new(&anime_list)?,
             focused_window: FocusedWindow::MainMenu,
@@ -93,10 +93,10 @@ pub fn run<B: Backend, T: Service + Send>(
     tick_rate: Duration,
     rt: &Runtime,
 ) -> Result<(), Box<dyn Error>> {
-    if !app.config.config_file_path().exists() {
+    if !app.config.config_file_path.exists() {
         app.focused_window = FocusedWindow::FirstSetup;
-    } else if app.config.data_dir().join("tokens").exists() {
-        if app.config.update_progress_on_start() {
+    } else if app.config.data_dir.join("tokens").exists() {
+        if app.config.update_progress_on_start {
             println!("Updating your progress - please wait");
             app.anime_list.update_progress(rt)?;
         }
@@ -157,7 +157,7 @@ fn handle_main_menu_key<B: Backend, T: Service + Send>(
     rt: &Runtime,
     terminal: &mut Terminal<B>,
 ) -> Result<Option<bool>, String> {
-    let key_binds = app.config.key_binds();
+    let key_binds = &app.config.key_binds;
     if key.code == key_binds.quit {
         return Ok(None);
     } else if key.code == key_binds.move_down {
@@ -192,7 +192,7 @@ fn handle_main_menu_key<B: Backend, T: Service + Send>(
 }
 
 fn handle_login_key<T: Service + Send>(key: event::KeyEvent, app: &mut App<T>) {
-    if key.code == app.config.key_binds().close {
+    if key.code == app.config.key_binds.close {
         app.focused_window = FocusedWindow::MainMenu;
         if let Err(err) = app.list_state.update_cache(&app.anime_list) {
             app.set_error(err);
@@ -204,7 +204,7 @@ fn handle_first_setup_key<T: Service + Send>(
     key: event::KeyEvent,
     app: &mut App<T>,
 ) -> Result<Option<bool>, String> {
-    let key_binds = app.config.key_binds();
+    let key_binds = &app.config.key_binds;
     if key.code == key_binds.confirmation {
         if app.first_setup_popup.next_page() {
             app.first_setup_popup.reset();
@@ -225,7 +225,7 @@ fn handle_first_setup_key<T: Service + Send>(
 }
 
 fn handle_error_key<T: Service>(key: event::KeyEvent, app: &mut App<T>) {
-    let key_binds = app.config.key_binds();
+    let key_binds = &app.config.key_binds;
     if key.code == key_binds.close || key.code == key_binds.confirmation {
         app.error = String::new();
         app.focused_window = FocusedWindow::MainMenu;
@@ -233,7 +233,7 @@ fn handle_error_key<T: Service>(key: event::KeyEvent, app: &mut App<T>) {
 }
 
 fn handle_insert_popup_key<T: Service>(app: &mut App<T>, key: event::KeyEvent) {
-    let key_binds = app.config.key_binds();
+    let key_binds = &app.config.key_binds;
     match app.insert_popup.state {
         InsertState::Inputting => match key.code {
             KeyCode::Char(c) => app.insert_popup.data.push(c),
@@ -281,7 +281,7 @@ fn handle_insert_popup_key<T: Service>(app: &mut App<T>, key: event::KeyEvent) {
 }
 
 fn handle_insert_episode_popup_key<T: Service>(app: &mut App<T>, key: event::KeyEvent) {
-    let key_binds = app.config.key_binds();
+    let key_binds = &app.config.key_binds;
     match app.insert_episode_popup.state {
         InsertState::Inputting => {
             if key.code == key_binds.close {
@@ -307,7 +307,7 @@ fn handle_insert_episode_popup_key<T: Service>(app: &mut App<T>, key: event::Key
 }
 
 fn handle_title_selection_key<T: Service + Send>(key: event::KeyEvent, app: &mut App<T>) {
-    let key_binds = app.config.key_binds();
+    let key_binds = &app.config.key_binds;
     if key.code == key_binds.move_down {
         app.titles_popup.move_selection(&SelectionDirection::Next);
     } else if key.code == key_binds.move_up {
@@ -321,7 +321,7 @@ fn handle_title_selection_key<T: Service + Send>(key: event::KeyEvent, app: &mut
 }
 
 fn handle_mismatch_popup_key<T: Service + Send>(key: event::KeyEvent, app: &mut App<T>) {
-    let key_binds = app.config.key_binds();
+    let key_binds = &app.config.key_binds;
     if key.code == key_binds.close {
         app.focused_window = FocusedWindow::InsertPopup;
     } else if key.code == key_binds.confirmation {

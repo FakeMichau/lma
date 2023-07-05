@@ -194,7 +194,7 @@ fn handle_third_line<T: Service>(app: &mut App<T>, rt: &Runtime) -> Result<(), S
 }
 
 fn handle_forth_line<T: Service>(app: &mut App<T>, rt: &Runtime) -> Result<(), String> {
-    if app.config.autofill_title() {
+    if app.config.autofill_title {
         fill_title(app, rt)?;
     }
     // compare number of video files with the retrieved number of episodes
@@ -239,7 +239,7 @@ fn handle_forth_line<T: Service>(app: &mut App<T>, rt: &Runtime) -> Result<(), S
 }
 
 fn fill_title<T: Service>(app: &mut App<T>, rt: &Runtime) -> Result<(), String> {
-    let mut title = if app.config.english_show_titles() {
+    let mut title = if app.config.english_show_titles {
         let titles = rt.block_on(
             app.anime_list
                 .service

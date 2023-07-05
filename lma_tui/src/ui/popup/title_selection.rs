@@ -58,7 +58,7 @@ pub fn build<B: Backend, T: Service>(frame: &mut Frame<B>, app: &mut App<T>) {
         .iter()
         .map(|service_title| {
             ListItem::new(service_title.title.clone())
-                .style(Style::default().fg(app.config.colors().text))
+                .style(Style::default().fg(app.config.colors.text))
         })
         .collect();
 
@@ -66,7 +66,7 @@ pub fn build<B: Backend, T: Service>(frame: &mut Frame<B>, app: &mut App<T>) {
         .block(Block::default().borders(Borders::ALL).title("List"))
         .highlight_style(
             Style::default()
-                .fg(app.config.colors().highlight)
+                .fg(app.config.colors.highlight)
                 .add_modifier(Modifier::BOLD),
         );
 

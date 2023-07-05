@@ -10,7 +10,7 @@ use ratatui::widgets::{Cell, Row};
 use ratatui::Frame;
 
 pub fn render<B: Backend, T: Service>(app: &mut App<T>, area: Rect, frame: &mut Frame<B>) {
-    let header = &app.config.headers().shows;
+    let header = &app.config.headers.shows;
 
     let (table_area, scrollbar_area) = get_inner_layout(area);
 
@@ -29,7 +29,7 @@ pub fn render<B: Backend, T: Service>(app: &mut App<T>, area: Rect, frame: &mut 
                     &mut title,
                 );
             }
-            let style = get_style(show, app.config.colors());
+            let style = get_style(show, &app.config.colors);
             let cells = generate_cells(show, header, style, &title);
             Row::new(cells)
         })
@@ -43,12 +43,12 @@ pub fn render<B: Backend, T: Service>(app: &mut App<T>, area: Rect, frame: &mut 
         scrollbar_area,
         frame,
         shows.len(),
-        app.config.colors(),
+        &app.config.colors,
         app.list_state.shows_state.offset(),
     );
 
     Table::new(&mut app.list_state.shows_state, shows, header, table_area)
-        .render(frame, app.config.colors());
+        .render(frame, &app.config.colors);
 }
 
 fn get_style(show: &Show, colors: &TermColors) -> Style {
@@ -73,7 +73,7 @@ fn generate_border<T: Service>(app: &App<T>) -> Block<'_> {
             if app.list_state.selecting_episode || app.list_state.selected_show().is_none() {
                 Style::default()
             } else {
-                Style::default().fg(app.config.colors().highlight)
+                Style::default().fg(app.config.colors.highlight)
             },
         )
 }

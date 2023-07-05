@@ -16,8 +16,8 @@ pub fn render<B: Backend, T: Service>(app: &mut App<T>, area: Rect, frame: &mut 
         &app.focused_window,
         &app.insert_popup.state,
         &app.insert_episode_popup.state,
-        app.config.colors().highlight_dark,
-        app.config.key_binds(),
+        app.config.colors.highlight_dark,
+        &app.config.key_binds,
     );
     frame.render_widget(help, area);
 }

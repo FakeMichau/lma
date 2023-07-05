@@ -8,18 +8,24 @@ use std::{fs, path::PathBuf};
 
 #[allow(clippy::struct_excessive_bools)]
 pub struct Config {
-    config_file_path: PathBuf,
     service: ServiceType,
-    data_dir: PathBuf,
-    colors: TermColors,
-    title_sort: TitleSort,
-    key_binds: KeyBinds,
-    headers: Headers,
-    path_instead_of_title: bool,
-    autofill_title: bool,
-    english_show_titles: bool,
-    update_progress_on_start: bool,
-    relative_episode_score: bool,
+    pub config_file_path: PathBuf,
+    pub data_dir: PathBuf,
+    pub colors: TermColors,
+    pub title_sort: TitleSort,
+    pub key_binds: KeyBinds,
+    pub headers: Headers,
+    pub mal: MalConfigs,
+    pub path_instead_of_title: bool,
+    pub autofill_title: bool,
+    pub english_show_titles: bool,
+    pub update_progress_on_start: bool,
+    pub relative_episode_score: bool,
+}
+
+#[derive(Serialize, Deserialize, Clone, PartialEq, Eq, Debug)]
+pub struct MalConfigs {
+    precise_score: bool,
 }
 
 pub struct Headers {
@@ -83,6 +89,7 @@ struct ConfigFile {
     title_sort: Option<TitleSort>,
     key_binds: Option<KeyBinds>,
     headers: Option<HeadersFile>,
+    mal: Option<MalConfigs>,
     path_instead_of_title: Option<bool>,
     autofill_title: Option<bool>,
     english_show_titles: Option<bool>,
@@ -99,6 +106,9 @@ impl Default for ConfigFile {
             title_sort: Some(TitleSort::LocalIdAsc),
             key_binds: Some(KeyBinds::default()),
             headers: Some(HeadersFile::default()),
+            mal: Some(MalConfigs {
+                precise_score: true,
+            }),
             path_instead_of_title: Some(false),
             autofill_title: Some(true),
             english_show_titles: Some(false),
@@ -287,52 +297,8 @@ impl Config {
         };
     }
 
-    pub const fn data_dir(&self) -> &PathBuf {
-        &self.data_dir
-    }
-
-    pub const fn colors(&self) -> &TermColors {
-        &self.colors
-    }
-
-    pub const fn service(&self) -> &ServiceType {
+    pub fn service(&self) -> &ServiceType {
         &self.service
-    }
-
-    pub const fn title_sort(&self) -> &TitleSort {
-        &self.title_sort
-    }
-
-    pub const fn key_binds(&self) -> &KeyBinds {
-        &self.key_binds
-    }
-
-    pub const fn path_instead_of_title(&self) -> bool {
-        self.path_instead_of_title
-    }
-
-    pub const fn autofill_title(&self) -> bool {
-        self.autofill_title
-    }
-
-    pub const fn english_show_titles(&self) -> bool {
-        self.english_show_titles
-    }
-
-    pub const fn update_progress_on_start(&self) -> bool {
-        self.update_progress_on_start
-    }
-
-    pub const fn config_file_path(&self) -> &PathBuf {
-        &self.config_file_path
-    }
-
-    pub const fn headers(&self) -> &Headers {
-        &self.headers
-    }
-
-    pub const fn relative_episode_score(&self) -> bool {
-        self.relative_episode_score
     }
 }
 
@@ -362,6 +328,7 @@ fn parse_config(config_file_path: PathBuf, default_config: ConfigFile) -> Result
         title_sort: get_setting_or_default!(title_sort),
         key_binds: get_setting_or_default!(key_binds),
         headers: get_setting_or_default!(headers).try_into()?,
+        mal: get_setting_or_default!(mal),
         path_instead_of_title: get_setting_or_default!(path_instead_of_title),
         autofill_title: get_setting_or_default!(autofill_title),
         english_show_titles: get_setting_or_default!(english_show_titles),
@@ -412,6 +379,8 @@ mod tests {
             [headers]
             shows = \"title\"
             episodes = \"title\"
+            [mal]
+            precise_score = true
             [colors.text]
             hex = \"#DCDCDC\"
             [colors.text_deleted]
@@ -491,6 +460,9 @@ mod tests {
             headers: Some(HeadersFile {
                 shows: String::from("title"),
                 episodes: String::from("title"),
+            }),
+            mal: Some(MalConfigs {
+                precise_score: true,
             }),
         };
         assert_eq!(parsed_config_file, expected_config_file);
