@@ -30,7 +30,7 @@ pub fn main_menu<B: Backend, T: Service + Send>(
             .move_progress(&SelectionDirection::Previous, &mut app.anime_list, rt)?;
     } else if key.code == key_binds.forwards || key.code == key_binds.confirmation {
         app.list_state.select(app.list_state.last_height)?;
-    } else if key.code == key_binds.backwards {
+    } else if key.code == key_binds.backwards || key.code == key_binds.close {
         app.list_state.unselect();
     } else if key.code == key_binds.delete {
         app.list_state.delete(&app.anime_list)?;
