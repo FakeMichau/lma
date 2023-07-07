@@ -54,7 +54,7 @@ jobs:
           args: --release --target=x86_64-pc-windows-gnu --features portable
       - uses: actions/upload-artifact@v3
         with:
-          name: windows-portable
+          name: winportable
           path: |
             target/x86_64-pc-windows-gnu/release/lma.exe
 
@@ -69,7 +69,7 @@ jobs:
       - name: Download artifacts
         uses: actions/download-artifact@v3
 
-      - name: "Create Release"
-        run: hub release create pre-release_${{github.run_number}} -p -m pre-release -a linux/lma#lma-linux -a windows/lma.exe#lma-windows -a windows-portable/lma.exe#lma-windows-portable
+      - name: Create a pre-release
+        run: hub release create pre-release_${{github.run_number}} -p -m pre-release -a linux/lma#lma-linux -a windows/lma.exe#lma-windows -a winportable/lma.exe#lma-windows-portable
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
