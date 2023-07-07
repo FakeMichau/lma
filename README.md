@@ -1,5 +1,5 @@
 # lma
-terminal-based show ogranizer (mainly anime) for locally stored files
+terminal-based show organizer (mainly anime) for locally stored episodes
 
 ![Alt text](screenshot.png "lma screenshot")
 
