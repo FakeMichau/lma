@@ -4,7 +4,10 @@ use directories::ProjectDirs;
 use lma_lib::{ServiceType, TitleSort};
 use ratatui::style::Color as TermColor;
 use serde::{Deserialize, Serialize};
-use std::{fs, path::PathBuf};
+use std::{
+    env, fs,
+    path::{Path, PathBuf},
+};
 
 #[allow(clippy::struct_excessive_bools)]
 pub struct Config {
@@ -251,12 +254,12 @@ impl TryFrom<Colors> for TermColors {
 }
 
 impl Config {
-    pub fn build(config_dir: &PathBuf, data_dir: &PathBuf) -> Result<Self, String> {
+    pub fn build(config_dir: &Path, data_dir: &Path) -> Result<Self, String> {
         create_dirs(config_dir, data_dir)?;
         let config_file_path = config_dir.join("Settings.toml");
 
         let default_config = ConfigFile {
-            data_dir: Some(data_dir.clone()),
+            data_dir: Some(data_dir.to_path_buf()),
             ..Default::default()
         };
 
@@ -280,13 +283,18 @@ impl Config {
             ProjectDirs::from_path(PathBuf::new()).expect("Backup default path")
         });
 
-        return if cfg!(debug_assertions) {
+        return if cfg!(feature = "portable") {
+            match env::current_exe() {
+                Ok(exe_path) => match exe_path.parent() {
+                    Some(path) => Self::build(path, path),
+                    None => Err(String::from("Can't get path to the current directory"))?,
+                },
+                Err(e) => Err(format!("Can't write to the current directory: {e}"))?,
+            }
+        } else if cfg!(debug_assertions) {
             Self::build(&PathBuf::default(), &PathBuf::default())
         } else {
-            Self::build(
-                &project_dirs.config_dir().to_path_buf(),
-                &project_dirs.data_dir().to_path_buf(),
-            )
+            Self::build(project_dirs.config_dir(), project_dirs.data_dir())
         };
     }
 
@@ -335,7 +343,7 @@ fn parse_config_file(data: &str) -> Result<ConfigFile, String> {
         .map_err(|err| format!("Can't parse the config: {}", err.message().to_owned()))
 }
 
-fn create_dirs(config_dir: &PathBuf, data_dir: &PathBuf) -> Result<(), String> {
+fn create_dirs(config_dir: &Path, data_dir: &Path) -> Result<(), String> {
     fs::create_dir_all(config_dir)
         .map_err(|err| format!("Can't create config directory: {err}"))?;
     fs::create_dir_all(data_dir).map_err(|err| format!("Can't create data directory: {err}"))?;

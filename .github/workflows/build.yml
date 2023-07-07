@@ -1,4 +1,7 @@
-on: [push, pull_request]
+on:
+  push:
+    branches:
+      - master
 
 name: Cross-compile
 
@@ -23,7 +26,7 @@ jobs:
           name: linux
           path: |
             target/x86_64-unknown-linux-gnu/release/lma
-            
+
   build_windows:
     name: Build Windows
     runs-on: ubuntu-latest
@@ -44,6 +47,16 @@ jobs:
           name: windows
           path: |
             target/x86_64-pc-windows-gnu/release/lma.exe
+      - uses: actions-rs/cargo@v1
+        with:
+          use-cross: true
+          command: build
+          args: --release --target=x86_64-pc-windows-gnu --features portable
+      - uses: actions/upload-artifact@v3
+        with:
+          name: windows-portable
+          path: |
+            target/x86_64-pc-windows-gnu/release/lma.exe
 
   publish:
     name: Publish as a prerelease
@@ -56,7 +69,7 @@ jobs:
       - name: Download artifacts
         uses: actions/download-artifact@v3
 
-      - name: 'Create Release'
-        run: hub release create pre-release_${{github.run_number}} -p -m pre-release -a linux/lma#lma-linux -a windows/lma.exe#lma-windows
+      - name: "Create Release"
+        run: hub release create pre-release_${{github.run_number}} -p -m pre-release -a linux/lma#lma-linux -a windows/lma.exe#lma-windows -a windows-portable/lma.exe#lma-windows-portable
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
