@@ -22,7 +22,7 @@ cargo install --git https://github.com/FakeMichau/lma.git
 ```
 
 ### Linux packages
-AUR package is planned.
+[lma](https://aur.archlinux.org/packages/lma) on AUR
 
 ## Usage
 ```
