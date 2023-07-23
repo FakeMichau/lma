@@ -11,7 +11,7 @@ name = "lma"
 path = "src/main.rs"
 
 [dependencies]
-ratatui = { version = "0.21.0" }
+ratatui = { version = "0.22.0" }
 crossterm = { version = "0.26", features = ["serde"] }
 tokio = { version = "1.28.2", features = ["rt-multi-thread"] }
 directories = "5.0"
