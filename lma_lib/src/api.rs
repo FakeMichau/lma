@@ -59,7 +59,7 @@ pub struct AlternativeTitles {
 }
 
 #[async_trait]
-pub trait Service {
+pub trait Service: Send + Sync {
     async fn new(cache_dir: PathBuf) -> Result<Self, String>
     where
         Self: Sized;

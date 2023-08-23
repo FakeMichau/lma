@@ -12,7 +12,6 @@ use ratatui::widgets::{Block, Clear};
 use ratatui::widgets::{Row, Table as TableWidget, TableState};
 use ratatui::Frame;
 use std::path::PathBuf;
-use tokio::runtime::Runtime;
 
 pub struct StatefulList {
     shows_state: TableState,
@@ -25,8 +24,8 @@ pub struct StatefulList {
 }
 
 impl StatefulList {
-    pub fn new<T: Service>(shows: &AnimeList<T>) -> Result<Self, String> {
-        let list_cache = shows.get_list().map_err(|e| e.to_string())?;
+    pub async fn new<T: Service>(shows: &AnimeList<T>) -> Result<Self, String> {
+        let list_cache = shows.get_list().await?;
         Ok(Self {
             shows_state: TableState::default(),
             selecting_episode: false,
@@ -38,18 +37,18 @@ impl StatefulList {
         })
     }
 
-    pub fn delete<T: Service>(&mut self, shows: &AnimeList<T>) -> Result<(), String> {
+    pub async fn delete<T: Service>(&mut self, shows: &AnimeList<T>) -> Result<(), String> {
         if self.selecting_episode {
             // todo: delete just an episode
         } else {
-            shows.remove_entry(self.selected_local_id)?;
-            self.update_cache(shows)?;
+            shows.remove_entry(self.selected_local_id).await?;
+            self.update_cache(shows).await?;
             self.update_selected_id(self.shows_state.selected().unwrap_or_default());
         }
         Ok(())
     }
 
-    pub fn move_selection<T: Service>(
+    pub async fn move_selection<T: Service>(
         &mut self,
         direction: &SelectionDirection,
         shows: &AnimeList<T>,
@@ -58,7 +57,7 @@ impl StatefulList {
         if self.selecting_episode {
             self.move_episode_selection(direction);
         } else {
-            self.update_cache(shows)?;
+            self.update_cache(shows).await?;
             self.move_show_selection(direction);
         }
         Ok(())
@@ -93,11 +92,10 @@ impl StatefulList {
             .and_then(|index| self.list_cache.get(index))
     }
 
-    pub fn move_progress<T: Service>(
+    pub async fn move_progress<T: Service>(
         &mut self,
         direction: &SelectionDirection,
         shows: &mut AnimeList<T>,
-        rt: &Runtime,
     ) -> Result<(), String> {
         let Some(selected_show) = self.selected_show() else {
             return Ok(())
@@ -110,15 +108,15 @@ impl StatefulList {
             .progress
             .checked_add_signed(offset)
             .unwrap_or_default();
-        let actual_progress = rt.block_on(
-            shows
-                .service
-                .set_progress(selected_show.service_id, progress),
-        )?;
+        let actual_progress = shows
+            .service
+            .set_progress(selected_show.service_id, progress)
+            .await?;
         shows
             .set_progress(selected_show.local_id, actual_progress)
+            .await
             .expect("Set local progress");
-        self.update_cache(shows)?;
+        self.update_cache(shows).await?;
         Ok(())
     }
 
@@ -169,8 +167,8 @@ impl StatefulList {
         self.set_selecting_episode(false);
     }
 
-    pub fn update_cache<T: Service>(&mut self, shows: &AnimeList<T>) -> Result<(), String> {
-        self.list_cache = shows.get_list().map_err(|e| e.to_string())?;
+    pub async fn update_cache<T: Service>(&mut self, shows: &AnimeList<T>) -> Result<(), String> {
+        self.list_cache = shows.get_list().await?;
         Ok(())
     }
 

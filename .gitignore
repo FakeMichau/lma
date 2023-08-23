@@ -3,3 +3,4 @@
 *.db3
 tokens
 Settings.toml
+.env

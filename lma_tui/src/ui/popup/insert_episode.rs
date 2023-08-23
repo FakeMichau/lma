@@ -19,7 +19,7 @@ pub struct InsertEpisodePopup {
     pub episode: Episode,
 }
 
-pub fn build<B: Backend, T: Service + Send>(
+pub fn build<B: Backend, T: Service>(
     frame: &mut Frame<B>,
     app: &mut App<T>,
     rt: &Runtime,
@@ -86,7 +86,7 @@ fn handle_inputting_state<T: Service>(app: &mut App<T>) {
     app.insert_episode_popup.episode.path = app.insert_episode_popup.data.clone().into();
 }
 
-fn handle_save_state<T: Service + Send>(app: &mut App<T>, rt: &Runtime) -> Result<(), String> {
+fn handle_save_state<T: Service>(app: &mut App<T>, rt: &Runtime) -> Result<(), String> {
     let path = app.insert_episode_popup.episode.path.clone();
     if path.starts_with("\"") | path.starts_with("'") {
         let matches: &[_] = &['"', '\''];
@@ -106,11 +106,13 @@ fn handle_save_state<T: Service + Send>(app: &mut App<T>, rt: &Runtime) -> Resul
             insert_episode(rt, app, show.local_id, show.service_id)?;
             app.insert_episode_popup.state = InsertState::None;
             app.insert_episode_popup = InsertEpisodePopup::default();
-            app.list_state.update_cache(&app.anime_list)?;
+            rt.block_on(app.list_state.update_cache(&app.anime_list))?;
             app.focused_window = FocusedWindow::MainMenu;
             // to update episodes list
-            app.list_state
-                .move_selection(&SelectionDirection::Next, &app.anime_list)?;
+            rt.block_on(
+                app.list_state
+                    .move_selection(&SelectionDirection::Next, &app.anime_list),
+            )?;
         } else {
             // show not selected, shouldn't be in this state anyway
             app.insert_episode_popup.state = InsertState::None;
@@ -122,7 +124,7 @@ fn handle_save_state<T: Service + Send>(app: &mut App<T>, rt: &Runtime) -> Resul
     Ok(())
 }
 
-fn insert_episode<T: Service + Send>(
+fn insert_episode<T: Service>(
     rt: &Runtime,
     app: &mut App<T>,
     local_id: usize,
@@ -140,14 +142,14 @@ fn insert_episode<T: Service + Send>(
         .cloned()
         .unwrap_or_default();
 
-    if let Err(why) = app.anime_list.add_episode(
+    if let Err(why) = rt.block_on(app.anime_list.add_episode(
         local_id,
         episode.number,
         &episode.path.to_string_lossy(),
         &details.title,
         insert_show::generate_extra_info(details.recap, details.filler),
         details.score.unwrap_or_default(),
-    ) {
+    )) {
         eprintln!("{why}");
     }
     Ok(())

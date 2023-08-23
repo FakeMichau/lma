@@ -55,7 +55,7 @@ impl InsertPopup {
     }
 }
 
-pub fn build<B: Backend, T: Service + Send>(
+pub fn build<B: Backend, T: Service>(
     frame: &mut Frame<B>,
     app: &mut App<T>,
     rt: &Runtime,
@@ -265,11 +265,12 @@ fn fill_title<T: Service>(app: &mut App<T>, rt: &Runtime) -> Result<(), String> 
     Ok(())
 }
 
-fn handle_save_state<T: Service + Send>(app: &mut App<T>, rt: &Runtime) -> Result<(), String> {
-    match app
-        .anime_list
-        .add_show(&app.insert_popup.title, app.insert_popup.service_id, 0)
-    {
+fn handle_save_state<T: Service>(app: &mut App<T>, rt: &Runtime) -> Result<(), String> {
+    match rt.block_on(app.anime_list.add_show(
+        &app.insert_popup.title,
+        app.insert_popup.service_id,
+        0,
+    )) {
         Ok(local_id) => {
             insert_episodes(rt, app, local_id)?;
             rt.block_on(async {
@@ -283,7 +284,9 @@ fn handle_save_state<T: Service + Send>(app: &mut App<T>, rt: &Runtime) -> Resul
             if why.contains("constraint failed") {
                 // show with this sync_service_id or title already exists
                 // get local_id of the show with the same title
-                if let Ok(local_id) = app.anime_list.get_local_show_id(&app.insert_popup.title) {
+                if let Ok(local_id) =
+                    rt.block_on(app.anime_list.get_local_show_id(&app.insert_popup.title))
+                {
                     insert_episodes(rt, app, local_id)?;
                 }
                 // don't do anything more if can't get the id by title
@@ -295,15 +298,17 @@ fn handle_save_state<T: Service + Send>(app: &mut App<T>, rt: &Runtime) -> Resul
     }?;
     app.insert_popup.state = InsertState::None;
     app.insert_popup = InsertPopup::default();
-    app.list_state.update_cache(&app.anime_list)?;
+    rt.block_on(app.list_state.update_cache(&app.anime_list))?;
     app.focused_window = FocusedWindow::MainMenu;
     // to update episodes list
-    app.list_state
-        .move_selection(&SelectionDirection::Next, &app.anime_list)?;
+    rt.block_on(
+        app.list_state
+            .move_selection(&SelectionDirection::Next, &app.anime_list),
+    )?;
     Ok(())
 }
 
-fn insert_episodes<T: Service + Send>(
+fn insert_episodes<T: Service>(
     rt: &Runtime,
     app: &mut App<T>,
     local_id: usize,
@@ -316,8 +321,7 @@ fn insert_episodes<T: Service + Send>(
     ))?;
     // surely I can be smarter about it
     let episode_offset = if app.anime_list.service.get_service_type() == ServiceType::Local {
-        app.anime_list
-            .get_list()
+        rt.block_on(app.anime_list.get_list())
             .map(|shows| {
                 shows
                     .iter()
@@ -334,14 +338,14 @@ fn insert_episodes<T: Service + Send>(
             .get(&episode.number)
             .cloned()
             .unwrap_or_default();
-        if let Err(why) = app.anime_list.add_episode(
+        if let Err(why) = rt.block_on(app.anime_list.add_episode(
             local_id,
             episode.number + episode_offset,
             &episode.path.to_string_lossy(),
             &details.title,
             generate_extra_info(details.recap, details.filler),
             details.score.unwrap_or_default(),
-        ) {
+        )) {
             eprintln!("{why}");
         }
     });
@@ -356,7 +360,7 @@ pub struct EpisodeDetails {
     pub score: Option<f32>,
 }
 
-pub async fn get_episodes_info<T: Service + Send>(
+pub async fn get_episodes_info<T: Service>(
     service: &mut T,
     id: usize,
     precise_score: bool,

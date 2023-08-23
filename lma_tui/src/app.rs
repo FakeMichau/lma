@@ -28,12 +28,16 @@ pub struct App<T: Service> {
     error: String,
 }
 
-impl<T: Service + Send> App<T> {
+impl<T: Service> App<T> {
     pub fn build(rt: &Runtime, config: Config) -> Result<Self, String> {
         let service = rt.block_on(lma_lib::Service::new(config.data_dir.clone()))?;
-        let anime_list = lma_lib::create(service, &config.data_dir, &config.title_sort)?;
+        let anime_list = rt.block_on(lma_lib::create(
+            service,
+            &config.data_dir,
+            &config.title_sort,
+        ))?;
         Ok(Self {
-            list_state: StatefulList::new(&anime_list)?,
+            list_state: rt.block_on(StatefulList::new(&anime_list))?,
             focused_window: FocusedWindow::MainMenu,
             insert_popup: InsertPopup::default(),
             insert_episode_popup: InsertEpisodePopup::default(),
@@ -78,7 +82,7 @@ impl<T: Service + Send> App<T> {
     }
 }
 
-pub fn run<B: Backend, T: Service + Send>(
+pub fn run<B: Backend, T: Service>(
     terminal: &mut Terminal<B>,
     mut app: app::App<T>,
     tick_rate: Duration,
@@ -89,7 +93,7 @@ pub fn run<B: Backend, T: Service + Send>(
     } else if app.config.data_dir.join("tokens").exists() {
         if app.config.update_progress_on_start {
             println!("Updating your progress - please wait");
-            app.anime_list.update_progress(rt)?;
+            rt.block_on(app.anime_list.update_progress())?;
         }
     } else {
         app.focused_window = FocusedWindow::Login;
@@ -124,7 +128,7 @@ pub fn run<B: Backend, T: Service + Send>(
                                 return Ok(());
                             }
                         }
-                        FocusedWindow::Login => handle_input::login(key, &mut app),
+                        FocusedWindow::Login => handle_input::login(key, &mut app, rt),
                         FocusedWindow::InsertPopup => handle_input::insert_popup(&mut app, key),
                         FocusedWindow::InsertEpisodePopup => {
                             handle_input::insert_episode_popup(&mut app, key);

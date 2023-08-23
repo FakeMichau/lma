@@ -5,16 +5,15 @@ pub use api::{
     ServiceTitle, ServiceType,
 };
 pub use lib_mal::*;
-use rusqlite::{params, Connection, Result};
 use serde::{Deserialize, Serialize};
+use sqlx::{Sqlite, SqlitePool};
 use std::cmp::Ordering;
 use std::ffi::OsStr;
 use std::fs;
 use std::path::{Path, PathBuf};
-use tokio::runtime::Runtime;
 
-pub struct AnimeList<T: Service> {
-    db_connection: Connection,
+pub struct AnimeList<T: Service + Send + Sync> {
+    db_connection: sqlx::Pool<Sqlite>,
     pub service: T,
     pub title_sort: TitleSort,
 }
@@ -29,32 +28,42 @@ pub enum TitleSort {
     ServiceIdDesc,
 }
 
-impl<T: Service> AnimeList<T> {
-    pub fn get_list(&self) -> Result<Vec<Show>, rusqlite::Error> {
-        let mut stmt = self.db_connection.prepare(
+impl<T: Service + Send + Sync> AnimeList<T> {
+    pub async fn get_list(&self) -> Result<Vec<Show>, String> {
+        let rows = sqlx::query!(
             "
             SELECT Shows.id, Shows.title, Shows.sync_service_id, Shows.progress,
             COALESCE(Episodes.episode_number, 0) AS episode_number, 
                 Episodes.path, 
-                Episodes.title, 
+                Episodes.title as episode_title, 
                 Episodes.extra_info,
-                Episodes.score
+                Episodes.score as episode_score
             FROM Shows
             LEFT JOIN Episodes ON Shows.id = Episodes.show_id;
         ",
-        )?;
+        )
+        .fetch_all(&self.db_connection)
+        .await
+        .map_err(|e| e.to_string())?;
+
         let mut shows: Vec<Show> = Vec::new();
-        let mut rows = stmt.query([])?;
-        while let Some(row) = rows.next()? {
-            let show_id: usize = row.get(0)?;
-            let title: String = row.get(1)?;
-            let service_id: usize = row.get(2)?;
-            let progress: usize = row.get(3)?;
-            let episode_number: usize = row.get(4)?;
-            let path: String = row.get(5).unwrap_or_default();
-            let episode_title: String = row.get(6).unwrap_or_default();
-            let extra_info: usize = row.get(7).unwrap_or_default();
-            let episode_score: f32 = row.get(8).unwrap_or_default();
+
+        for row in rows {
+            let show_id: usize = usize::try_from(row.id).map_err(|e| e.to_string())?;
+            let title: String = row.title.ok_or("Can't get title")?;
+            let service_id: usize =
+                usize::try_from(row.sync_service_id.ok_or("Can't get service_id")?)
+                    .map_err(|e| e.to_string())?;
+            let progress: usize = usize::try_from(row.progress.ok_or("Can't get progress")?)
+                .map_err(|e| e.to_string())?;
+            let episode_number: usize =
+                usize::try_from(row.episode_number).map_err(|e| e.to_string())?;
+            let path: String = row.path.unwrap_or_default();
+            let episode_title: String = row.episode_title.unwrap_or_default();
+            let extra_info: usize =
+                usize::try_from(row.extra_info.unwrap_or_default()).map_err(|e| e.to_string())?;
+            #[allow(clippy::cast_possible_truncation)]
+            let episode_score: f32 = row.episode_score.unwrap_or_default() as f32;
             let recap = extra_info & (1 << 0) != 0;
             let filler = extra_info & (1 << 1) != 0;
 
@@ -97,65 +106,65 @@ impl<T: Service> AnimeList<T> {
     }
 
     /// Returns local id of the added show
-    pub fn add_show(
+    pub async fn add_show(
         &self,
         title: &str,
         sync_service_id: usize,
         progress: usize,
     ) -> Result<usize, String> {
-        let mut stmt = self
-            .db_connection
-            .prepare(
-                "INSERT INTO Shows (title, sync_service_id, progress) 
+        let sync_service_id = u32::try_from(sync_service_id).map_err(|e| e.to_string())?;
+        let progress = u32::try_from(progress).map_err(|e| e.to_string())?;
+        let rows = sqlx::query!(
+            "INSERT INTO Shows (title, sync_service_id, progress) 
             VALUES (?1, ?2, ?3)
             RETURNING *",
-            )
-            .map_err(|e| e.to_string())?;
+            title,
+            sync_service_id,
+            progress
+        )
+        .fetch_all(&self.db_connection)
+        .await
+        .map_err(|e| e.to_string())?;
 
-        let mut rows = stmt
-            .query(params![title, sync_service_id, progress])
-            .map_err(|e| e.to_string())?;
-
-        let row = rows
-            .next()
-            .map_err(|e| e.to_string())?
-            .ok_or("Can't get row")?;
-        let local_id: usize = row.get(0).map_err(|e| e.to_string())?;
+        let row = rows.first().ok_or("Can't get row")?;
+        let local_id: usize = usize::try_from(row.id).map_err(|e| e.to_string())?;
         Ok(local_id)
     }
 
-    pub fn get_local_show_id(&self, title: &str) -> Result<usize, String> {
-        let mut stmt = self
-            .db_connection
-            .prepare(
-                "SELECT id FROM Shows 
+    pub async fn get_local_show_id(&self, title: &str) -> Result<usize, String> {
+        let rows = sqlx::query!(
+            "SELECT id FROM Shows 
             WHERE title=?1",
-            )
+            title
+        )
+        .fetch_all(&self.db_connection)
+        .await
+        .map_err(|e| e.to_string())?;
+
+        let row = rows.first().ok_or("Can't get row")?;
+        let local_id = usize::try_from(row.id.ok_or("Can't get id from show name")?)
             .map_err(|e| e.to_string())?;
-
-        let mut rows = stmt.query(params![title]).map_err(|e| e.to_string())?;
-
-        let row = rows
-            .next()
-            .map_err(|e| e.to_string())?
-            .ok_or("Can't get row")?;
-        let local_id: usize = row.get(0).map_err(|e| e.to_string())?;
         Ok(local_id)
     }
 
-    pub fn set_progress(&self, id: usize, progress: usize) -> Result<(), String> {
-        self.db_connection
-            .execute(
-                "UPDATE Shows
+    pub async fn set_progress(&self, id: usize, progress: usize) -> Result<(), String> {
+        let id = u32::try_from(id).map_err(|e| e.to_string())?;
+        let progress = u32::try_from(progress).map_err(|e| e.to_string())?;
+        sqlx::query!(
+            "UPDATE Shows
             SET progress = ?2
             WHERE id = ?1",
-                params![id, progress,],
-            )
-            .map_err(|e| e.to_string())?;
+            id,
+            progress
+        )
+        .execute(&self.db_connection)
+        .await
+        .map_err(|e| e.to_string())?;
+
         Ok(())
     }
 
-    pub fn add_episode(
+    pub async fn add_episode(
         &self,
         show_id: usize,
         episode_number: usize,
@@ -164,23 +173,27 @@ impl<T: Service> AnimeList<T> {
         extra_info: usize,
         score: f32,
     ) -> Result<(), String> {
-        self.db_connection
-            .execute(
-                "REPLACE INTO Episodes (show_id, episode_number, path, title, extra_info, score) VALUES (?1, ?2, ?3, ?4, ?5, ?6)",
-                params![show_id, episode_number, path, title, extra_info, score],
-            )
-            .map_err(|e| e.to_string())?;
+        let show_id = u32::try_from(show_id).map_err(|e| e.to_string())?;
+        let episode_number = u32::try_from(episode_number).map_err(|e| e.to_string())?;
+        let extra_info = u32::try_from(extra_info).map_err(|e| e.to_string())?;
+        sqlx::query!(
+            "REPLACE INTO Episodes (show_id, episode_number, path, title, extra_info, score) VALUES (?1, ?2, ?3, ?4, ?5, ?6)",
+            show_id, episode_number, path, title, extra_info, score
+        )
+        .execute(&self.db_connection)
+        .await
+        .map_err(|e| e.to_string())?;
+
         Ok(())
     }
 
-    pub fn update_progress(&mut self, rt: &Runtime) -> Result<(), String> {
+    pub async fn update_progress(&mut self) -> Result<(), String> {
         if !self.service.is_logged_in() {
             return Err(String::from("Can't progress, user not logged in"));
         }
-        for show in self.get_list().map_err(|e| e.to_string())? {
+        for show in self.get_list().await? {
             let service_id = show.service_id;
-            let user_entry_details =
-                rt.block_on(self.service.get_user_entry_details(service_id))?;
+            let user_entry_details = self.service.get_user_entry_details(service_id).await?;
             let user_service_progress_current = user_entry_details
                 .map(|details| details.progress)
                 .unwrap_or_default()
@@ -190,17 +203,18 @@ impl<T: Service> AnimeList<T> {
             match user_service_progress_current.cmp(&local_progress_current) {
                 Ordering::Greater => self
                     .set_progress(show.local_id, user_service_progress_current)
+                    .await
                     .map_err(|e| format!("Can't set progress: {e}")),
                 Ordering::Less => {
-                    let actual_progress = rt
-                        .block_on(
-                            self.service
-                                .set_progress(service_id, local_progress_current),
-                        )
+                    let actual_progress = self
+                        .service
+                        .set_progress(service_id, local_progress_current)
+                        .await
                         .unwrap_or(local_progress_current);
                     // in case of going beyond number of episodes
                     if actual_progress < local_progress_current {
                         self.set_progress(show.local_id, actual_progress)
+                            .await
                             .map_err(|e| format!("Can't set progress: {e}"))?;
                     }
                     Ok(())
@@ -278,12 +292,16 @@ impl<T: Service> AnimeList<T> {
         input.to_string()
     }
 
-    pub fn remove_entry(&self, show_id: usize) -> Result<(), String> {
-        self.db_connection
-            .execute("DELETE FROM Episodes WHERE show_id = ?1", params![show_id])
+    pub async fn remove_entry(&self, show_id: usize) -> Result<(), String> {
+        let show_id = u32::try_from(show_id).map_err(|e| e.to_string())?;
+        sqlx::query!("DELETE FROM Episodes WHERE show_id = ?1", show_id)
+            .execute(&self.db_connection)
+            .await
             .map_err(|e| e.to_string())?;
-        self.db_connection
-            .execute("DELETE FROM Shows WHERE id = ?1", params![show_id])
+
+        sqlx::query!("DELETE FROM Shows WHERE id = ?1", show_id)
+            .execute(&self.db_connection)
+            .await
             .map_err(|e| e.to_string())?;
         Ok(())
     }
@@ -323,27 +341,28 @@ pub struct Episode {
     pub filler: bool,
 }
 
-pub fn create<T: Service>(
+pub async fn create<T: Service + Send + Sync>(
     service: T,
     data_path: &Path,
     title_sort: &TitleSort,
 ) -> Result<AnimeList<T>, String> {
     let path = data_path.join("database.db3");
-    let db_connection =
-        Connection::open(path).map_err(|err| format!("Can't create db connection {err}"))?;
-    db_connection
-        .is_readonly(rusqlite::DatabaseName::Main)
-        .map_err(|err| format!("Can't check if db is read only {err}"))?;
-    match db_connection.execute_batch(
-        "
-        CREATE TABLE Shows (id INTEGER PRIMARY KEY AUTOINCREMENT, title TEXT UNIQUE, sync_service_id INTEGER UNIQUE, progress INTEGER);
-        CREATE TABLE Episodes (show_id INTEGER, episode_number INTEGER, path TEXT, title TEXT, extra_info INTEGER, score REAL, PRIMARY KEY (show_id, episode_number), FOREIGN KEY (show_id) REFERENCES Shows(id));
-        "
-    ) {
+    let url = format!("sqlite:{}", path.to_string_lossy());
+    let db_pool = SqlitePool::connect(&url)
+        .await
+        .map_err(|err| format!("Can't create db connection {err}"))?;
+    let result = sqlx::query!("
+        CREATE TABLE IF NOT EXISTS Shows (id INTEGER PRIMARY KEY AUTOINCREMENT, title TEXT UNIQUE, sync_service_id INTEGER UNIQUE, progress INTEGER);
+        CREATE TABLE IF NOT EXISTS Episodes (show_id INTEGER, episode_number INTEGER, path TEXT, title TEXT, extra_info INTEGER, score REAL, PRIMARY KEY (show_id, episode_number), FOREIGN KEY (show_id) REFERENCES Shows(id))
+    ")
+    .execute(&db_pool)
+    .await;
+
+    match result {
         Ok(_) => {
             #[cfg(debug_assertions)]
             dbg!("Tables created");
-        },
+        }
         Err(why) => {
             if why.to_string().contains("already exists") {
                 #[cfg(debug_assertions)]
@@ -354,7 +373,7 @@ pub fn create<T: Service>(
         }
     };
     Ok(AnimeList {
-        db_connection,
+        db_connection: db_pool,
         service,
         title_sort: title_sort.clone(),
     })

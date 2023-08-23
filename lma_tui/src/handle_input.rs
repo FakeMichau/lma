@@ -7,7 +7,7 @@ use lma_lib::Service;
 use ratatui::{backend::Backend, Terminal};
 use tokio::runtime::Runtime;
 
-pub fn main_menu<B: Backend, T: Service + Send>(
+pub fn main_menu<B: Backend, T: Service>(
     key: event::KeyEvent,
     app: &mut App<T>,
     rt: &Runtime,
@@ -17,23 +17,31 @@ pub fn main_menu<B: Backend, T: Service + Send>(
     if key.code == key_binds.quit {
         return Ok(None);
     } else if key.code == key_binds.move_down {
-        app.list_state
-            .move_selection(&SelectionDirection::Next, &app.anime_list)?;
+        rt.block_on(
+            app.list_state
+                .move_selection(&SelectionDirection::Next, &app.anime_list),
+        )?;
     } else if key.code == key_binds.move_up {
-        app.list_state
-            .move_selection(&SelectionDirection::Previous, &app.anime_list)?;
+        rt.block_on(
+            app.list_state
+                .move_selection(&SelectionDirection::Previous, &app.anime_list),
+        )?;
     } else if key.code == key_binds.progress_inc {
-        app.list_state
-            .move_progress(&SelectionDirection::Next, &mut app.anime_list, rt)?;
+        rt.block_on(
+            app.list_state
+                .move_progress(&SelectionDirection::Next, &mut app.anime_list),
+        )?;
     } else if key.code == key_binds.progress_dec {
-        app.list_state
-            .move_progress(&SelectionDirection::Previous, &mut app.anime_list, rt)?;
+        rt.block_on(
+            app.list_state
+                .move_progress(&SelectionDirection::Previous, &mut app.anime_list),
+        )?;
     } else if key.code == key_binds.forwards || key.code == key_binds.confirmation {
         app.list_state.select(app.list_state.last_height)?;
     } else if key.code == key_binds.backwards || key.code == key_binds.close {
         app.list_state.unselect();
     } else if key.code == key_binds.delete {
-        app.list_state.delete(&app.anime_list)?;
+        rt.block_on(app.list_state.delete(&app.anime_list))?;
     } else if key.code == key_binds.new_show {
         app.focused_window = FocusedWindow::InsertPopup;
         app.insert_popup.state = InsertState::Inputting;
@@ -42,21 +50,21 @@ pub fn main_menu<B: Backend, T: Service + Send>(
         app.insert_episode_popup.state = InsertState::Inputting;
     } else if key.code == key_binds.login {
         app.handle_login(rt, terminal)?;
-        app.anime_list.update_progress(rt)?;
+        rt.block_on(app.anime_list.update_progress())?;
     }
     Ok(Some(true))
 }
 
-pub fn login<T: Service + Send>(key: event::KeyEvent, app: &mut App<T>) {
+pub fn login<T: Service>(key: event::KeyEvent, app: &mut App<T>, rt: &Runtime) {
     if key.code == app.config.key_binds.close {
         app.focused_window = FocusedWindow::MainMenu;
-        if let Err(err) = app.list_state.update_cache(&app.anime_list) {
+        if let Err(err) = rt.block_on(app.list_state.update_cache(&app.anime_list)) {
             app.set_error(err);
         };
     }
 }
 
-pub fn first_setup<T: Service + Send>(
+pub fn first_setup<T: Service>(
     key: event::KeyEvent,
     app: &mut App<T>,
 ) -> Result<Option<bool>, String> {
@@ -80,7 +88,7 @@ pub fn first_setup<T: Service + Send>(
     Ok(Some(true))
 }
 
-pub fn error<T: Service + Send>(key: event::KeyEvent, app: &mut App<T>) {
+pub fn error<T: Service>(key: event::KeyEvent, app: &mut App<T>) {
     let key_binds = &app.config.key_binds;
     if key.code == key_binds.close || key.code == key_binds.confirmation {
         app.set_error(String::new());
@@ -162,7 +170,7 @@ pub fn insert_episode_popup<T: Service>(app: &mut App<T>, key: event::KeyEvent) 
     }
 }
 
-pub fn title_selection<T: Service + Send>(key: event::KeyEvent, app: &mut App<T>) {
+pub fn title_selection<T: Service>(key: event::KeyEvent, app: &mut App<T>) {
     let key_binds = &app.config.key_binds;
     if key.code == key_binds.move_down {
         app.titles_popup.move_selection(&SelectionDirection::Next);
@@ -182,7 +190,7 @@ pub fn title_selection<T: Service + Send>(key: event::KeyEvent, app: &mut App<T>
     }
 }
 
-pub fn mismatch_popup<T: Service + Send>(key: event::KeyEvent, app: &mut App<T>) {
+pub fn mismatch_popup<T: Service>(key: event::KeyEvent, app: &mut App<T>) {
     let key_binds = &app.config.key_binds;
     if key.code == key_binds.close {
         app.focused_window = FocusedWindow::InsertPopup;
