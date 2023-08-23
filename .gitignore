@@ -1,6 +1,5 @@
 /target
 .vscode/*
-*.db3
+database.db3
 tokens
 Settings.toml
-.env

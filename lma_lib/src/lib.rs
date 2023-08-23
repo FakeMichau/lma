@@ -6,11 +6,13 @@ pub use api::{
 };
 pub use lib_mal::*;
 use serde::{Deserialize, Serialize};
+use sqlx::sqlite::SqliteConnectOptions;
 use sqlx::{Sqlite, SqlitePool};
 use std::cmp::Ordering;
 use std::ffi::OsStr;
 use std::fs;
 use std::path::{Path, PathBuf};
+use std::str::FromStr;
 
 pub struct AnimeList<T: Service + Send + Sync> {
     db_connection: sqlx::Pool<Sqlite>,
@@ -348,7 +350,10 @@ pub async fn create<T: Service + Send + Sync>(
 ) -> Result<AnimeList<T>, String> {
     let path = data_path.join("database.db3");
     let url = format!("sqlite:{}", path.to_string_lossy());
-    let db_pool = SqlitePool::connect(&url)
+    let options = SqliteConnectOptions::from_str(&url)
+        .map_err(|err| format!("Can't create db options {err}"))?
+        .create_if_missing(true);
+    let db_pool = SqlitePool::connect_with(options)
         .await
         .map_err(|err| format!("Can't create db connection {err}"))?;
     let result = sqlx::query!("
