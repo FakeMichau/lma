@@ -39,7 +39,7 @@ pub fn build<B: Backend, T: Service>(
 
     match app.insert_episode_popup.state {
         InsertState::Inputting => handle_inputting_state(app),
-        InsertState::Save => handle_save_state(app, rt)?,
+        InsertState::Save => rt.block_on(handle_save_state(app))?,
         InsertState::None => {}
         InsertState::Next => todo!(),
     }
@@ -86,7 +86,7 @@ fn handle_inputting_state<T: Service>(app: &mut App<T>) {
     app.insert_episode_popup.episode.path = app.insert_episode_popup.data.clone().into();
 }
 
-fn handle_save_state<T: Service>(app: &mut App<T>, rt: &Runtime) -> Result<(), String> {
+async fn handle_save_state<T: Service>(app: &mut App<T>) -> Result<(), String> {
     let path = app.insert_episode_popup.episode.path.clone();
     if path.starts_with("\"") | path.starts_with("'") {
         let matches: &[_] = &['"', '\''];
@@ -103,16 +103,15 @@ fn handle_save_state<T: Service>(app: &mut App<T>, rt: &Runtime) -> Result<(), S
                 .map(|last_show| last_show.number)
                 .unwrap_or_default();
             app.insert_episode_popup.episode.number = last_episode_number + 1;
-            insert_episode(rt, app, show.local_id, show.service_id)?;
+            insert_episode(app, show.local_id, show.service_id).await?;
             app.insert_episode_popup.state = InsertState::None;
             app.insert_episode_popup = InsertEpisodePopup::default();
-            rt.block_on(app.list_state.update_cache(&app.anime_list))?;
+            app.list_state.update_cache(&app.anime_list).await?;
             app.focused_window = FocusedWindow::MainMenu;
             // to update episodes list
-            rt.block_on(
-                app.list_state
-                    .move_selection(&SelectionDirection::Next, &app.anime_list),
-            )?;
+            app.list_state
+                .move_selection(&SelectionDirection::Next, &app.anime_list)
+                .await?;
         } else {
             // show not selected, shouldn't be in this state anyway
             app.insert_episode_popup.state = InsertState::None;
@@ -124,32 +123,36 @@ fn handle_save_state<T: Service>(app: &mut App<T>, rt: &Runtime) -> Result<(), S
     Ok(())
 }
 
-fn insert_episode<T: Service>(
-    rt: &Runtime,
+async fn insert_episode<T: Service>(
     app: &mut App<T>,
     local_id: usize,
     service_id: usize,
 ) -> Result<(), String> {
     // service_id is fine because hashmap can be empty here
-    let episodes_details_hash = rt.block_on(insert_show::get_episodes_info(
+    let episodes_details_hash = insert_show::get_episodes_info(
         &mut app.anime_list.service,
         service_id,
         app.config.precise_score,
-    ))?;
+    )
+    .await?;
     let episode = &app.insert_episode_popup.episode;
     let details = episodes_details_hash
         .get(&episode.number)
         .cloned()
         .unwrap_or_default();
 
-    if let Err(why) = rt.block_on(app.anime_list.add_episode(
-        local_id,
-        episode.number,
-        &episode.path.to_string_lossy(),
-        &details.title,
-        insert_show::generate_extra_info(details.recap, details.filler),
-        details.score.unwrap_or_default(),
-    )) {
+    if let Err(why) = app
+        .anime_list
+        .add_episode(
+            local_id,
+            episode.number,
+            &episode.path.to_string_lossy(),
+            &details.title,
+            insert_show::generate_extra_info(details.recap, details.filler),
+            details.score.unwrap_or_default(),
+        )
+        .await
+    {
         eprintln!("{why}");
     }
     Ok(())

@@ -29,15 +29,11 @@ pub struct App<T: Service> {
 }
 
 impl<T: Service> App<T> {
-    pub fn build(rt: &Runtime, config: Config) -> Result<Self, String> {
-        let service = rt.block_on(lma_lib::Service::new(config.data_dir.clone()))?;
-        let anime_list = rt.block_on(lma_lib::create(
-            service,
-            &config.data_dir,
-            &config.title_sort,
-        ))?;
+    pub async fn build(config: Config) -> Result<Self, String> {
+        let service = lma_lib::Service::new(config.data_dir.clone()).await?;
+        let anime_list = lma_lib::create(service, &config.data_dir, &config.title_sort).await?;
         Ok(Self {
-            list_state: rt.block_on(StatefulList::new(&anime_list))?,
+            list_state: StatefulList::new(&anime_list).await?,
             focused_window: FocusedWindow::MainMenu,
             insert_popup: InsertPopup::default(),
             insert_episode_popup: InsertEpisodePopup::default(),

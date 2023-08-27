@@ -24,11 +24,11 @@ fn main() -> Result<(), Box<dyn Error>> {
     let config = Config::default()?;
     let run_result = match config.service() {
         ServiceType::MAL => {
-            let app = app::App::<MAL<MALClient>>::build(&rt, config)?;
+            let app = rt.block_on(app::App::<MAL<MALClient>>::build(config))?;
             app::run(&mut terminal, app, tick_rate, &rt)
         }
         ServiceType::Local => {
-            let app = app::App::<Local>::build(&rt, config)?;
+            let app = rt.block_on(app::App::<Local>::build(config))?;
             app::run(&mut terminal, app, tick_rate, &rt)
         }
     };
