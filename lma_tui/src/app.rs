@@ -73,6 +73,10 @@ impl<T: Service> App<T> {
         }
     }
 
+    pub fn clear_error(&mut self) {
+        self.error = String::new();
+    }
+
     pub fn error(&self) -> &str {
         self.error.as_ref()
     }

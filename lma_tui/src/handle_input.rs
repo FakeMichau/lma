@@ -91,7 +91,7 @@ pub fn first_setup<T: Service>(
 pub fn error<T: Service>(key: event::KeyEvent, app: &mut App<T>) {
     let key_binds = &app.config.key_binds;
     if key.code == key_binds.close || key.code == key_binds.confirmation {
-        app.set_error(String::new());
+        app.clear_error();
         app.focused_window = FocusedWindow::MainMenu;
     }
 }
