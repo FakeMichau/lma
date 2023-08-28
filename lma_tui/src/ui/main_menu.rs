@@ -264,10 +264,10 @@ impl HeaderAlign for Vec<HeaderType> {
                     Constraint::Percentage(100),
                 ),
                 HeaderType::Score(width) => {
-                    TableHeaderItem::new(const_align("Score", *width), Constraint::Min(*width))
+                    TableHeaderItem::new(const_align("Score", *width), Constraint::Min(*width + 1))
                 }
                 HeaderType::Extra(width) => {
-                    TableHeaderItem::new(const_align("Extra", *width), Constraint::Min(*width))
+                    TableHeaderItem::new(const_align("Extra", *width), Constraint::Min(*width + 1))
                 }
             })
             .collect()
@@ -324,14 +324,14 @@ impl<'a> Table<'a> {
             header_text.push(header_item.text);
             header_constraint.push(header_item.constraint);
         }
-        let column_count = header_text.len();
-        if let Some(title_pos) = header_constraint
-            .iter()
-            .position(|constraint| constraint == &Constraint::Percentage(100))
-        {
-            let position_from_end = u16::try_from(column_count - title_pos - 1).unwrap_or_default();
-            header_constraint.push(Constraint::Min(position_from_end));
-        }
+        // let column_count = header_text.len();
+        // if let Some(title_pos) = header_constraint
+        //     .iter()
+        //     .position(|constraint| constraint == &Constraint::Percentage(100))
+        // {
+        //     let position_from_end = u16::try_from(column_count - title_pos - 1).unwrap_or_default();
+        //     header_constraint.push(Constraint::Min(position_from_end));
+        // }
         let widget = TableWidget::new(self.items.take().unwrap_or_default())
             .header(Row::new(header_text).style(Style::default().fg(colors.secondary)))
             .widths(&header_constraint)

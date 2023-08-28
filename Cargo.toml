@@ -4,8 +4,6 @@ opt-level = "s"
 lto = true
 
 [workspace]
+resolver = "2"
 
-members = [
-    "lma_tui",
-    "lma_lib",
-]
+members = ["lma_tui", "lma_lib"]
