@@ -3,7 +3,6 @@ use crate::{
     ui::{self, SelectionDirection},
 };
 use lma_lib::{Service, ServiceTitle};
-use ratatui::backend::Backend;
 use ratatui::layout::Margin;
 use ratatui::style::{Modifier, Style};
 use ratatui::widgets::{Block, Borders, Clear, List, ListItem, ListState};
@@ -45,7 +44,7 @@ impl TitlesPopup {
 
 use super::centered_rect;
 
-pub fn build<B: Backend, T: Service>(frame: &mut Frame<B>, app: &mut App<T>) {
+pub fn build<T: Service>(frame: &mut Frame, app: &mut App<T>) {
     let area = centered_rect(70, 70, frame.size());
     let list_area = area.inner(&Margin {
         vertical: 1,

@@ -3,7 +3,6 @@ use super::{centered_rect, insert_show};
 use crate::app::App;
 use crate::ui::{FocusedWindow, SelectionDirection};
 use lma_lib::{is_video_file, Episode, Service};
-use ratatui::backend::Backend;
 use ratatui::layout::{Alignment, Constraint, Direction, Layout, Margin};
 use ratatui::style::{Modifier, Style};
 use ratatui::text::{Line, Span};
@@ -19,8 +18,8 @@ pub struct InsertEpisodePopup {
     pub episode: Episode,
 }
 
-pub fn build<B: Backend, T: Service>(
-    frame: &mut Frame<B>,
+pub fn build<T: Service>(
+    frame: &mut Frame,
     app: &mut App<T>,
     rt: &Runtime,
 ) -> Result<(), String> {

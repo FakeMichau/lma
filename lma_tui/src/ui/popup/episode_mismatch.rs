@@ -1,6 +1,5 @@
 use crate::app::App;
 use lma_lib::{AnimeList, Episode, Service};
-use ratatui::backend::Backend;
 use ratatui::layout::{Alignment, Constraint, Direction, Layout, Margin};
 use ratatui::style::{Modifier, Style};
 use ratatui::text::{Line, Span};
@@ -86,7 +85,7 @@ impl MismatchPopup {
     }
 }
 
-pub fn build<B: Backend, T: Service>(frame: &mut Frame<B>, app: &mut App<T>) {
+pub fn build<T: Service>(frame: &mut Frame, app: &mut App<T>) {
     let area = super::centered_rect(70, 70, frame.size());
     let inner_area = area.inner(&Margin {
         vertical: 1,

@@ -5,7 +5,6 @@ use super::SelectionDirection;
 use crate::app::App;
 use crate::config::TermColors;
 use lma_lib::{AnimeList, Service, Show};
-use ratatui::backend::Backend;
 use ratatui::layout::{Constraint, Direction, Layout, Margin, Rect};
 use ratatui::style::{Modifier, Style};
 use ratatui::widgets::{Block, Clear};
@@ -178,7 +177,7 @@ impl StatefulList {
     }
 }
 
-pub fn render<B: Backend, T: Service>(frame: &mut Frame<'_, B>, app: &mut App<T>) {
+pub fn render<T: Service>(frame: &mut Frame, app: &mut App<T>) {
     let top_bottom = Layout::default()
         .direction(Direction::Vertical)
         .constraints([Constraint::Min(1), Constraint::Max(1)].as_ref())
@@ -315,7 +314,7 @@ impl<'a> Table<'a> {
         }
     }
 
-    fn render<B: Backend>(&mut self, frame: &mut Frame<'_, B>, colors: &TermColors) {
+    fn render(&mut self, frame: &mut Frame, colors: &TermColors) {
         const COLUMN_SPACING: u16 = 1;
         let mut header_text = Vec::new();
         let mut header_constraint = Vec::new();
@@ -345,9 +344,9 @@ impl<'a> Table<'a> {
     }
 }
 
-fn render_scrollbar<B: Backend>(
+fn render_scrollbar(
     area: Rect,
-    frame: &mut Frame<B>,
+    frame: &mut Frame,
     entry_count: usize,
     colors: &TermColors,
     offset: usize,

@@ -2,7 +2,6 @@ use super::centered_rect;
 use crate::app::App;
 use crate::ui::{self, SelectionDirection};
 use lma_lib::{Service, ServiceType};
-use ratatui::backend::Backend;
 use ratatui::layout::{Alignment, Constraint, Direction, Layout, Margin, Rect};
 use ratatui::style::{Modifier, Style};
 use ratatui::text::{Line, Span};
@@ -80,7 +79,7 @@ impl SetupPopup {
     }
 }
 
-pub fn build<B: Backend, T: Service>(frame: &mut Frame<B>, app: &mut App<T>) {
+pub fn build<T: Service>(frame: &mut Frame, app: &mut App<T>) {
     let area = centered_rect(70, 70, frame.size());
     let inner_area = area.inner(&Margin {
         vertical: 1,
@@ -118,7 +117,7 @@ fn get_vertical_middle(needed_space: u16, area: Rect) -> Rect {
         })
 }
 
-fn render_first_page<B: Backend>(frame: &mut Frame<B>, area: Rect) {
+fn render_first_page(frame: &mut Frame, area: Rect) {
     const LINES_TO_FIT: u16 = 3;
     let middle = get_vertical_middle(LINES_TO_FIT, area);
 
@@ -137,7 +136,7 @@ fn render_first_page<B: Backend>(frame: &mut Frame<B>, area: Rect) {
     frame.render_widget(form, middle);
 }
 
-fn render_second_page<B: Backend, T: Service>(frame: &mut Frame<B>, area: Rect, app: &mut App<T>) {
+fn render_second_page<T: Service>(frame: &mut Frame, area: Rect, app: &mut App<T>) {
     let main_chunks = Layout::default()
         .direction(Direction::Vertical)
         .constraints([Constraint::Percentage(50), Constraint::Percentage(50)].as_ref())
@@ -176,7 +175,7 @@ fn render_second_page<B: Backend, T: Service>(frame: &mut Frame<B>, area: Rect, 
     );
 }
 
-fn render_third_page<B: Backend>(frame: &mut Frame<B>, area: Rect, config_path: &Path) {
+fn render_third_page(frame: &mut Frame, area: Rect, config_path: &Path) {
     const LINES_TO_FIT: u16 = 6;
     let middle = get_vertical_middle(LINES_TO_FIT, area);
     let config_path = if config_path.is_absolute() {

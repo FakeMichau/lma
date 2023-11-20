@@ -2,14 +2,13 @@ use super::{get_inner_layout, render_scrollbar, try_to_scroll_title, HeaderType,
 use crate::app::App;
 use crate::config::TermColors;
 use lma_lib::{Episode, Service, Show};
-use ratatui::backend::Backend;
 use ratatui::layout::Rect;
 use ratatui::style::{Modifier, Style};
 use ratatui::widgets::{Block, Borders, TableState};
 use ratatui::widgets::{Cell, Row};
 use ratatui::Frame;
 
-pub fn render<B: Backend, T: Service>(app: &mut App<T>, area: Rect, frame: &mut Frame<'_, B>) {
+pub fn render<T: Service>(app: &mut App<T>, area: Rect, frame: &mut Frame) {
     let mut header = app.config.headers.episodes.clone();
 
     let (table_area, scrollbar_area) = get_inner_layout(area);

@@ -6,7 +6,7 @@ use self::popup::{
 };
 use crate::app;
 use lma_lib::Service;
-use ratatui::{backend::Backend, Frame};
+use ratatui::Frame;
 use tokio::runtime::Runtime;
 
 #[derive(PartialEq, Eq)]
@@ -27,7 +27,7 @@ pub enum SelectionDirection {
     Previous,
 }
 
-pub fn ui<B: Backend, T: Service>(frame: &mut Frame<B>, app: &mut app::App<T>, rt: &Runtime) {
+pub fn ui<T: Service>(frame: &mut Frame, app: &mut app::App<T>, rt: &Runtime) {
     let result: Result<(), String> = {
         // doesn't catch errors from main
         main_menu::render(frame, app);

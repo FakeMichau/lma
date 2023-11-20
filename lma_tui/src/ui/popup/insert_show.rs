@@ -2,7 +2,6 @@ use super::{centered_rect, episode_mismatch::MismatchPopup, title_selection::Tit
 use crate::app::App;
 use crate::ui::{FocusedWindow, SelectionDirection};
 use lma_lib::{AnimeList, Episode, Service, ServiceType};
-use ratatui::backend::Backend;
 use ratatui::layout::Margin;
 use ratatui::text::{Line, Span};
 use ratatui::widgets::{Block, Borders, Clear, Paragraph};
@@ -55,8 +54,8 @@ impl InsertPopup {
     }
 }
 
-pub fn build<B: Backend, T: Service>(
-    frame: &mut Frame<B>,
+pub fn build<T: Service>(
+    frame: &mut Frame,
     app: &mut App<T>,
     rt: &Runtime,
 ) -> Result<(), String> {

@@ -4,14 +4,13 @@ use crate::ui::popup::insert_show::InsertState;
 use crate::ui::FocusedWindow;
 use crossterm::event::KeyCode;
 use lma_lib::Service;
-use ratatui::backend::Backend;
 use ratatui::layout::Rect;
 use ratatui::style::{Color, Modifier, Style};
 use ratatui::text::Span;
 use ratatui::widgets::Paragraph;
 use ratatui::{text::Line, Frame};
 
-pub fn render<B: Backend, T: Service>(app: &mut App<T>, area: Rect, frame: &mut Frame<B>) {
+pub fn render<T: Service>(app: &mut App<T>, area: Rect, frame: &mut Frame) {
     let help = build_help(
         &app.focused_window,
         &app.insert_popup.state,
