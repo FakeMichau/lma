@@ -1,8 +1,8 @@
-use super::{get_inner_layout, render_scrollbar, try_to_scroll_title, HeaderType, Table};
+use super::{try_to_scroll_title, HeaderType, Table};
 use crate::app::App;
 use crate::config::TermColors;
 use lma_lib::{Service, Show};
-use ratatui::layout::Rect;
+use ratatui::layout::{Margin, Rect};
 use ratatui::style::{Modifier, Style};
 use ratatui::widgets::{Block, Borders};
 use ratatui::widgets::{Cell, Row};
@@ -11,7 +11,7 @@ use ratatui::Frame;
 pub fn render<T: Service>(app: &mut App<T>, area: Rect, frame: &mut Frame) {
     let header = &app.config.headers.shows;
 
-    let (table_area, scrollbar_area) = get_inner_layout(area);
+    let table_area = area.inner(&Margin::new(1, 1));
 
     let selected_show_id = get_selected_show_id(app);
     let shows: Vec<Row> = app
@@ -38,17 +38,8 @@ pub fn render<T: Service>(app: &mut App<T>, area: Rect, frame: &mut Frame) {
 
     frame.render_widget(border, area);
 
-    let shows_number = shows.len();
     Table::new(&mut app.list_state.shows_state, shows, header, table_area)
         .render(frame, &app.config.colors);
-
-    render_scrollbar(
-        scrollbar_area,
-        frame,
-        shows_number,
-        &app.config.colors,
-        app.list_state.shows_state.offset(),
-    );
 }
 
 fn get_style(show: &Show, colors: &TermColors) -> Style {

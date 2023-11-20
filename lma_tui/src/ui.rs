@@ -1,5 +1,6 @@
 pub mod main_menu;
 pub mod popup;
+pub mod widgets;
 use self::popup::{
     insert_episode::InsertEpisodePopup,
     insert_show::{InsertPopup, InsertState},

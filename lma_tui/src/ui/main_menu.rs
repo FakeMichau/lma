@@ -4,11 +4,11 @@ mod shows;
 use super::SelectionDirection;
 use crate::app::App;
 use crate::config::TermColors;
+use crate::ui::widgets::ScrollableTable;
 use lma_lib::{AnimeList, Service, Show};
-use ratatui::layout::{Constraint, Direction, Layout, Margin, Rect};
+use ratatui::layout::{Constraint, Direction, Layout, Rect};
 use ratatui::style::{Modifier, Style};
-use ratatui::widgets::{Block, Clear};
-use ratatui::widgets::{Row, Table as TableWidget, TableState};
+use ratatui::widgets::{Row, TableState};
 use ratatui::Frame;
 use std::path::PathBuf;
 
@@ -204,18 +204,6 @@ fn try_to_scroll_title(
     *title = scroll_text(title.clone(), space, scroll_progress);
 }
 
-fn get_inner_layout(area: Rect) -> (Rect, Rect) {
-    let inner_area = area.inner(&Margin {
-        vertical: 1,
-        horizontal: 1,
-    });
-    let inner_layout = Layout::default()
-        .direction(Direction::Horizontal)
-        .constraints([Constraint::Percentage(100), Constraint::Min(1)].as_ref())
-        .split(inner_area);
-    (inner_layout[0], inner_layout[1])
-}
-
 #[derive(PartialEq, Eq, Clone, Copy)]
 pub enum HeaderType {
     Number(u16),
@@ -331,7 +319,7 @@ impl<'a> Table<'a> {
         //     let position_from_end = u16::try_from(column_count - title_pos - 1).unwrap_or_default();
         //     header_constraint.push(Constraint::Min(position_from_end));
         // }
-        let widget = TableWidget::new(self.items.take().unwrap_or_default())
+        let widget = ScrollableTable::new(self.items.take().unwrap_or_default())
             .header(Row::new(header_text).style(Style::default().fg(colors.secondary)))
             .widths(&header_constraint)
             .column_spacing(COLUMN_SPACING)
@@ -341,41 +329,6 @@ impl<'a> Table<'a> {
                     .add_modifier(Modifier::BOLD),
             );
         frame.render_stateful_widget(widget, self.area, self.state);
-    }
-}
-
-fn render_scrollbar(
-    area: Rect,
-    frame: &mut Frame,
-    entry_count: usize,
-    colors: &TermColors,
-    offset: usize,
-) {
-    frame.render_widget(Clear, area);
-    if entry_count > area.height.into() {
-        let area = get_scroll_bar(offset, area, entry_count);
-        let progress = Block::default().style(Style::default().bg(colors.text));
-        frame.render_widget(progress, area);
-    }
-}
-
-#[allow(
-    clippy::cast_precision_loss,
-    clippy::cast_possible_truncation,
-    clippy::cast_sign_loss
-)]
-fn get_scroll_bar(offset: usize, scrollbar_area: Rect, episode_count: usize) -> Rect {
-    let float_skipped_entries = offset as f64;
-    let float_height = f64::from(scrollbar_area.height);
-    let float_episode_count = episode_count as f64;
-    let float_bar_height = float_height * float_height / float_episode_count;
-    let max_y = float_height - float_bar_height;
-    let float_y = (float_skipped_entries / float_episode_count * float_height).clamp(0.0, max_y);
-    Rect {
-        x: scrollbar_area.x,
-        y: float_y as u16 + scrollbar_area.y,
-        width: scrollbar_area.width,
-        height: float_bar_height.ceil() as u16,
     }
 }
 

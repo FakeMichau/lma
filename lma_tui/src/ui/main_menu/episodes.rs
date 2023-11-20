@@ -1,8 +1,8 @@
-use super::{get_inner_layout, render_scrollbar, try_to_scroll_title, HeaderType, Table};
+use super::{try_to_scroll_title, HeaderType, Table};
 use crate::app::App;
 use crate::config::TermColors;
 use lma_lib::{Episode, Service, Show};
-use ratatui::layout::Rect;
+use ratatui::layout::{Margin, Rect};
 use ratatui::style::{Modifier, Style};
 use ratatui::widgets::{Block, Borders, TableState};
 use ratatui::widgets::{Cell, Row};
@@ -11,7 +11,7 @@ use ratatui::Frame;
 pub fn render<T: Service>(app: &mut App<T>, area: Rect, frame: &mut Frame) {
     let mut header = app.config.headers.episodes.clone();
 
-    let (table_area, scrollbar_area) = get_inner_layout(area);
+    let table_area = area.inner(&Margin::new(1, 1));
     app.list_state.last_height = table_area.height;
 
     let selected_show = app.list_state.selected_show().cloned();
@@ -74,7 +74,6 @@ pub fn render<T: Service>(app: &mut App<T>, area: Rect, frame: &mut Frame) {
     let border = generate_border(average_episode_score, app);
     frame.render_widget(border, area);
 
-    let episodes_number = episodes.len();
     Table::new(
         &mut app.list_state.episodes_state,
         episodes,
@@ -82,14 +81,6 @@ pub fn render<T: Service>(app: &mut App<T>, area: Rect, frame: &mut Frame) {
         table_area,
     )
     .render(frame, &app.config.colors);
-
-    render_scrollbar(
-        scrollbar_area,
-        frame,
-        episodes_number,
-        &app.config.colors,
-        app.list_state.episodes_state.offset(),
-    );
 }
 
 fn generate_border<T: Service>(average_episode_score: Option<f32>, app: &App<T>) -> Block<'_> {
