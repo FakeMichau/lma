@@ -1,4 +1,4 @@
-use super::{try_to_scroll_title, HeaderType, Table};
+use super::{try_to_scroll_title, HeaderType, Selection, Table};
 use crate::app::App;
 use crate::config::TermColors;
 use lma_lib::{Episode, Service, Show};
@@ -47,7 +47,7 @@ pub fn render<T: Service>(app: &mut App<T>, area: Rect, frame: &mut Frame) {
                     let mut episode_display_name =
                         get_display_name(&episode, app.config.path_instead_of_title);
 
-                    if app.list_state.selecting_episode
+                    if app.list_state.selection == Selection::Episode
                         && selected_episode_number == Some(episode.number)
                     {
                         try_to_scroll_title(
@@ -89,7 +89,7 @@ fn generate_border<T: Service>(average_episode_score: Option<f32>, app: &App<T>)
     Block::default()
         .borders(Borders::ALL)
         .title(format!("Episodes{extra_title}"))
-        .border_style(if app.list_state.selecting_episode {
+        .border_style(if app.list_state.selection == Selection::Episode {
             Style::default().fg(app.config.colors.highlight)
         } else {
             Style::default()

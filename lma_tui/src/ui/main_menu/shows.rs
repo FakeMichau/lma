@@ -1,4 +1,4 @@
-use super::{try_to_scroll_title, HeaderType, Table};
+use super::{try_to_scroll_title, HeaderType, Selection, Table};
 use crate::app::App;
 use crate::config::TermColors;
 use lma_lib::{Service, Show};
@@ -20,7 +20,9 @@ pub fn render<T: Service>(app: &mut App<T>, area: Rect, frame: &mut Frame) {
         .iter()
         .map(|show| {
             let mut title = show.title.clone();
-            if selected_show_id == Some(show.local_id) && !app.list_state.selecting_episode {
+            if selected_show_id == Some(show.local_id)
+                && app.list_state.selection == Selection::Show
+            {
                 try_to_scroll_title(
                     table_area.width,
                     header,
@@ -61,7 +63,9 @@ fn generate_border<T: Service>(app: &App<T>) -> Block<'_> {
         .borders(Borders::ALL)
         .title("Shows")
         .border_style(
-            if app.list_state.selecting_episode || app.list_state.selected_show().is_none() {
+            if app.list_state.selection == Selection::Episode
+                || app.list_state.selected_show().is_none()
+            {
                 Style::default()
             } else {
                 Style::default().fg(app.config.colors.highlight)

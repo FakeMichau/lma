@@ -15,11 +15,17 @@ use std::path::PathBuf;
 pub struct StatefulList {
     shows_state: TableState,
     episodes_state: TableState,
-    selecting_episode: bool,
+    selection: Selection,
     selected_local_id: usize,
     list_cache: Vec<Show>,
     scroll_progress: usize,
     pub last_height: u16,
+}
+
+#[derive(PartialEq)]
+pub enum Selection {
+    Episode,
+    Show,
 }
 
 impl StatefulList {
@@ -27,7 +33,7 @@ impl StatefulList {
         let list_cache = shows.get_list().await?;
         Ok(Self {
             shows_state: TableState::default(),
-            selecting_episode: false,
+            selection: Selection::Show,
             episodes_state: TableState::default(),
             selected_local_id: 0,
             list_cache,
@@ -37,7 +43,7 @@ impl StatefulList {
     }
 
     pub async fn delete<T: Service>(&mut self, shows: &AnimeList<T>) -> Result<(), String> {
-        if !self.selecting_episode {
+        if self.selection == Selection::Show {
             shows.remove_entry(self.selected_local_id).await?;
             self.update_cache(shows).await?;
             self.update_selected_id(self.shows_state.selected().unwrap_or_default());
@@ -51,7 +57,7 @@ impl StatefulList {
         shows: &AnimeList<T>,
     ) -> Result<(), String> {
         self.scroll_progress = 0;
-        if self.selecting_episode {
+        if self.selection == Selection::Episode {
             self.move_episode_selection(direction);
         } else {
             self.update_cache(shows).await?;
@@ -118,7 +124,7 @@ impl StatefulList {
     }
 
     pub fn select(&mut self, height: u16) -> Result<(), String> {
-        if self.selecting_episode {
+        if self.selection == Selection::Episode {
             // navigating inside the episodes tab
             let selected_episode = self.episodes_state.selected().unwrap_or_default();
 
@@ -152,7 +158,7 @@ impl StatefulList {
                         *self.episodes_state.offset_mut() =
                             index.checked_sub(height / 2).unwrap_or_default();
                     }
-                    self.set_selecting_episode(true);
+                    self.set_selection(Selection::Episode);
                 }
             }
         }
@@ -161,7 +167,7 @@ impl StatefulList {
 
     pub fn unselect(&mut self) {
         self.episodes_state.select(None);
-        self.set_selecting_episode(false);
+        self.set_selection(Selection::Show);
     }
 
     pub async fn update_cache<T: Service>(&mut self, shows: &AnimeList<T>) -> Result<(), String> {
@@ -169,9 +175,9 @@ impl StatefulList {
         Ok(())
     }
 
-    fn set_selecting_episode(&mut self, selecting_episode: bool) {
+    fn set_selection(&mut self, selection: Selection) {
         self.scroll_progress = 0;
-        self.selecting_episode = selecting_episode;
+        self.selection = selection;
     }
 }
 
@@ -421,7 +427,7 @@ mod tests {
         StatefulList {
             shows_state: TableState::default(),
             episodes_state: TableState::default(),
-            selecting_episode: false,
+            selection: Selection::Show,
             selected_local_id: 0,
             list_cache: generate_test_shows(count),
             scroll_progress: 0,
