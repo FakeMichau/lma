@@ -37,9 +37,7 @@ impl StatefulList {
     }
 
     pub async fn delete<T: Service>(&mut self, shows: &AnimeList<T>) -> Result<(), String> {
-        if self.selecting_episode {
-            // todo: delete just an episode
-        } else {
+        if !self.selecting_episode {
             shows.remove_entry(self.selected_local_id).await?;
             self.update_cache(shows).await?;
             self.update_selected_id(self.shows_state.selected().unwrap_or_default());
@@ -64,7 +62,7 @@ impl StatefulList {
 
     fn move_episode_selection(&mut self, direction: &SelectionDirection) {
         let Some(selected_show) = self.selected_show() else {
-            return
+            return;
         };
         let episodes_len = selected_show.episodes.len();
         let i = super::select_element(episodes_len, self.episodes_state.selected(), direction);
@@ -97,7 +95,7 @@ impl StatefulList {
         shows: &mut AnimeList<T>,
     ) -> Result<(), String> {
         let Some(selected_show) = self.selected_show() else {
-            return Ok(())
+            return Ok(());
         };
         let offset: isize = match direction {
             SelectionDirection::Next => 1,
