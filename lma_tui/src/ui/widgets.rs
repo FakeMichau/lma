@@ -7,6 +7,7 @@ pub struct ScrollableTable<'a> {
     pub table: Table<'a>,
     row_count: usize,
     scrollbar_width: u16,
+    block: Option<Block<'a>>,
 }
 
 #[allow(dead_code)]
@@ -15,15 +16,18 @@ impl<'a> ScrollableTable<'a> {
     where
         T: IntoIterator<Item = Row<'a>> + Clone,
     {
-        Self {
+        let scrollable_table = Self {
             table: Table::new(rows.clone()),
             row_count: rows.into_iter().count(),
             scrollbar_width: 1,
-        }
+            block: None,
+        };
+        // Make the default widths 100% for easier use as a list
+        scrollable_table.widths(&[Constraint::Percentage(100)])
     }
 
     pub fn block(mut self, block: Block<'a>) -> Self {
-        self.table = self.table.block(block);
+        self.block = Some(block);
         self
     }
 
@@ -66,19 +70,27 @@ impl<'a> ScrollableTable<'a> {
 impl<'a> StatefulWidget for ScrollableTable<'a> {
     type State = TableState;
 
-    fn render(self, area: Rect, buf: &mut Buffer, state: &mut Self::State) {
+    fn render(mut self, area: Rect, buf: &mut Buffer, state: &mut Self::State) {
         let spacing = 0;
-        let scrollbar_area = Rect::new(
-            area.x + area.width - self.scrollbar_width,
-            area.y,
-            self.scrollbar_width,
-            area.height,
-        );
         let table_area = Rect::new(
             area.x,
             area.y,
             area.width - self.scrollbar_width - spacing,
             area.height,
+        );
+        let table_area = match self.block.take() {
+            Some(b) => {
+                let inner_area = b.inner(table_area);
+                b.render(area, buf);
+                inner_area
+            }
+            None => table_area,
+        };
+        let scrollbar_area = Rect::new(
+            table_area.x + table_area.width + spacing,
+            table_area.y,
+            self.scrollbar_width,
+            table_area.height,
         );
         if self.row_count >= area.height.into() {
             let scrollbar = get_scroll_bar(state.offset(), scrollbar_area, self.row_count);

@@ -1,22 +1,22 @@
 use crate::{
     app::App,
-    ui::{self, SelectionDirection},
+    ui::{self, widgets::ScrollableTable, SelectionDirection},
 };
 use lma_lib::{Service, ServiceTitle};
 use ratatui::layout::Margin;
 use ratatui::style::{Modifier, Style};
-use ratatui::widgets::{Block, Borders, Clear, List, ListItem, ListState};
+use ratatui::widgets::{Block, Borders, Clear, Row, TableState};
 use ratatui::Frame;
 
 #[derive(Default)]
 pub struct TitlesPopup {
-    pub state: ListState,
+    pub state: TableState,
     service_titles: Vec<ServiceTitle>,
 }
 
 impl TitlesPopup {
     pub fn new(titles: Vec<ServiceTitle>) -> Self {
-        let mut default_state = ListState::default();
+        let mut default_state = TableState::default();
         // first item always selected when possible
         if !titles.is_empty() {
             default_state.select(Some(0));
@@ -56,13 +56,17 @@ pub fn build<T: Service>(frame: &mut Frame, app: &mut App<T>) {
         .service_titles
         .iter()
         .map(|service_title| {
-            ListItem::new(service_title.title.clone())
+            Row::new([service_title.title.clone()])
                 .style(Style::default().fg(app.config.colors.text))
         })
         .collect();
 
-    let items = List::new(items)
-        .block(Block::default().borders(Borders::ALL).title("List"))
+    let items = ScrollableTable::new(items)
+        .block(
+            Block::default()
+                .borders(Borders::ALL)
+                .title("Select correct title"),
+        )
         .highlight_style(
             Style::default()
                 .fg(app.config.colors.highlight)
