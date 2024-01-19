@@ -2,7 +2,6 @@ use crate::{
     AlternativeTitles, EpisodeStatus, Service, ServiceEpisodeDetails, ServiceEpisodeUser,
     ServiceTitle, ServiceType,
 };
-use async_trait::async_trait;
 use lib_mal::prelude::fields::AnimeFields;
 use lib_mal::prelude::options::{Status, StatusUpdate};
 use lib_mal::prelude::ListStatus;
@@ -17,7 +16,6 @@ pub struct MAL<T> {
     url: Option<String>,
 }
 
-#[async_trait]
 impl<T: MALClientTrait + Send + Sync> Service for MAL<T> {
     async fn new(cache_dir: PathBuf) -> Result<Self, String> {
         let token = "8f7bd7e31dcf4f931949fc0b418c76d8".to_string();

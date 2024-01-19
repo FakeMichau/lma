@@ -10,6 +10,7 @@ use std::{
 };
 
 #[allow(clippy::struct_excessive_bools)]
+#[allow(clippy::struct_field_names)]
 pub struct Config {
     service: ServiceType,
     pub config_file_path: PathBuf,

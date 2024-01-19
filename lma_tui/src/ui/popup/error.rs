@@ -7,7 +7,7 @@ use ratatui::text::{Line, Span};
 use ratatui::widgets::{Block, Borders, Clear, Paragraph, Wrap};
 use ratatui::Frame;
 
-pub fn build<T: Service>(frame: &mut Frame, app: &mut App<T>) {
+pub fn build<T: Service>(frame: &mut Frame, app: &App<T>) {
     let area = centered_rect(70, 70, frame.size());
     let text_area = area.inner(&Margin {
         vertical: 1,

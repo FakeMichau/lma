@@ -8,8 +8,7 @@ sqlx = { version = "0.7", features = ["runtime-tokio", "sqlite"] }
 reqwest = { version = "0.11", default-features = false, features = [
     "rustls-tls",
 ] }
-tokio = { version = "1.28.2", features = ["macros"] }
+tokio = { version = "1.35", features = ["macros"] }
 time = "0.3"
 lib-mal = { git = "https://github.com/FakeMichau/lib-mal.git" }
 serde = "1.0"
-async-trait = "0.1.68"

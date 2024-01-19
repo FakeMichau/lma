@@ -22,7 +22,7 @@ pub struct StatefulList {
     pub last_height: u16,
 }
 
-#[derive(PartialEq)]
+#[derive(PartialEq, Eq)]
 pub enum Selection {
     Episode,
     Show,

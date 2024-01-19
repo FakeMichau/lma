@@ -10,7 +10,7 @@ use ratatui::text::Span;
 use ratatui::widgets::Paragraph;
 use ratatui::{text::Line, Frame};
 
-pub fn render<T: Service>(app: &mut App<T>, area: Rect, frame: &mut Frame) {
+pub fn render<T: Service>(app: &App<T>, area: Rect, frame: &mut Frame) {
     let help = build_help(
         &app.focused_window,
         &app.insert_popup.state,

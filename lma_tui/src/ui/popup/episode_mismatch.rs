@@ -85,7 +85,7 @@ impl MismatchPopup {
     }
 }
 
-pub fn build<T: Service>(frame: &mut Frame, app: &mut App<T>) {
+pub fn build<T: Service>(frame: &mut Frame, app: &App<T>) {
     let area = super::centered_rect(70, 70, frame.size());
     let inner_area = area.inner(&Margin {
         vertical: 1,

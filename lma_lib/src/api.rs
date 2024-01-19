@@ -1,6 +1,5 @@
 pub mod local;
 pub mod mal;
-use async_trait::async_trait;
 use serde::{Deserialize, Serialize};
 use std::{collections::HashMap, path::PathBuf};
 
@@ -58,32 +57,31 @@ pub struct AlternativeTitles {
     pub languages: HashMap<String, String>,
 }
 
-#[async_trait]
 pub trait Service: Send + Sync {
-    async fn new(cache_dir: PathBuf) -> Result<Self, String>
+    fn new(cache_dir: PathBuf) -> impl std::future::Future<Output = Result<Self, String>> + Send
     where
         Self: Sized;
-    async fn login(&mut self) -> Result<(), String>;
-    async fn auth(&mut self);
-    async fn init_show(&mut self, id: usize) -> Result<(), String>;
-    async fn search_title(&mut self, potential_title: &str) -> Result<Vec<ServiceTitle>, String>;
-    async fn get_title(&mut self, id: usize) -> Result<String, String>;
-    async fn get_alternative_titles(
+    fn login(&mut self) -> impl std::future::Future<Output = Result<(), String>> + Send;
+    fn auth(&mut self) -> impl std::future::Future<Output = ()> + Send;
+    fn init_show(&mut self, id: usize) -> impl std::future::Future<Output = Result<(), String>> + Send;
+    fn search_title(&mut self, potential_title: &str) -> impl std::future::Future<Output = Result<Vec<ServiceTitle>, String>> + Send;
+    fn get_title(&mut self, id: usize) -> impl std::future::Future<Output = Result<String, String>> + Send;
+    fn get_alternative_titles(
         &mut self,
         id: usize,
-    ) -> Result<Option<AlternativeTitles>, String>;
-    async fn get_episodes(
+    ) -> impl std::future::Future<Output = Result<Option<AlternativeTitles>, String>> + Send;
+    fn get_episodes(
         &mut self,
         id: usize,
         precise_score: bool,
-    ) -> Result<Vec<ServiceEpisodeDetails>, String>;
-    async fn get_episode_count(&mut self, id: usize) -> Result<Option<usize>, String>;
-    async fn get_user_entry_details(
+    ) -> impl std::future::Future<Output = Result<Vec<ServiceEpisodeDetails>, String>> + Send;
+    fn get_episode_count(&mut self, id: usize) -> impl std::future::Future<Output = Result<Option<usize>, String>> + Send;
+    fn get_user_entry_details(
         &mut self,
         id: usize,
-    ) -> Result<Option<ServiceEpisodeUser>, String>;
+    ) -> impl std::future::Future<Output = Result<Option<ServiceEpisodeUser>, String>> + Send;
     /// Returns actual progress set on the service
-    async fn set_progress(&mut self, id: usize, progress: usize) -> Result<usize, String>;
+    fn set_progress(&mut self, id: usize, progress: usize) -> impl std::future::Future<Output = Result<usize, String>> + Send;
     fn get_service_type(&self) -> ServiceType;
     fn get_url(&self) -> Option<String>;
     fn is_logged_in(&self) -> bool;

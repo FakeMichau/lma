@@ -17,7 +17,7 @@ impl<'a> ScrollableTable<'a> {
         T: IntoIterator<Item = Row<'a>> + Clone,
     {
         let scrollable_table = Self {
-            table: Table::new(rows.clone()),
+            table: Table::new(rows.clone(), [Constraint::Percentage(100)]),
             row_count: rows.into_iter().count(),
             scrollbar_width: 1,
             block: None,
@@ -78,14 +78,11 @@ impl<'a> StatefulWidget for ScrollableTable<'a> {
             area.width - self.scrollbar_width - spacing,
             area.height,
         );
-        let table_area = match self.block.take() {
-            Some(b) => {
+        let table_area = self.block.take().map_or(table_area, |b| {
                 let inner_area = b.inner(table_area);
                 b.render(area, buf);
                 inner_area
-            }
-            None => table_area,
-        };
+            });
         let scrollbar_area = Rect::new(
             table_area.x + table_area.width + spacing,
             table_area.y,

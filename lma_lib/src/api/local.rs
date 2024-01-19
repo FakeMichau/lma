@@ -2,12 +2,10 @@ use crate::{
     AlternativeTitles, Service, ServiceEpisodeDetails, ServiceEpisodeUser, ServiceTitle,
     ServiceType,
 };
-use async_trait::async_trait;
 use std::{fs, path::PathBuf};
 
 pub struct Local {}
 
-#[async_trait]
 impl Service for Local {
     async fn new(cache_dir: PathBuf) -> Result<Self, String> {
         let tokens_path = cache_dir.join("tokens");

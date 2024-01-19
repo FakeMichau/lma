@@ -30,7 +30,7 @@ pub struct App<T: Service> {
 
 impl<T: Service> App<T> {
     pub async fn build(config: Config) -> Result<Self, String> {
-        let service = lma_lib::Service::new(config.data_dir.clone()).await?;
+        let service = T::new(config.data_dir.clone()).await?;
         let anime_list = lma_lib::create(service, &config.data_dir, &config.title_sort).await?;
         Ok(Self {
             list_state: StatefulList::new(&anime_list).await?,
