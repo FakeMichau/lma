@@ -16,14 +16,12 @@ impl<'a> ScrollableTable<'a> {
     where
         T: IntoIterator<Item = Row<'a>> + Clone,
     {
-        let scrollable_table = Self {
+        Self {
             table: Table::new(rows.clone(), [Constraint::Percentage(100)]),
             row_count: rows.into_iter().count(),
             scrollbar_width: 1,
             block: None,
-        };
-        // Make the default widths 100% for easier use as a list
-        scrollable_table.widths(&[Constraint::Percentage(100)])
+        }
     }
 
     pub fn block(mut self, block: Block<'a>) -> Self {
