@@ -73,6 +73,6 @@ jobs:
         run: mv winportable/lma.exe winportable/lma-p.exe
 
       - name: Create a pre-release
-        run: hub release create pre-release_${{github.run_number}} -p -m pre-release -a linux/lma#lma-linux -a windows/lma.exe#lma-windows -a winportable/lma-p.exe#lma-windows-portable
+        run: gh release create pre-release_${{github.run_number}} -p --generate-notes linux/lma#lma-linux windows/lma.exe#lma-windows winportable/lma-p.exe#lma-windows-portable
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
